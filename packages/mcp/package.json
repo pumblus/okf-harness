@@ -1,7 +1,7 @@
 {
   "name": "@okf-harness/mcp",
   "version": "0.0.0",
-  "description": "Stdio MCP server package for OKF Harness.",
+  "description": "Future optional MCP integration scaffold for OKF Harness.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

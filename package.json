@@ -21,7 +21,6 @@
     "open-knowledge-format",
     "llm-wiki",
     "agent-skills",
-    "mcp",
     "macos"
   ],
   "devDependencies": {

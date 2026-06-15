@@ -20,6 +20,8 @@ coverage/
 .env
 .env.*
 !.env.example
+settings.local.json
+.claude/settings.local.json
 
 # Logs
 *.log

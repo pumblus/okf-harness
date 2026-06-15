@@ -25,7 +25,6 @@
   "dependencies": {
     "@okf-harness/agent-pack": "workspace:*",
     "@okf-harness/core": "workspace:*",
-    "@okf-harness/mcp": "workspace:*",
     "commander": "4.1.1"
   }
 }

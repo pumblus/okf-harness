@@ -38,9 +38,6 @@ importers:
       '@okf-harness/core':
         specifier: workspace:*
         version: link:../core
-      '@okf-harness/mcp':
-        specifier: workspace:*
-        version: link:../mcp
       commander:
         specifier: 4.1.1
         version: 4.1.1
