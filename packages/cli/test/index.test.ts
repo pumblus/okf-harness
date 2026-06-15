@@ -25,7 +25,8 @@ describe("@okf-harness/cli", () => {
 
     expect(exitCode).toBe(0);
     expect(stderr).toBe("");
-    expect(JSON.parse(stdout)).toMatchObject({
+    const result = JSON.parse(stdout);
+    expect(result).toMatchObject({
       ok: true,
       command: "init",
       workspace,
@@ -33,11 +34,9 @@ describe("@okf-harness/cli", () => {
         name: "AI Research",
         lint: { ok: true },
       },
-      warnings: [
-        expect.objectContaining({ code: "AGENT_PACK_PENDING" }),
-        expect.objectContaining({ code: "MCP_PENDING" }),
-      ],
+      warnings: [expect.objectContaining({ code: "AGENT_PACK_PENDING" })],
     });
+    expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: "MCP_PENDING" }));
 
     await expect(readFile(path.join(workspace, "okfh.config.yaml"), "utf8")).resolves.toContain(
       "name: AI Research",
@@ -69,7 +68,8 @@ describe("@okf-harness/cli", () => {
 
     expect(exitCode).toBe(0);
     expect(stderr).toBe("");
-    expect(JSON.parse(stdout)).toMatchObject({
+    const result = JSON.parse(stdout);
+    expect(result).toMatchObject({
       ok: true,
       command: "status",
       workspace,
@@ -78,11 +78,9 @@ describe("@okf-harness/cli", () => {
         name: "AI Research",
         lint: { ok: true },
       },
-      warnings: [
-        expect.objectContaining({ code: "AGENT_PACK_PENDING" }),
-        expect.objectContaining({ code: "MCP_PENDING" }),
-      ],
+      warnings: [expect.objectContaining({ code: "AGENT_PACK_PENDING" })],
     });
+    expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: "MCP_PENDING" }));
   });
 
   it("runs workspace lint and returns lint failures as JSON", async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { packageInfo } from "../src/index.js";
+import { createWorkspacePlan } from "../src/workspace/index.js";
 
 describe("@okf-harness/core", () => {
   it("exposes scaffold package metadata", () => {
@@ -7,6 +8,26 @@ describe("@okf-harness/core", () => {
       name: "@okf-harness/core",
       role: "core",
       phase: 1,
+    });
+  });
+
+  it("creates the Phase 2 workspace plan used by dry-run and init", () => {
+    const plan = createWorkspacePlan({
+      name: "AI Research",
+      now: new Date("2026-06-15T12:00:00.000Z"),
+    });
+
+    expect(plan).toMatchObject({
+      name: "AI Research",
+      createdAt: "2026-06-15T12:00:00.000Z",
+      directories: expect.arrayContaining([".agents/skills", "raw/sources", "wiki/topics"]),
+      files: expect.arrayContaining([
+        expect.objectContaining({ path: "okfh.config.yaml" }),
+        expect.objectContaining({ path: "AGENTS.md" }),
+        expect.objectContaining({ path: "CLAUDE.md" }),
+        expect.objectContaining({ path: "wiki/index.md" }),
+      ]),
+      warnings: [expect.objectContaining({ code: "AGENT_PACK_PENDING" })],
     });
   });
 });

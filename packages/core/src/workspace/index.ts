@@ -35,6 +35,19 @@ export type InitWorkspaceResult = {
   warnings: WorkspaceWarning[];
 };
 
+export type WorkspacePlanFile = {
+  path: string;
+  contents: string;
+};
+
+export type WorkspacePlan = {
+  name: string;
+  createdAt: string;
+  directories: string[];
+  files: WorkspacePlanFile[];
+  warnings: WorkspaceWarning[];
+};
+
 export type WorkspaceStatus = {
   workspaceRoot: string;
   initialized: boolean;
@@ -59,57 +72,42 @@ const execFileAsync = promisify(execFile);
 
 export async function initWorkspace(options: InitWorkspaceOptions): Promise<InitWorkspaceResult> {
   const workspaceRoot = path.resolve(options.workspaceRoot);
-  const createdAt = (options.now ?? new Date()).toISOString();
-  const logDate = createdAt.slice(0, "YYYY-MM-DD".length);
+  const plan =
+    options.now === undefined
+      ? createWorkspacePlan({ name: options.name })
+      : createWorkspacePlan({ name: options.name, now: options.now });
 
   await assertWorkspaceCanBeInitialized(workspaceRoot);
-
-  const config = createWorkspaceConfig(options.name, createdAt);
-  const files = workspaceFiles(options.name, logDate, config);
-  const directories = [
-    ".agents/skills",
-    ".claude/skills",
-    ".codex",
-    ".okfh/cache",
-    ".okfh/reports",
-    "raw/assets",
-    "raw/inbox",
-    "raw/sources",
-    "wiki/decisions",
-    "wiki/entities",
-    "wiki/projects",
-    "wiki/questions",
-    "wiki/references",
-    "wiki/topics",
-  ];
 
   if (options.dryRun === true) {
     return {
       workspaceRoot,
-      name: options.name,
+      name: plan.name,
       dryRun: true,
       git: {
         requested: options.git === true,
         initialized: false,
       },
-      files: files.map((file) => file.path),
-      directories,
+      files: plan.files.map((file) => file.path),
+      directories: plan.directories,
       lint: {
         ok: true,
         issues: [],
       },
-      warnings: workspacePendingWarnings(),
+      warnings: plan.warnings,
     };
   }
 
   await mkdir(workspaceRoot, { recursive: true });
 
   await Promise.all(
-    directories.map((directory) => mkdir(path.join(workspaceRoot, directory), { recursive: true })),
+    plan.directories.map((directory) =>
+      mkdir(path.join(workspaceRoot, directory), { recursive: true }),
+    ),
   );
 
   await Promise.all(
-    files.map((file) => writeTextFile(path.join(workspaceRoot, file.path), file.contents)),
+    plan.files.map((file) => writeTextFile(path.join(workspaceRoot, file.path), file.contents)),
   );
 
   const gitInitialized = options.git === true ? await initializeGit(workspaceRoot) : false;
@@ -117,16 +115,16 @@ export async function initWorkspace(options: InitWorkspaceOptions): Promise<Init
 
   return {
     workspaceRoot,
-    name: options.name,
+    name: plan.name,
     dryRun: false,
     git: {
       requested: options.git === true,
       initialized: gitInitialized,
     },
-    files: files.map((file) => file.path),
-    directories,
+    files: plan.files.map((file) => file.path),
+    directories: plan.directories,
     lint,
-    warnings: workspacePendingWarnings(),
+    warnings: plan.warnings,
   };
 }
 
@@ -186,10 +184,39 @@ function workspacePendingWarnings(): WorkspaceWarning[] {
       code: "AGENT_PACK_PENDING",
       message: "Claude and Codex skill rendering is planned for Phase 3.",
     },
-    {
-      code: "MCP_PENDING",
-      message: "MCP configuration and runtime are planned for Phase 3 and Phase 6.",
-    },
+  ];
+}
+
+export function createWorkspacePlan(options: { name: string; now?: Date }): WorkspacePlan {
+  const createdAt = (options.now ?? new Date()).toISOString();
+  const logDate = createdAt.slice(0, "YYYY-MM-DD".length);
+  const config = createWorkspaceConfig(options.name, createdAt);
+
+  return {
+    name: options.name,
+    createdAt,
+    directories: workspaceDirectories(),
+    files: workspaceFiles(options.name, logDate, config),
+    warnings: workspacePendingWarnings(),
+  };
+}
+
+function workspaceDirectories(): string[] {
+  return [
+    ".agents/skills",
+    ".claude/skills",
+    ".codex",
+    ".okfh/cache",
+    ".okfh/reports",
+    "raw/assets",
+    "raw/inbox",
+    "raw/sources",
+    "wiki/decisions",
+    "wiki/entities",
+    "wiki/projects",
+    "wiki/questions",
+    "wiki/references",
+    "wiki/topics",
   ];
 }
 
@@ -255,7 +282,7 @@ function workspaceFiles(
   name: string,
   logDate: string,
   config: WorkspaceConfig,
-): Array<{ path: string; contents: string }> {
+): WorkspacePlanFile[] {
   return [
     {
       path: "README.md",
@@ -339,7 +366,7 @@ function workspaceFiles(
   }));
 }
 
-function workspaceIndexFiles(directories: string[]): Array<{ path: string; contents: string }> {
+function workspaceIndexFiles(directories: string[]): WorkspacePlanFile[] {
   return directories.map((directory) => ({
     path: `wiki/${directory}/index.md`,
     contents: `# ${titleCase(directory)}\n\nNo entries yet.\n`,
