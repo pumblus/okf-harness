@@ -1015,13 +1015,15 @@ okf-harness/
 
 **Phase 2：CLI init / status / lint**
 
-- [ ] okfh binary
-- [ ] init / status / lint 命令
-- [ ] JSON output envelope
-- [ ] workspace template generation
-- [ ] git init 可选
+- [x] okfh binary
+- [x] init / status / lint 命令
+- [x] JSON output envelope
+- [x] core workspace template generation（OKF wiki、raw、.okfh、config、thin guidance placeholders）
+- [x] git init 可选
 
-验收：CLI 创建符合规范的 workspace 结构，所有命令支持 `--json`，e2e 测试通过临时目录完成。
+边界：Phase 2 只生成可 lint 通过的 core workspace skeleton。Claude / Codex skill 内容、`.mcp.json`、`.codex/config.toml` 的真实渲染归 Phase 3；MCP runtime 归 Phase 6。Phase 2 可以创建 adapter 目录或薄 placeholder，但必须在输出 warning 中标记 `agentPack` / `mcp` 尚未安装，不能生成会被误认为可用的真实 skill 或 MCP 配置。
+
+验收：CLI 创建符合 Phase 2 边界的 workspace 结构，所有命令支持 `--json`，`init` 后 Phase 1 hard linter pass，e2e 测试通过临时目录完成。
 
 **Phase 3：Agent pack**
 
@@ -1079,7 +1081,7 @@ Phase 1：Implement Phase 1 core only. Add config parsing, OKF concept scanning,
 
 Phase 2：Implement Phase 2 CLI init/status/lint. The CLI must create the exact workspace structure from docs/IMPLEMENTATION.md. All commands must support --json. Add e2e tests using temporary directories. Do not implement Agent skills rendering yet; stub adapter files with placeholders only if necessary.
 
-Phase 3：Implement Phase 3 Agent Pack. Generate Claude Code and Codex adapters from shared templates. Ensure generated skills satisfy Agent Skills naming and frontmatter requirements. Add golden tests. Do not implement Pi, OpenCode, or Obsidian.
+Phase 3：Implement Phase 3 Agent Pack. Replace any Phase 2 adapter placeholders with generated Claude Code and Codex adapters from shared templates. Generate `.mcp.json` and `.codex/config.toml` config files, but do not implement the MCP server runtime yet. Ensure generated skills satisfy Agent Skills naming and frontmatter requirements. Add golden tests. Do not implement Pi, OpenCode, or Obsidian.
 
 Phase 4：Implement Phase 4 source management. Add manifest JSONL, file copy into raw/sources/YYYY/MM, URL metadata source files, and ingest plan generation. Do not summarize source content automatically. The ingest plan should identify likely existing concepts using index/search. Add tests for hash drift, duplicate file names, and dry-run.
 

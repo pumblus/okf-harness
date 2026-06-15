@@ -6,6 +6,10 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "okfh": "./dist/main.js",
+    "okf-harness": "./dist/main.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -16,11 +20,12 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean"
+    "build": "pnpm --dir ../.. --filter @okf-harness/core build && tsup src/index.ts src/main.ts --format esm --dts --clean"
   },
   "dependencies": {
     "@okf-harness/agent-pack": "workspace:*",
     "@okf-harness/core": "workspace:*",
-    "@okf-harness/mcp": "workspace:*"
+    "@okf-harness/mcp": "workspace:*",
+    "commander": "4.1.1"
   }
 }

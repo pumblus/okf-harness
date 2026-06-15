@@ -4,6 +4,12 @@
     "lib": ["ES2022"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@okf-harness/agent-pack": ["packages/agent-pack/src/index.ts"],
+      "@okf-harness/core": ["packages/core/src/index.ts"],
+      "@okf-harness/mcp": ["packages/mcp/src/index.ts"]
+    },
     "strict": true,
     "declaration": true,
     "declarationMap": true,

@@ -11,3 +11,4 @@ export * from "./lint/index.js";
 export * from "./okf/concepts.js";
 export * from "./okf/frontmatter.js";
 export * from "./paths/index.js";
+export * from "./workspace/index.js";
