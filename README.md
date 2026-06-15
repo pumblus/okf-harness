@@ -3,10 +3,11 @@
 OKF Harness is a macOS-first, agent-first local harness for maintaining
 OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
 
-This repository is in Phase 0. It contains the TypeScript pnpm monorepo scaffold,
-package boundaries, test runner, formatter/linter, and CI wiring. Runtime behavior
-such as `okfh init`, source ingestion, wiki linting, graph generation, and MCP tools
-will be implemented in later phases.
+This repository is in Phase 1. It contains the TypeScript pnpm monorepo scaffold,
+package boundaries, test runner, formatter/linter, CI wiring, and the first core
+OKF primitives for config parsing, path safety, frontmatter parsing, concept
+scanning, and hard bundle linting. Runtime behavior such as `okfh init`, source
+ingestion, graph generation, and MCP tools will be implemented in later phases.
 
 ## Packages
 

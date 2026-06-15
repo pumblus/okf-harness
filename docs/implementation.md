@@ -828,6 +828,8 @@ Markdown 链接优先 absolute bundle-relative：
 - index.md 符合 index 格式
 - log.md 日期标题格式为 YYYY-MM-DD
 
+Phase 1 只实现这些 OKF bundle hard rules 和 `CONFIG_INVALID`。依赖 manifest / source hash 的 hard rules（例如 `SOURCE_HASH_DRIFT`）在 Phase 4 source management 中实现。
+
 **Harness rules**：
 
 - raw source hashes 与 manifest 一致
@@ -989,27 +991,27 @@ okf-harness/
 
 目标：创建 monorepo、基础工具链、空包、CI。
 
-- [ ] package.json + pnpm-workspace.yaml
-- [ ] TypeScript config
-- [ ] Vitest config
-- [ ] ESLint / Prettier 或 Biome
-- [ ] packages/core, cli, mcp, agent-pack
-- [ ] root README skeleton
-- [ ] LICENSE Apache-2.0
-- [ ] GitHub Actions: install, typecheck, test
+- [x] package.json + pnpm-workspace.yaml
+- [x] TypeScript config
+- [x] Vitest config
+- [x] ESLint / Prettier 或 Biome
+- [x] packages/core, cli, mcp, agent-pack
+- [x] root README skeleton
+- [x] LICENSE Apache-2.0
+- [x] GitHub Actions: install, typecheck, test
 
 验收：`pnpm install`、`pnpm test`、`pnpm typecheck` 通过，无 runtime 行为。
 
 **Phase 1：Core OKF + config + 路径安全**
 
-- [ ] Workspace config schema
-- [ ] Path resolver
-- [ ] Frontmatter parser
-- [ ] Concept scanner
-- [ ] OKF hard linter
-- [ ] Fixture workspace tests
+- [x] Workspace config schema
+- [x] Path resolver
+- [x] Frontmatter parser
+- [x] Concept scanner
+- [x] OKF hard linter（仅 OKF bundle hard rules + CONFIG_INVALID；不含 manifest / source hash 规则）
+- [x] Fixture workspace tests
 
-验收：config 解析、OKF concept 扫描、hard OKF linter rules 通过 fixture 测试。
+验收：config 解析、OKF concept 扫描、Phase 1 hard OKF linter rules 通过 fixture 测试。
 
 **Phase 2：CLI init / status / lint**
 
@@ -1073,7 +1075,7 @@ okf-harness/
 ```
 Phase 0：Read docs/IMPLEMENTATION.md. Implement Phase 0 only. Create the pnpm TypeScript monorepo scaffold for OKF Harness. Do not implement CLI behavior yet. Add minimal tests proving packages build. Run pnpm test and pnpm typecheck.
 
-Phase 1：Implement Phase 1 core only. Add config parsing, OKF concept scanning, and hard OKF linter rules. Use fixtures under packages/core/test/fixtures. Do not implement source ingest or MCP. Add tests for missing frontmatter, missing type, reserved filenames, concept IDs, and path safety.
+Phase 1：Implement Phase 1 core only. Add config parsing, OKF concept scanning, and hard OKF bundle linter rules. Use fixtures under packages/core/test/fixtures. Do not implement source ingest, manifest/hash drift checks, or MCP. Add tests for missing frontmatter, missing type, reserved filenames, concept IDs, and path safety.
 
 Phase 2：Implement Phase 2 CLI init/status/lint. The CLI must create the exact workspace structure from docs/IMPLEMENTATION.md. All commands must support --json. Add e2e tests using temporary directories. Do not implement Agent skills rendering yet; stub adapter files with placeholders only if necessary.
 

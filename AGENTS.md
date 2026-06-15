@@ -3,7 +3,7 @@
 ## Source of Truth
 
 - Product and architecture spec: `docs/implementation.md`.
-- Current repository state: initial project scaffold. The root currently contains planning docs only.
+- Current repository state: Phase 1 core is implemented. CLI, MCP, agent-pack runtime behavior, source management, search, and graph generation are still future phase work.
 - Implement phases in order from `docs/implementation.md` section 11.2. Do not jump ahead to later phases unless the user asks.
 
 ## Project Boundaries
