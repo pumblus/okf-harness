@@ -3,11 +3,11 @@ import { packageInfo } from "../src/index.js";
 import { createWorkspacePlan } from "../src/workspace/index.js";
 
 describe("@okf-harness/core", () => {
-  it("exposes scaffold package metadata", () => {
+  it("exposes core package metadata", () => {
     expect(packageInfo).toEqual({
       name: "@okf-harness/core",
       role: "core",
-      phase: 1,
+      phase: 4,
     });
   });
 

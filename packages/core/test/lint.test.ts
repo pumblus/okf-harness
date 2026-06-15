@@ -1,6 +1,7 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { lintWorkspace } from "../src/lint/index.js";
+import { addSource } from "../src/source/index.js";
 import { copyValidWorkspace, validWorkspaceFixture } from "./helpers.js";
 
 describe("OKF hard linter", () => {
@@ -89,6 +90,98 @@ describe("OKF hard linter", () => {
         code: "LOG_INVALID_DATE_HEADING",
         line: 3,
         path: "wiki/references/log.md",
+      }),
+    ]);
+  });
+
+  it("reports invalid manifest rows with line numbers", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await mkdir(`${workspaceRoot}/.okfh`, { recursive: true });
+    await writeFile(`${workspaceRoot}/.okfh/manifest.jsonl`, "not-json\n", "utf8");
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "MANIFEST_INVALID",
+        line: 1,
+        path: ".okfh/manifest.jsonl",
+      }),
+    ]);
+  });
+
+  it("reports source hash drift when a registered raw source changes", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    const inputPath = `${workspaceRoot}/paper.md`;
+    await writeFile(inputPath, "# Paper\n\nOriginal.\n", "utf8");
+    const added = await addSource({ workspaceRoot, input: inputPath });
+    await writeFile(`${workspaceRoot}/${added.source.path}`, "# Paper\n\nChanged.\n", "utf8");
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "SOURCE_HASH_DRIFT",
+        path: added.source.path,
+      }),
+    ]);
+  });
+
+  it("reports missing registered raw sources", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    const inputPath = `${workspaceRoot}/missing-source.md`;
+    await writeFile(inputPath, "# Missing\n", "utf8");
+    const added = await addSource({ workspaceRoot, input: inputPath });
+    await rm(`${workspaceRoot}/${added.source.path}`);
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "SOURCE_MISSING",
+        path: added.source.path,
+      }),
+    ]);
+  });
+
+  it("reports reference documents whose source id is not registered", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await writeFile(
+      `${workspaceRoot}/wiki/references/unregistered-source.md`,
+      "---\ntype: Reference\ntitle: Unregistered Source\nokfh:\n  source_id: src_20260615_9999\n---\n# Unregistered Source\n",
+      "utf8",
+    );
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "REFERENCE_SOURCE_MISSING",
+        path: "wiki/references/unregistered-source.md",
+      }),
+    ]);
+  });
+
+  it("warns about unregistered raw source files without failing lint", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await writeFile(
+      `${workspaceRoot}/raw/sources/2026/06/unregistered.md`,
+      "# Unregistered\n",
+      "utf8",
+    );
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "UNREGISTERED_RAW_SOURCE",
+        severity: "warning",
+        path: "raw/sources/2026/06/unregistered.md",
       }),
     ]);
   });

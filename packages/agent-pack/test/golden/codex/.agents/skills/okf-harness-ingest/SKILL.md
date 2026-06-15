@@ -16,10 +16,10 @@ Use this skill to register source material and compile it into the local OKF wik
 
 1. Locate the workspace by finding `okfh.config.yaml`.
 2. Use the local shell to run `okfh --json` commands.
-3. Try `okfh source add <path-or-url> --json` only when that command exists.
-4. Try `okfh ingest plan <source-id-or-path> --json` only when that command exists.
-5. If source or ingest commands are unavailable, stop and report that source ingest is not implemented in this OKF Harness phase.
-6. After supported ingest work changes wiki files, run `okfh lint --json`.
+3. If the source is not registered, run `okfh source add <path-or-url> --workspace <workspace> --json`.
+4. Run `okfh ingest plan <source-id-or-path> --workspace <workspace> --json` before editing wiki files.
+5. Treat candidate concepts as metadata hints only; read the full source before semantic analysis.
+6. After ingest work changes wiki files, run `okfh lint --workspace <workspace> --json`.
 7. Show the user changed files, lint status, and unresolved questions.
 
 ## Hard Rules

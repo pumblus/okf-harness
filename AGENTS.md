@@ -3,7 +3,7 @@
 ## Source of Truth
 
 - Product and architecture spec: `docs/implementation.md`.
-- Current repository state: Phase 3 Agent Pack is implemented. CLI init/status/lint and Claude/Codex adapter rendering are in place. Source management, ingest planning, search, and graph generation are still future phase work. MCP is future optional integration, not the v0.1 default path.
+- Current repository state: Phase 4 Source manifest + source add + ingest plan is implemented. CLI init/status/lint/source/ingest and Claude/Codex adapter rendering are in place. Search, read, and graph generation are still future phase work. MCP is future optional integration, not the v0.1 default path.
 - Implement phases in order from `docs/implementation.md` section 11.2. Do not jump ahead to later phases unless the user asks.
 
 ## Project Boundaries
@@ -74,7 +74,7 @@ pnpm typecheck
 - After workspace/wiki edits, run:
 
 ```bash
-okfh lint --json
+okfh lint --workspace <workspace> --json
 ```
 
 - After file changes, inspect:

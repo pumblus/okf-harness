@@ -52,9 +52,37 @@ _Avoid_: data, document, note
 The immutable registered copy or record of source material inside an OKF Harness workspace. If the source material needs correction, a new raw source should be added rather than editing the old one.
 _Avoid_: source material, wiki page, attachment
 
+**URL source**:
+A raw source record that preserves a URL as a traceable source pointer. It is not a fetched webpage snapshot; if a webpage version must be preserved, its content should be saved and registered as separate source material.
+_Avoid_: webpage archive, fetched page, URL snapshot
+
+**Source registration**:
+The act of bringing source material under OKF Harness management by creating or reusing a raw source record. Registration preserves evidence identity; it is not the same as synthesizing knowledge into concept documents.
+_Avoid_: import, upload, wiki edit
+
+**Source provenance**:
+The non-sensitive traceability information that identifies where source material came from and how a raw source relates to it. Provenance should preserve evidence identity without exposing private local filesystem context.
+_Avoid_: absolute file path, audit log, file metadata dump
+
+**Source manifest**:
+The append-friendly evidence register for raw sources in an OKF Harness workspace. It must be trustworthy as a whole; invalid entries are evidence integrity problems, not rows to silently ignore.
+_Avoid_: cache, index, source list output
+
+**Source status**:
+A coarse label for where a raw source stands in the knowledge workflow. It describes evidence handling and must not imply that concept documents have already been updated.
+_Avoid_: task status, progress tracker, ingest plan status
+
 **Ingest**:
 The workflow of registering source material, planning how it should affect the knowledge base, and having an agent synthesize it into the OKF bundle. Ingest is not a promise that the CLI automatically writes final wiki content.
 _Avoid_: import, upload, summarize, auto-ingest
+
+**Ingest plan**:
+A deterministic work plan that tells an agent how a raw source may relate to existing concept documents before synthesis begins. It is guidance for agent work, not source reading, a complete search result, or an automatic wiki rewrite.
+_Avoid_: search result, summary, source digest, auto-ingest output
+
+**Semantic analysis**:
+The agent-owned interpretation of source material, including meaning, claims, contradictions, and which concept documents should change. OKF Harness may prepare deterministic inputs for semantic analysis, but it should not present its metadata matching as understanding.
+_Avoid_: deterministic lint, source registration, metadata match
 
 **Agent-first knowledge worker**:
 A person who maintains a local knowledge base primarily by asking an agent to organize, query, and validate it, rather than by learning command-line workflows.

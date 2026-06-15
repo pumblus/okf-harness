@@ -131,10 +131,10 @@ If the command returns conflicts, explain the conflicting paths and ask before u
     requiredBehavior: [
       "Locate the workspace by finding `okfh.config.yaml`.",
       "Use the local shell to run `okfh --json` commands.",
-      "Try `okfh source add <path-or-url> --json` only when that command exists.",
-      "Try `okfh ingest plan <source-id-or-path> --json` only when that command exists.",
-      "If source or ingest commands are unavailable, stop and report that source ingest is not implemented in this OKF Harness phase.",
-      "After supported ingest work changes wiki files, run `okfh lint --json`.",
+      "If the source is not registered, run `okfh source add <path-or-url> --workspace <workspace> --json`.",
+      "Run `okfh ingest plan <source-id-or-path> --workspace <workspace> --json` before editing wiki files.",
+      "Treat candidate concepts as metadata hints only; read the full source before semantic analysis.",
+      "After ingest work changes wiki files, run `okfh lint --workspace <workspace> --json`.",
       "Show the user changed files, lint status, and unresolved questions.",
     ],
     hardRules: [
@@ -149,13 +149,18 @@ If the command returns conflicts, explain the conflicting paths and ask before u
       title: "Ingest Contract",
       body: `# Ingest Contract
 
-## Phase boundary
+## Supported now
 
-Source registration and ingest planning are Phase 4 capabilities. If \`okfh source add\` or \`okfh ingest plan\` is unavailable, stop and say the installed OKF Harness version does not implement source ingest yet.
+Run:
 
-## Future wiki update contract
+\`\`\`bash
+okfh source add <path-or-url> --workspace <workspace> --json
+okfh ingest plan <source-id-or-path> --workspace <workspace> --json
+\`\`\`
 
-When the CLI supports ingest planning:
+The ingest plan is metadata-level guidance. It returns a recommended reference path, candidate concepts, and an Agent checklist; it does not read source bodies, summarize content, extract claims, or synthesize wiki pages.
+
+## Wiki update contract
 
 - Create or update one \`wiki/references/<slug>.md\` page per source.
 - Update only affected \`wiki/topics/\`, \`wiki/entities/\`, \`wiki/projects/\`, \`wiki/decisions/\`, or \`wiki/questions/\` pages.
@@ -214,9 +219,9 @@ When query commands are available, answer with:
     summary: "Use this skill to lint and repair an existing OKF Harness workspace.",
     requiredBehavior: [
       "Locate the workspace by finding `okfh.config.yaml`.",
-      "Run `okfh lint --json` before deciding what to change.",
+      "Run `okfh lint --workspace <workspace> --json` before deciding what to change.",
       "Use small patches for wiki repairs.",
-      "Run `okfh lint --json` again after wiki edits.",
+      "Run `okfh lint --workspace <workspace> --json` again after wiki edits.",
       "Use `okfh graph --json` only when that command exists.",
       "If graph support is unavailable, stop and report that graph generation is not implemented in this OKF Harness phase.",
       "Report lint status, changed files, and any remaining manual fixes.",
@@ -237,14 +242,14 @@ When query commands are available, answer with:
 Run:
 
 \`\`\`bash
-okfh lint --json
+okfh lint --workspace <workspace> --json
 \`\`\`
 
 Fix only issues that can be resolved from current wiki context without inventing missing source facts.
 
 ## Future maintenance commands
 
-Source hash checks and graph generation are later-phase capabilities. If \`okfh graph\` is unavailable, stop and say the installed OKF Harness version does not implement graph generation yet.
+Source hash checks are supported by \`okfh lint\`. Graph generation is a later-phase capability; if \`okfh graph\` is unavailable, stop and say the installed OKF Harness version does not implement graph generation yet.
 `,
     },
   },
@@ -341,7 +346,7 @@ Rules:
 - \`raw/sources/\` is immutable. Never edit source files.
 - \`wiki/\` is the OKF bundle and may be edited by the agent.
 - Use \`okfh --json\` through the local shell for deterministic harness operations.
-- Run \`okfh lint --json\` after modifying wiki files.
+- Run \`okfh lint --workspace <workspace> --json\` after modifying wiki files.
 - Run \`git diff\` before final response after any file changes.
 ${managedBlockEnd}
 `,

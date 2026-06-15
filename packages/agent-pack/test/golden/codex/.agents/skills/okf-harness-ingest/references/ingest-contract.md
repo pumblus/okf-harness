@@ -1,12 +1,17 @@
 # Ingest Contract
 
-## Phase boundary
+## Supported now
 
-Source registration and ingest planning are Phase 4 capabilities. If `okfh source add` or `okfh ingest plan` is unavailable, stop and say the installed OKF Harness version does not implement source ingest yet.
+Run:
 
-## Future wiki update contract
+```bash
+okfh source add <path-or-url> --workspace <workspace> --json
+okfh ingest plan <source-id-or-path> --workspace <workspace> --json
+```
 
-When the CLI supports ingest planning:
+The ingest plan is metadata-level guidance. It returns a recommended reference path, candidate concepts, and an Agent checklist; it does not read source bodies, summarize content, extract claims, or synthesize wiki pages.
+
+## Wiki update contract
 
 - Create or update one `wiki/references/<slug>.md` page per source.
 - Update only affected `wiki/topics/`, `wiki/entities/`, `wiki/projects/`, `wiki/decisions/`, or `wiki/questions/` pages.

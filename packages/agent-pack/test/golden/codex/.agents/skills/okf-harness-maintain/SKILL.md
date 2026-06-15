@@ -15,9 +15,9 @@ Use this skill to lint and repair an existing OKF Harness workspace.
 ## Required Behavior
 
 1. Locate the workspace by finding `okfh.config.yaml`.
-2. Run `okfh lint --json` before deciding what to change.
+2. Run `okfh lint --workspace <workspace> --json` before deciding what to change.
 3. Use small patches for wiki repairs.
-4. Run `okfh lint --json` again after wiki edits.
+4. Run `okfh lint --workspace <workspace> --json` again after wiki edits.
 5. Use `okfh graph --json` only when that command exists.
 6. If graph support is unavailable, stop and report that graph generation is not implemented in this OKF Harness phase.
 7. Report lint status, changed files, and any remaining manual fixes.

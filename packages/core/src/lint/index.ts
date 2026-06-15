@@ -1,5 +1,10 @@
+import { createHash } from "node:crypto";
+import type { Dirent } from "node:fs";
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import { CONFIG_INVALID, readWorkspaceConfig } from "../config/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import { readSourceManifest, type SourceManifestEntry } from "../source/index.js";
 
 export type LintSeverity = "error" | "warning" | "info";
 
@@ -23,6 +28,9 @@ export const OKF_MISSING_TYPE = "OKF_MISSING_TYPE" as const;
 export const RESERVED_FILE_HAS_CONCEPT_FRONTMATTER =
   "RESERVED_FILE_HAS_CONCEPT_FRONTMATTER" as const;
 export const LOG_INVALID_DATE_HEADING = "LOG_INVALID_DATE_HEADING" as const;
+export const SOURCE_HASH_DRIFT = "SOURCE_HASH_DRIFT" as const;
+export const SOURCE_MISSING = "SOURCE_MISSING" as const;
+export const REFERENCE_SOURCE_MISSING = "REFERENCE_SOURCE_MISSING" as const;
 
 export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> {
   const configResult = await readWorkspaceConfig(workspaceRoot);
@@ -40,7 +48,33 @@ export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> 
 
   try {
     const scanResult = await scanConcepts(workspaceRoot, configResult.config);
-    const issues = scanResult.files.flatMap((file) => lintMarkdownFile(file));
+    const sourceManifest = await readSourceManifest(workspaceRoot, configResult.config);
+    const sourceIssues =
+      sourceManifest.issues.length === 0
+        ? [
+            ...(await lintRegisteredSources(workspaceRoot, sourceManifest.entries)),
+            ...lintReferenceSourceIds(scanResult.files, sourceManifest.entries),
+            ...(await lintUnregisteredRawSources(
+              workspaceRoot,
+              configResult.config.paths.raw_sources,
+              sourceManifest.entries,
+            )),
+          ]
+        : [];
+    const issues = [
+      ...scanResult.files.flatMap((file) => lintMarkdownFile(file)),
+      ...sourceManifest.issues.map(
+        (issue) =>
+          ({
+            code: issue.code,
+            severity: "error",
+            path: issue.path,
+            line: issue.line,
+            message: issue.message,
+          }) satisfies LintIssue,
+      ),
+      ...sourceIssues,
+    ];
     return {
       ok: issues.every((issue) => issue.severity !== "error"),
       issues,
@@ -58,6 +92,143 @@ export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> 
       ],
     };
   }
+}
+
+function lintReferenceSourceIds(
+  files: OkfMarkdownFile[],
+  entries: SourceManifestEntry[],
+): LintIssue[] {
+  const sourceIds = new Set(entries.map((entry) => entry.id));
+  return files.flatMap((file) => {
+    if (file.isReserved || !file.workspacePath.startsWith("wiki/references/")) {
+      return [];
+    }
+    if (!file.frontmatter.ok) {
+      return [];
+    }
+
+    const sourceId = frontmatterSourceId(file.frontmatter.data);
+    if (sourceId === undefined || sourceIds.has(sourceId)) {
+      return [];
+    }
+
+    return [
+      {
+        code: REFERENCE_SOURCE_MISSING,
+        severity: "error",
+        path: file.workspacePath,
+        message: `Reference document points to an unregistered source id: ${sourceId}`,
+      } satisfies LintIssue,
+    ];
+  });
+}
+
+async function lintUnregisteredRawSources(
+  workspaceRoot: string,
+  rawSourcesPath: string,
+  entries: SourceManifestEntry[],
+): Promise<LintIssue[]> {
+  const rawRoot = path.join(workspaceRoot, rawSourcesPath);
+  const registeredPaths = new Set(entries.map((entry) => entry.path));
+  const files = await scanRawSourceFiles(rawRoot);
+
+  return files.flatMap((filePath) => {
+    const workspacePath = path
+      .relative(workspaceRoot, filePath)
+      .split(path.sep)
+      .join(path.posix.sep);
+    if (registeredPaths.has(workspacePath) || isIgnoredRawSourceFile(workspacePath)) {
+      return [];
+    }
+
+    return [
+      {
+        code: "UNREGISTERED_RAW_SOURCE",
+        severity: "warning",
+        path: workspacePath,
+        message: `Raw source file is not registered in the manifest: ${workspacePath}`,
+      } satisfies LintIssue,
+    ];
+  });
+}
+
+async function scanRawSourceFiles(root: string): Promise<string[]> {
+  let entries: Dirent[];
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch (error) {
+    if (errorCode(error) === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      const entryPath = path.join(root, entry.name);
+      if (entry.isDirectory()) {
+        return scanRawSourceFiles(entryPath);
+      }
+      return entry.isFile() ? [entryPath] : [];
+    }),
+  );
+  return nested.flat();
+}
+
+function isIgnoredRawSourceFile(workspacePath: string): boolean {
+  return workspacePath === "raw/sources/README.md" || workspacePath.endsWith("/.gitkeep");
+}
+
+function frontmatterSourceId(frontmatter: Record<string, unknown>): string | undefined {
+  const okfh = frontmatter.okfh;
+  if (typeof okfh !== "object" || okfh === null || Array.isArray(okfh)) {
+    return undefined;
+  }
+  const sourceId = (okfh as { source_id?: unknown }).source_id;
+  return typeof sourceId === "string" && sourceId.trim().length > 0 ? sourceId : undefined;
+}
+
+async function lintRegisteredSources(
+  workspaceRoot: string,
+  entries: SourceManifestEntry[],
+): Promise<LintIssue[]> {
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      const absolutePath = path.join(workspaceRoot, entry.path);
+      let contents: Buffer;
+      try {
+        contents = await readFile(absolutePath);
+      } catch (error) {
+        if (errorCode(error) === "ENOENT") {
+          return [
+            {
+              code: SOURCE_MISSING,
+              severity: "error",
+              path: entry.path,
+              message: `Registered source is missing: ${entry.path}`,
+            } satisfies LintIssue,
+          ];
+        }
+        throw error;
+      }
+
+      const actual = createHash("sha256").update(contents).digest("hex");
+      if (actual === entry.sha256) {
+        return [];
+      }
+
+      return [
+        {
+          code: SOURCE_HASH_DRIFT,
+          severity: "error",
+          path: entry.path,
+          message: `Registered source hash changed: ${entry.path}`,
+        } satisfies LintIssue,
+      ];
+    }),
+  );
+
+  return nested.flat();
 }
 
 function lintMarkdownFile(file: OkfMarkdownFile): LintIssue[] {
@@ -142,4 +313,13 @@ function hasFrontmatterData(file: OkfMarkdownFile): boolean {
 
 function hasNonEmptyType(value: unknown): boolean {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function errorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return undefined;
+  }
+
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? code : undefined;
 }
