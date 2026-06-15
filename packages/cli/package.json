@@ -1,0 +1,26 @@
+{
+  "name": "@okf-harness/cli",
+  "version": "0.0.0",
+  "description": "The okfh command-line package.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean"
+  },
+  "dependencies": {
+    "@okf-harness/agent-pack": "workspace:*",
+    "@okf-harness/core": "workspace:*",
+    "@okf-harness/mcp": "workspace:*"
+  }
+}

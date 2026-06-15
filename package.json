@@ -1,0 +1,33 @@
+{
+  "name": "okf-harness",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Agent-first local harness for OKF-compatible LLM Wikis.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@11.0.6",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --recursive --filter '@okf-harness/*' build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "biome check package.json biome.json tsconfig.json tsconfig.base.json vitest.config.ts packages/*/package.json packages/*/tsconfig.json packages/*/src packages/*/test",
+    "format": "biome format --write package.json biome.json tsconfig.json tsconfig.base.json vitest.config.ts packages/*/package.json packages/*/tsconfig.json packages/*/src packages/*/test"
+  },
+  "keywords": [
+    "okf",
+    "open-knowledge-format",
+    "llm-wiki",
+    "agent-skills",
+    "mcp",
+    "macos"
+  ],
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

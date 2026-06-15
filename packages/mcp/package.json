@@ -1,0 +1,24 @@
+{
+  "name": "@okf-harness/mcp",
+  "version": "0.0.0",
+  "description": "Stdio MCP server package for OKF Harness.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean"
+  },
+  "dependencies": {
+    "@okf-harness/core": "workspace:*"
+  }
+}
