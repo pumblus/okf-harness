@@ -1,5 +1,10 @@
 import path from "node:path";
 import {
+  type AgentInstallTarget,
+  type InstallAgentAdaptersResult,
+  installAgentAdapters,
+} from "@okf-harness/agent-pack";
+import {
   type InitWorkspaceResult,
   initWorkspace,
   lintWorkspace,
@@ -11,7 +16,7 @@ import { Command } from "commander";
 export const packageInfo = {
   name: "@okf-harness/cli",
   role: "cli",
-  phase: 2,
+  phase: 3,
 } as const;
 
 export type PackageInfo = typeof packageInfo;
@@ -50,16 +55,31 @@ export async function runCli(
     .description("Initialize an OKF Harness workspace.")
     .storeOptionsAsProperties(false)
     .requiredOption("--name <name>", "workspace display name")
+    .option("--agents <agents>", "agent adapters to install: claude, codex, all, none", "all")
     .option("--dry-run", "return the planned writes without creating files")
     .option("--git", "initialize a git repository without committing")
     .option("--json", "write machine-readable JSON")
     .action(async (workspace: string, command: Command) => {
       const options = command.opts() as {
         name: string;
+        agents: string;
         dryRun?: boolean;
         git?: boolean;
         json?: boolean;
       };
+      const agentTarget = parseInitAgentTarget(options.agents);
+      if (agentTarget === undefined) {
+        writeError(
+          io,
+          "init",
+          "Agents must be one of: claude, codex, all, none, claude,codex.",
+          "INVALID_AGENT_TARGET",
+          path.resolve(workspace),
+        );
+        exitCode = 1;
+        return;
+      }
+
       let result: InitWorkspaceResult;
       try {
         result = await initWorkspace({
@@ -77,28 +97,50 @@ export async function runCli(
         throw error;
       }
 
+      const agentInstall =
+        agentTarget === "none"
+          ? undefined
+          : await installAgentAdapters({
+              workspaceRoot: result.workspaceRoot,
+              adapter: agentTarget,
+              dryRun: result.dryRun,
+            });
+      const ok = result.lint.ok && (agentInstall?.conflicts.length ?? 0) === 0;
+      const plannedFiles = uniqueStrings(
+        result.dryRun ? [...result.files, ...(agentInstall?.plannedFiles ?? [])] : [],
+      );
+      const files = uniqueStrings(
+        result.dryRun
+          ? result.files
+          : [
+              ...result.files,
+              ...(agentInstall?.writtenFiles ?? []),
+              ...(agentInstall?.replacedFiles ?? []),
+            ],
+      );
       const envelope: JsonEnvelope = {
-        ok: result.lint.ok,
+        ok,
         command: "init",
         workspace: result.workspaceRoot,
         data: {
           name: result.name,
           dryRun: result.dryRun,
           git: result.git,
-          files: result.files,
-          plannedFiles: result.dryRun ? result.files : [],
+          agents: renderInitAgentData(agentTarget, agentInstall),
+          files,
+          plannedFiles,
           directories: result.directories,
           lint: result.lint,
         },
-        warnings: result.warnings,
+        warnings: filterPhase2AgentPackWarnings(result.warnings),
         next: [
-          "After Phase 3, install Claude and Codex adapters with okfh agent install.",
+          "Use the generated OKF Harness skills from Claude Code or Codex.",
           "Run okfh lint --json after editing wiki files.",
         ],
       };
 
       writeResult(io, envelope, options.json);
-      exitCode = result.lint.ok ? 0 : 1;
+      exitCode = ok ? 0 : 1;
     });
 
   program
@@ -121,7 +163,7 @@ export async function runCli(
           concepts: result.concepts,
           lint: result.lint,
         },
-        warnings: result.warnings,
+        warnings: filterPhase2AgentPackWarnings(result.warnings),
         next: result.initialized ? ["Run okfh lint --json after editing wiki files."] : [],
       };
 
@@ -149,6 +191,81 @@ export async function runCli(
 
       writeResult(io, envelope, options.json);
       exitCode = lint.ok ? 0 : 1;
+    });
+
+  program
+    .command("agent <action> <adapter>")
+    .description("Install or repair Claude Code and Codex adapter files.")
+    .storeOptionsAsProperties(false)
+    .requiredOption("--workspace <path>", "workspace path")
+    .option("--dry-run", "return the planned writes without creating files")
+    .option("--force", "replace conflicting same-name adapter files")
+    .option("--json", "write machine-readable JSON")
+    .action(async (actionInput: string, adapterInput: string, command: Command) => {
+      const options = command.opts() as {
+        workspace: string;
+        dryRun?: boolean;
+        force?: boolean;
+        json?: boolean;
+      };
+      if (actionInput !== "install") {
+        writeError(
+          io,
+          "agent",
+          "Agent action must be: install.",
+          "INVALID_AGENT_ACTION",
+          path.resolve(options.workspace),
+        );
+        exitCode = 1;
+        return;
+      }
+
+      const adapter = parseAgentInstallTarget(adapterInput);
+      if (adapter === undefined) {
+        writeError(
+          io,
+          "agent install",
+          "Adapter must be one of: claude, codex, all.",
+          "INVALID_AGENT_ADAPTER",
+          path.resolve(options.workspace),
+        );
+        exitCode = 1;
+        return;
+      }
+
+      const workspaceStatus = await readWorkspaceStatus(options.workspace);
+      if (!workspaceStatus.initialized) {
+        writeError(
+          io,
+          "agent install",
+          "Workspace is not initialized. Run okfh init first.",
+          "WORKSPACE_NOT_INITIALIZED",
+          workspaceStatus.workspaceRoot,
+        );
+        exitCode = 1;
+        return;
+      }
+
+      const result = await installAgentAdapters({
+        workspaceRoot: workspaceStatus.workspaceRoot,
+        adapter,
+        dryRun: options.dryRun === true,
+        force: options.force === true,
+      });
+      const ok = result.conflicts.length === 0;
+      const envelope: JsonEnvelope = {
+        ok,
+        command: "agent install",
+        workspace: workspaceStatus.workspaceRoot,
+        data: result,
+        warnings: [],
+        next: ok
+          ? ["Run okfh status --workspace <path> --json to verify the workspace."]
+          : ["Resolve conflicts or rerun with --force after reviewing the files."],
+      };
+
+      writeResult(io, envelope, options.json);
+      exitCode = ok ? 0 : 1;
     });
 
   const restoreConsoleError = captureCommanderConsoleError(capturedCommanderErrors);
@@ -235,6 +352,45 @@ function captureCommanderConsoleError(capturedErrors: string[]): () => void {
 function commandFromArgv(argv: string[]): string {
   const command = argv.slice(2).find((arg) => !arg.startsWith("-"));
   return command ?? "unknown";
+}
+
+function parseAgentInstallTarget(input: string): AgentInstallTarget | undefined {
+  if (input === "claude" || input === "codex" || input === "all") {
+    return input;
+  }
+  return undefined;
+}
+
+type InitAgentTarget = AgentInstallTarget | "none";
+
+function parseInitAgentTarget(input: string): InitAgentTarget | undefined {
+  if (input === "none") {
+    return "none";
+  }
+  if (input === "claude,codex" || input === "codex,claude") {
+    return "all";
+  }
+  return parseAgentInstallTarget(input);
+}
+
+function renderInitAgentData(
+  requested: InitAgentTarget,
+  install: InstallAgentAdaptersResult | undefined,
+): { requested: InitAgentTarget; install?: InstallAgentAdaptersResult } {
+  if (install === undefined) {
+    return { requested };
+  }
+  return { requested, install };
+}
+
+function filterPhase2AgentPackWarnings(
+  warnings: Array<{ code: string; message: string }>,
+): Array<{ code: string; message: string }> {
+  return warnings.filter((warning) => warning.code !== "AGENT_PACK_PENDING");
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 function isCommanderError(

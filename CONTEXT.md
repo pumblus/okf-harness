@@ -75,3 +75,11 @@ _Avoid_: agent client, plugin, integration
 **Agent skill**:
 A discoverable workflow instruction inside an agent adapter that tells an agent when and how to perform one OKF Harness workflow, such as init, ingest, query, or maintain.
 _Avoid_: command, script, template
+
+**Layered agent guidance**:
+The OKF Harness guidance style where durable rules, workflow instructions, and detailed reference contracts are separated so an agent loads only the level of detail needed for the task. It is a progressive-disclosure structure for agent guidance, not runtime prompt injection.
+_Avoid_: prompt injection, hidden prompt, monolithic instructions
+
+**Harness-managed guidance block**:
+A clearly marked section inside a generated OKF Harness workspace's agent guidance file that OKF Harness may insert, replace, or remove without owning the rest of the file. It lets agent adapters update their own instructions while preserving user-written project guidance.
+_Avoid_: full-file ownership, silent overwrite, prompt injection

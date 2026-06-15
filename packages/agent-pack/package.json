@@ -17,8 +17,5 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean"
-  },
-  "dependencies": {
-    "@okf-harness/core": "workspace:*"
   }
 }

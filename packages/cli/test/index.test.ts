@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
 
 describe("@okf-harness/cli", () => {
-  it("initializes a Phase 2 workspace and reports the result as JSON", async () => {
+  it("initializes a Phase 3 workspace with Claude and Codex adapters by default", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     let stdout = "";
@@ -33,10 +33,18 @@ describe("@okf-harness/cli", () => {
       data: {
         name: "AI Research",
         lint: { ok: true },
+        agents: {
+          requested: "all",
+        },
       },
-      warnings: [expect.objectContaining({ code: "AGENT_PACK_PENDING" })],
+      warnings: [],
     });
-    expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: "MCP_PENDING" }));
+    expect(result.data.agents.install.writtenFiles).toEqual(
+      expect.arrayContaining([
+        ".claude/skills/okf-harness-init/SKILL.md",
+        ".agents/skills/okf-harness-init/SKILL.md",
+      ]),
+    );
 
     await expect(readFile(path.join(workspace, "okfh.config.yaml"), "utf8")).resolves.toContain(
       "name: AI Research",
@@ -44,10 +52,16 @@ describe("@okf-harness/cli", () => {
     await expect(readFile(path.join(workspace, "wiki/index.md"), "utf8")).resolves.toContain(
       "# AI Research Wiki",
     );
+    await expect(readFile(path.join(workspace, "CLAUDE.md"), "utf8")).resolves.toContain(
+      "/okf-harness-init",
+    );
+    await expect(readFile(path.join(workspace, "AGENTS.md"), "utf8")).resolves.toContain(
+      "$okf-harness-init",
+    );
     expect((await stat(path.join(workspace, "raw/inbox/README.md"))).isFile()).toBe(true);
   });
 
-  it("reports Phase 2 workspace status as JSON", async () => {
+  it("reports Phase 3 workspace status as JSON", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
@@ -78,9 +92,8 @@ describe("@okf-harness/cli", () => {
         name: "AI Research",
         lint: { ok: true },
       },
-      warnings: [expect.objectContaining({ code: "AGENT_PACK_PENDING" })],
+      warnings: [],
     });
-    expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: "MCP_PENDING" }));
   });
 
   it("runs workspace lint and returns lint failures as JSON", async () => {
@@ -142,10 +155,56 @@ describe("@okf-harness/cli", () => {
       workspace,
       data: {
         dryRun: true,
-        plannedFiles: expect.arrayContaining(["okfh.config.yaml", "wiki/index.md"]),
+        plannedFiles: expect.arrayContaining([
+          "okfh.config.yaml",
+          "wiki/index.md",
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/skills/okf-harness-init/SKILL.md",
+          ".agents/skills/okf-harness-init/SKILL.md",
+        ]),
       },
+      warnings: [],
     });
     await expect(stat(workspace)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("can initialize without agent adapters when explicitly requested", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: (chunk) => {
+          stdout += chunk;
+        },
+        writeErr: (chunk) => {
+          stderr += chunk;
+        },
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe("");
+    expect(JSON.parse(stdout)).toMatchObject({
+      ok: true,
+      command: "init",
+      workspace,
+      data: {
+        agents: {
+          requested: "none",
+        },
+      },
+      warnings: [],
+    });
+    await expect(
+      stat(path.join(workspace, ".agents/skills/okf-harness-init/SKILL.md")),
+    ).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   });
 
   it("refuses to initialize a non-empty workspace without overwriting files", async () => {
@@ -240,6 +299,84 @@ describe("@okf-harness/cli", () => {
     });
     expect((await stat(path.join(workspace, ".git"))).isDirectory()).toBe(true);
     await expect(stat(path.join(workspace, ".git/COMMIT_EDITMSG"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("installs Codex adapter support into an existing workspace", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
+      writeOut: () => {},
+      writeErr: () => {},
+    });
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(
+      ["node", "okfh", "agent", "install", "codex", "--workspace", workspace, "--json"],
+      {
+        writeOut: (chunk) => {
+          stdout += chunk;
+        },
+        writeErr: (chunk) => {
+          stderr += chunk;
+        },
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe("");
+    expect(JSON.parse(stdout)).toMatchObject({
+      ok: true,
+      command: "agent install",
+      workspace,
+      data: {
+        adapter: "codex",
+        dryRun: false,
+        conflicts: [],
+        managedBlocks: [expect.objectContaining({ path: "AGENTS.md" })],
+      },
+      warnings: [],
+    });
+    await expect(readFile(path.join(workspace, "AGENTS.md"), "utf8")).resolves.toContain(
+      "$okf-harness-init",
+    );
+    await expect(
+      readFile(path.join(workspace, ".agents/skills/okf-harness-init/SKILL.md"), "utf8"),
+    ).resolves.toContain("okf-harness-managed: true");
+  });
+
+  it("refuses to install adapter support outside an initialized workspace", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "not-a-workspace");
+    await mkdir(workspace);
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(
+      ["node", "okfh", "agent", "install", "codex", "--workspace", workspace, "--json"],
+      {
+        writeOut: (chunk) => {
+          stdout += chunk;
+        },
+        writeErr: (chunk) => {
+          stderr += chunk;
+        },
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(stdout).toBe("");
+    expect(JSON.parse(stderr)).toMatchObject({
+      ok: false,
+      command: "agent install",
+      workspace,
+      data: {
+        code: "WORKSPACE_NOT_INITIALIZED",
+      },
+    });
+    await expect(stat(path.join(workspace, "AGENTS.md"))).rejects.toMatchObject({
       code: "ENOENT",
     });
   });

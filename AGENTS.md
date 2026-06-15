@@ -3,7 +3,7 @@
 ## Source of Truth
 
 - Product and architecture spec: `docs/implementation.md`.
-- Current repository state: Phase 2 CLI init/status/lint is implemented. Agent-pack runtime behavior, source management, search, and graph generation are still future phase work. MCP is future optional integration, not the v0.1 default path.
+- Current repository state: Phase 3 Agent Pack is implemented. CLI init/status/lint and Claude/Codex adapter rendering are in place. Source management, ingest planning, search, and graph generation are still future phase work. MCP is future optional integration, not the v0.1 default path.
 - Implement phases in order from `docs/implementation.md` section 11.2. Do not jump ahead to later phases unless the user asks.
 
 ## Project Boundaries
@@ -31,8 +31,9 @@
 ## Hotspot Ownership
 
 - `docs/implementation.md` owns the product scope, architecture decisions, and phased roadmap. Keep section 11.2 as the phase gate; do not move future-phase behavior into current code unless the user explicitly asks.
-- `packages/core/src/workspace/index.ts` owns the Phase 2 OKF Harness workspace skeleton and workspace plan. Keep generated placeholder agent guidance thin until Phase 3 agent-pack rendering replaces it.
-- `packages/cli/src/index.ts` owns the terminal-native JSON command surface. Keep CLI output compatible with `okfh --json` and do not add MCP-first behavior here.
+- `packages/core/src/workspace/index.ts` owns the OKF Harness workspace skeleton and workspace plan. Keep it free of agent-pack dependencies.
+- `packages/agent-pack/src/index.ts` owns Claude/Codex skill rendering, root guidance managed blocks, and adapter install planning.
+- `packages/cli/src/index.ts` owns the terminal-native JSON command surface and connects core with agent-pack. Keep CLI output compatible with `okfh --json` and do not add MCP-first behavior here.
 
 ## Agent skills
 

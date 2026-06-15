@@ -24,11 +24,7 @@ importers:
         specifier: ^4.1.8
         version: 4.1.8(@types/node@25.9.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.7)(yaml@2.9.0))
 
-  packages/agent-pack:
-    dependencies:
-      '@okf-harness/core':
-        specifier: workspace:*
-        version: link:../core
+  packages/agent-pack: {}
 
   packages/cli:
     dependencies:
