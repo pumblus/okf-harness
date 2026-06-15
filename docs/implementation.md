@@ -8,7 +8,7 @@
 
 OKF Harness 是一个开源的、本地优先的 OKF / LLM-Wiki Harness。它不是又一个完整知识库应用，也不是 Obsidian 插件。它的目标很窄：让用户在 Claude Code、Codex 等 Agent 里用自然语言完成初始化、文件整理、source ingest、wiki 查询、lint 和维护。CLI 只作为 Agent 的工具层和可调试后门，普通用户不需要记命令。
 
-核心设计判断：**Agent 是主要交互界面，OKF markdown bundle 是数据契约，`okfh` CLI / MCP 是隐藏的 deterministic harness。**
+核心设计判断：**Agent 是主要交互界面，OKF markdown bundle 是数据契约，`okfh` CLI 是隐藏的 deterministic harness。Agent client 默认通过 macOS terminal-native tool channel 调用本地 shell 命令，不要求用户学习 CLI 语言。**
 
 ### 1.1 命名与标识
 
@@ -18,7 +18,6 @@ OKF Harness 是一个开源的、本地优先的 OKF / LLM-Wiki Harness。它不
 | GitHub 仓库 | `okf-harness` |
 | CLI binary | `okfh`（长别名 `okf-harness`，文档统一用 `okfh`） |
 | NPM scope | `@okf-harness/*` |
-| MCP server name | `okf-harness` |
 | License | Apache-2.0 |
 
 NPM 包划分：
@@ -26,16 +25,16 @@ NPM 包划分：
 ```
 @okf-harness/core       # OKF 解析、校验、manifest、索引、路径安全
 @okf-harness/cli        # okfh 命令行
-@okf-harness/mcp        # stdio MCP server
 @okf-harness/agent-pack # Claude / Codex adapter 生成器与共享 skill 模板
 @okf-harness/mac        # macOS only 辅助工具，v0.2+ 可选
+@okf-harness/mcp        # future optional MCP integration, not v0.1 default
 ```
 
 ### 1.2 定位
 
 > A macOS-first, agent-first harness for maintaining OKF-compatible local LLM Wikis from Claude Code, Codex, and future coding agents.
 
-GitHub topics：`okf`, `open-knowledge-format`, `llm-wiki`, `agent-skills`, `claude-code`, `codex`, `mcp`, `macos`, `knowledge-management`
+GitHub topics：`okf`, `open-knowledge-format`, `llm-wiki`, `agent-skills`, `claude-code`, `codex`, `macos`, `knowledge-management`
 
 ### 1.3 Agent 适配优先级
 
@@ -76,9 +75,8 @@ v0.1 允许"Obsidian-friendly markdown"——普通 markdown links、frontmatter
 6. 生成 manifest
 7. 生成 CLAUDE.md / AGENTS.md
 8. 生成 Claude + Codex skills
-9. 生成 MCP config
-10. 运行 lint 和 doctor
-11. 告知用户下一步怎么用自然语言添加资料
+9. 运行 lint 和 doctor
+10. 告知用户下一步怎么用自然语言添加资料
 
 ### 2.2 v0.1 不做的事
 
@@ -89,7 +87,7 @@ v0.1 允许"Obsidian-friendly markdown"——普通 markdown links、frontmatter
 1. 新 macOS workspace 可由 Agent 初始化，lint pass
 2. Claude Code 项目中自动发现 OKF skills
 3. Codex 项目中自动发现 OKF skills
-4. Claude Code 和 Codex 都能连接 okfh MCP stdio server
+4. Claude Code 和 Codex 都能通过 skills / guidance 调用 `okfh --json`
 5. 添加本地 markdown / text / PDF 时，source 被复制登记，hash 被记录，raw source 不被修改
 6. ingest plan 给 Agent 一份可执行的 wiki 更新计划
 7. lint 检测 OKF 必须项、坏链接、log 日期、source hash drift
@@ -126,8 +124,8 @@ v0.1 的核心是"ingest-time synthesis + markdown wiki + deterministic harness"
 ```
 @okf-harness/core       无 CLI、Agent、MCP 依赖
 @okf-harness/agent-pack 依赖 core（workspace 路径和 config），不解析 raw sources
-@okf-harness/mcp        包装 core，导出 tools
-@okf-harness/cli        连接 core、agent-pack、mcp
+@okf-harness/cli        连接 core 和 agent-pack，提供 terminal-native tool channel
+@okf-harness/mcp        future optional integration，包装 core 导出 tools，不属于 v0.1 默认路径
 ```
 
 ### 3.3 技术栈
@@ -143,7 +141,7 @@ v0.1 的核心是"ingest-time synthesis + markdown wiki + deterministic harness"
 | Markdown / frontmatter | gray-matter + yaml + unified / remark |
 | 搜索（MVP） | markdown / frontmatter scan + 可选 ripgrep |
 | 搜索（v0.2+） | SQLite FTS5 cache（better-sqlite3），.okfh/cache/index.sqlite 完全可重建 |
-| MCP | 稳定 MCP TypeScript SDK v1.x，SDK 代码集中在 packages/mcp/src/transport/ |
+| Tool channel | Agent client 默认通过本地 shell 调用 `okfh --json`；MCP 仅保留为 future optional integration |
 
 ---
 
@@ -159,9 +157,8 @@ v0.1 的核心是"ingest-time synthesis + markdown wiki + deterministic harness"
   AGENTS.md
   CLAUDE.md
   okfh.config.yaml
-  .mcp.json
   .codex/
-    config.toml
+    .gitkeep
   .claude/
     skills/
       okf-harness-init/SKILL.md + references/workflow.md
@@ -381,7 +378,7 @@ See [LLM Wiki](/topics/llm-wiki.md).
 2  用法错误
 3  文件系统安全拒绝
 4  缺少依赖
-5  MCP / runtime 错误
+5  runtime 错误
 ```
 
 JSON 输出封套：
@@ -405,12 +402,11 @@ JSON 输出封套：
 okfh init ~/Documents/OKF\ Harness/ai-research \
   --name "AI Research" \
   --agents claude,codex \
-  --mcp \
   --git \
   --json
 ```
 
-行为：创建 workspace tree、写 config、写 OKF root index / log、写 Claude / Codex adapters、写 MCP config、按需 git init、运行 lint、返回下一步自然语言指令。
+行为：创建 workspace tree、写 config、写 OKF root index / log、写 Claude / Codex adapters、按需 git init、运行 lint、返回下一步自然语言指令。
 
 **okfh status**
 
@@ -507,12 +503,6 @@ okfh graph --json
 okfh agent install claude|codex|all --json
 ```
 
-**okfh mcp**
-
-```bash
-okfh mcp --workspace <path>
-```
-
 **okfh doctor**
 
 ```bash
@@ -525,45 +515,32 @@ okfh doctor --json
 
 ---
 
-## 7. MCP 服务
+## 7. Tool Channel
 
-### 7.1 启动
+### 7.1 默认通道
 
-```bash
-okfh mcp --workspace <workspace-path>
-```
+v0.1 默认使用 terminal-native tool channel：Agent client 通过本地 shell 调用 `okfh --json`、`git` 和必要的文件系统命令。普通用户仍然用自然语言和 Agent 交互，不需要学习 CLI 语言。
 
-MCP server instructions 前 512 字必须自洽，因为 Codex 会用它辅助判断工具用途。
+默认通道的约束：
 
-```
-OKF Harness provides safe local tools for reading, searching, validating, and planning updates to this workspace's OKF-compatible wiki. Prefer read/search/ingest-plan before editing files. Do not modify raw/sources. Run lint after wiki edits. Use write-capable tools only with dryRun first unless the user explicitly asked to initialize or add a source.
-```
+- Agent guidance 必须优先教 Agent 调用 `okfh --json`
+- Agent 不应手写替代目录结构来绕过 `okfh init`
+- 写文件命令必须支持 `--dry-run` 或 pending action
+- 修改 wiki 后必须运行 `okfh lint --json`
+- 修改文件后必须运行 `git diff`
 
-### 7.2 工具列表
+### 7.2 Future optional MCP integration
 
-**只读工具**：
+MCP 不属于 v0.1 默认产品路径，也不阻塞 v0.1 发布。未来如果需要支持只能稳定发现 MCP tools 的 agent client，可以在保持 terminal-native workflow 的前提下提供 optional MCP integration。
 
-- `workspace_status()`
-- `search_concepts(query, type?, tags?, limit?)`
-- `read_concept(conceptId)`
-- `list_sources(status?, limit?)`
-- `read_source_manifest(sourceId)`
-- `ingest_plan(sourceIdOrPath)`
-- `lint()`
-- `backlinks(conceptId)`
+未来 MCP 约束：
 
-**可写工具**：
+- 不暴露任意 `write_file`
+- 不存储 API keys 或任意环境变量
+- 只包装 core / CLI 已有的确定性行为
+- write-capable tools 必须 dry-run friendly
 
-- `init_workspace(path, name?, agents?, dryRun?)`
-- `add_source(input, kind?, title?, dryRun?)`
-- `append_log(message, conceptId?, dryRun?)`
-- `build_graph(dryRun?)`
-
-v0.1 不通过 MCP 暴露任意 `write_file`。让 Claude / Codex 原生文件工具做编辑，由 Agent 指令和 lint 保护。这样 MCP 更聚焦，也更容易审计。
-
-### 7.3 输出限制
-
-MCP tools 返回紧凑结果。大输出写入 report file 并返回路径：
+可选 MCP tools 的大输出应写入 report file 并返回路径：
 
 ```json
 {
@@ -601,7 +578,7 @@ Skill 生成模板：
 name: okf-harness-ingest
 description: Add source material and compile it into an OKF-compatible LLM Wiki by creating reference pages, updating topic/entity/project pages, citations, index, and log. Use when the user asks to add, ingest, absorb, summarize into the wiki, or organize a new source. Do not use for general question answering without new sources.
 license: Apache-2.0
-compatibility: Designed for Claude Code and Codex on macOS. Requires okfh CLI and optional okf-harness MCP server.
+compatibility: Designed for Claude Code and Codex on macOS. Requires the okfh CLI and local shell command access.
 metadata:
   okf-harness-version: "0.1"
 ---
@@ -613,7 +590,7 @@ Use this skill to register source material and compile it into the local OKF wik
 ## Required behavior
 
 1. Locate the workspace by finding `okfh.config.yaml`.
-2. Prefer MCP tools when available. Fall back to `okfh` CLI.
+2. Use the local shell to run `okfh --json` commands.
 3. If the source is not registered, run `okfh source add <path-or-url> --json`.
 4. Run `okfh ingest plan <source-id-or-path> --json`.
 5. Read the full source if available and safe.
@@ -642,7 +619,7 @@ See [the ingest contract](references/ingest-contract.md) for exact page template
 **okf-harness-init**：初始化 workspace、第一次设置、文件组织、Agent 支持安装。
 
 ```yaml
-description: Initialize and organize an OKF Harness knowledge workspace on macOS, including folders, git, OKF wiki files, Claude/Codex adapters, and MCP config. Use when the user asks to set up, create, initialize, organize, or install OKF Harness support. Do not use for ingesting an already-added source.
+description: Initialize and organize an OKF Harness workspace on macOS, including folders, git, OKF bundle files, and Claude/Codex adapters. Use when the user asks to set up, create, initialize, organize, or install OKF Harness support. Do not use for ingesting an already-added source.
 ```
 
 **okf-harness-ingest**：添加 source、生成 ingest plan、编译 source 到 wiki。
@@ -670,7 +647,6 @@ description: Maintain an OKF Harness wiki by running lint, repairing broken link
 ```
 CLAUDE.md
 .claude/skills/<skill>/SKILL.md
-.mcp.json
 ```
 
 `CLAUDE.md` 保持精短：
@@ -678,7 +654,7 @@ CLAUDE.md
 ```markdown
 # OKF Harness workspace
 
-This repository is an OKF Harness knowledge workspace.
+This repository is an OKF Harness workspace.
 
 Use the project skills for user-facing workflows:
 
@@ -691,27 +667,12 @@ Rules:
 
 - `raw/sources/` is immutable. Never edit source files.
 - `wiki/` is the OKF bundle and may be edited by the agent.
-- Prefer MCP tools from `okf-harness` when available.
+- Use `okfh --json` through the local shell for deterministic harness operations.
 - Run `okfh lint --json` after modifying wiki files.
 - Run `git diff` before final response after any file changes.
 ```
 
-`.mcp.json`：
-
-```json
-{
-  "mcpServers": {
-    "okf-harness": {
-      "type": "stdio",
-      "command": "okfh",
-      "args": ["mcp", "--workspace", "${CLAUDE_PROJECT_DIR:-.}"],
-      "env": {}
-    }
-  }
-}
-```
-
-注意事项：项目 `.mcp.json` 需要用户在 Claude Code 中批准。Agent 应在工具不可用时提示用户运行 `/mcp`。v0.1 不依赖 project hooks，不发 Claude plugin。
+注意事项：v0.1 不生成 `.mcp.json`，不依赖 project hooks，不发 Claude plugin。Agent 应通过本地 shell 调用 `okfh --json`；CLI 不可用时提示用户安装或运行 `okfh doctor`，不要手写替代 workspace 结构。
 
 ### 8.5 Codex 适配
 
@@ -720,7 +681,6 @@ Rules:
 ```
 AGENTS.md
 .agents/skills/<skill>/SKILL.md
-.codex/config.toml
 ```
 
 `AGENTS.md`：
@@ -728,7 +688,7 @@ AGENTS.md
 ```markdown
 # OKF Harness workspace
 
-This repository is an OKF Harness knowledge workspace.
+This repository is an OKF Harness workspace.
 
 Use repo skills for workflows:
 
@@ -741,24 +701,12 @@ Rules:
 
 - `raw/sources/` is immutable. Never edit source files.
 - `wiki/` is the OKF bundle and may be edited by the agent.
-- Prefer MCP tools from `okf-harness` when available.
+- Use `okfh --json` through the local shell for deterministic harness operations.
 - Run `okfh lint --json` after modifying wiki files.
 - Run `git diff` before final response after any file changes.
 ```
 
-`.codex/config.toml`：
-
-```toml
-[mcp_servers.okf-harness]
-command = "okfh"
-args = ["mcp", "--workspace", "."]
-startup_timeout_sec = 10
-tool_timeout_sec = 60
-enabled = true
-default_tools_approval_mode = "prompt"
-```
-
-注意事项：repo-scoped `.codex/config.toml` 仅在受信任项目中加载。`AGENTS.md` 必须短小，长流程放 skills。Codex skills 必须有 `name` 和 `description`。v0.1 不依赖 Codex plugins，直接 repo skills 更简单。
+注意事项：`AGENTS.md` 必须短小，长流程放 skills。Codex skills 必须有 `name` 和 `description`。v0.1 不依赖 Codex plugins 或 MCP 配置，直接 repo skills + local shell 更简单。
 
 ---
 
@@ -875,14 +823,13 @@ type LintIssue = {
 Agent 步骤：
 
 1. 确定 workspace 路径
-2. 执行 `okfh init --agents claude,codex --mcp --git --json`
+2. 执行 `okfh init --agents claude,codex --git --json`
 3. 读取 JSON 结果
-4. 如果 MCP 需要审批，告知用户如何审批
-5. 执行 `okfh status --json`
-6. 用日常语言解释目录结构
-7. 建议第一步：把文件放进 raw/inbox，或让 Agent 添加文件 / 链接
+4. 执行 `okfh status --json`
+5. 用日常语言解释目录结构
+6. 建议第一步：把文件放进 raw/inbox，或让 Agent 添加文件 / 链接
 
-Agent final response 必须包含：workspace 路径、已安装的 adapters、MCP 状态或审批提示、下一步自然语言示例。
+Agent final response 必须包含：workspace 路径、已安装的 adapters、CLI / local shell 可用状态、下一步自然语言示例。
 
 ### 10.2 Init 策略
 
@@ -894,7 +841,7 @@ Agent final response 必须包含：workspace 路径、已安装的 adapters、M
 目标目录存在但非空：不覆盖，先运行 okfh doctor 或建议创建子目录
 没有 git repo：运行 git init
 用户没有指定 agent：默认安装 Claude + Codex Tier 1
-MCP 需要审批：告知用户运行 /mcp 或检查状态
+`okfh` 不可用：提示用户安装或运行 `okfh doctor`
 ```
 
 ### 10.3 Ingest 流程
@@ -970,13 +917,11 @@ okf-harness/
     cli/src/
       main.ts commands/
     cli/test/
-    mcp/src/
-      server.ts tools/
-    mcp/test/
     agent-pack/src/
       render.ts adapters/claude.ts codex.ts
-      templates/ skills/ CLAUDE.md.hbs AGENTS.md.hbs mcp.json.hbs codex.config.toml.hbs
+      templates/ skills/ CLAUDE.md.hbs AGENTS.md.hbs
     agent-pack/test/
+    mcp/                              # future optional integration, not v0.1 default
     mac/src/ test/
   templates/workspace/
   examples/minimal-workspace/ sources/
@@ -995,7 +940,7 @@ okf-harness/
 - [x] TypeScript config
 - [x] Vitest config
 - [x] ESLint / Prettier 或 Biome
-- [x] packages/core, cli, mcp, agent-pack
+- [x] packages/core, cli, mcp scaffold, agent-pack
 - [x] root README skeleton
 - [x] LICENSE Apache-2.0
 - [x] GitHub Actions: install, typecheck, test
@@ -1021,7 +966,7 @@ okf-harness/
 - [x] core workspace template generation（OKF wiki、raw、.okfh、config、thin guidance placeholders）
 - [x] git init 可选
 
-边界：Phase 2 只生成可 lint 通过的 core workspace skeleton。Claude / Codex skill 内容、`.mcp.json`、`.codex/config.toml` 的真实渲染归 Phase 3；MCP runtime 归 Phase 6。Phase 2 可以创建 adapter 目录或薄 placeholder，但必须在输出 warning 中标记 `agentPack` / `mcp` 尚未安装，不能生成会被误认为可用的真实 skill 或 MCP 配置。
+边界：Phase 2 只生成可 lint 通过的 core workspace skeleton。Claude / Codex skill 内容的真实渲染归 Phase 3。Phase 2 可以创建 adapter 目录或薄 placeholder，但必须在输出 warning 中标记 agent pack 尚未安装，不能生成会被误认为可用的真实 skill。
 
 验收：CLI 创建符合 Phase 2 边界的 workspace 结构，所有命令支持 `--json`，`init` 后 Phase 1 hard linter pass，e2e 测试通过临时目录完成。
 
@@ -1029,7 +974,7 @@ okf-harness/
 
 - [ ] 共享 skill 模板
 - [ ] Claude renderer / Codex renderer
-- [ ] CLAUDE.md / AGENTS.md / .mcp.json / .codex/config.toml renderer
+- [ ] CLAUDE.md / AGENTS.md renderer
 - [ ] Golden snapshot tests
 
 验收：生成的 skills 满足 Agent Skills 命名和 frontmatter 要求，golden tests 通过。
@@ -1053,13 +998,13 @@ okf-harness/
 
 验收：确定性 markdown / frontmatter search 和自包含 graph HTML 通过。
 
-**Phase 6：MCP server**
+**Phase 6：Terminal-native hardening**
 
-- [ ] stdio MCP server
-- [ ] workspace_status / search_concepts / read_concept / list_sources / ingest_plan / lint 工具
-- [ ] add_source / init_workspace 工具（带 dryRun）
+- [ ] doctor 检查 `okfh`、git、Node.js、pnpm 和 workspace 状态
+- [ ] CLI 错误输出适合 Agent 解析和用户转述
+- [ ] Agent guidance 覆盖 Desktop App 和 TUI 的一致 shell command workflow
 
-验收：工具 handler 集成测试通过，使用稳定 MCP TypeScript SDK。
+验收：Claude Code 和 Codex 在不依赖 MCP 的情况下完成 init / source add / ingest plan / lint / graph smoke test。
 
 **Phase 7：Docs + examples + release prep**
 
@@ -1077,17 +1022,17 @@ okf-harness/
 ```
 Phase 0：Read docs/IMPLEMENTATION.md. Implement Phase 0 only. Create the pnpm TypeScript monorepo scaffold for OKF Harness. Do not implement CLI behavior yet. Add minimal tests proving packages build. Run pnpm test and pnpm typecheck.
 
-Phase 1：Implement Phase 1 core only. Add config parsing, OKF concept scanning, and hard OKF bundle linter rules. Use fixtures under packages/core/test/fixtures. Do not implement source ingest, manifest/hash drift checks, or MCP. Add tests for missing frontmatter, missing type, reserved filenames, concept IDs, and path safety.
+Phase 1：Implement Phase 1 core only. Add config parsing, OKF concept scanning, and hard OKF bundle linter rules. Use fixtures under packages/core/test/fixtures. Do not implement source ingest or manifest/hash drift checks. Add tests for missing frontmatter, missing type, reserved filenames, concept IDs, and path safety.
 
 Phase 2：Implement Phase 2 CLI init/status/lint. The CLI must create the exact workspace structure from docs/IMPLEMENTATION.md. All commands must support --json. Add e2e tests using temporary directories. Do not implement Agent skills rendering yet; stub adapter files with placeholders only if necessary.
 
-Phase 3：Implement Phase 3 Agent Pack. Replace any Phase 2 adapter placeholders with generated Claude Code and Codex adapters from shared templates. Generate `.mcp.json` and `.codex/config.toml` config files, but do not implement the MCP server runtime yet. Ensure generated skills satisfy Agent Skills naming and frontmatter requirements. Add golden tests. Do not implement Pi, OpenCode, or Obsidian.
+Phase 3：Implement Phase 3 Agent Pack. Replace any Phase 2 adapter placeholders with generated Claude Code and Codex adapters from shared templates. Generated guidance must teach agents to use `okfh --json` through local shell commands. Ensure generated skills satisfy Agent Skills naming and frontmatter requirements. Add golden tests. Do not implement MCP, Pi, OpenCode, or Obsidian.
 
 Phase 4：Implement Phase 4 source management. Add manifest JSONL, file copy into raw/sources/YYYY/MM, URL metadata source files, and ingest plan generation. Do not summarize source content automatically. The ingest plan should identify likely existing concepts using index/search. Add tests for hash drift, duplicate file names, and dry-run.
 
 Phase 5：Implement Phase 5 search/read/graph. Use a simple deterministic markdown/frontmatter search first. Build backlinks from markdown links and generate a self-contained graph.html with no remote assets. Add tests for absolute and relative OKF links.
 
-Phase 6：Implement Phase 6 MCP server using the stable MCP TypeScript SDK. Expose only the tools listed in docs/IMPLEMENTATION.md. Keep write-capable tools dry-run friendly and path safe. Add integration tests that call the tool handlers directly; do not require a live Claude/Codex client in CI.
+Phase 6：Implement Phase 6 terminal-native hardening. Add doctor checks, clearer JSON errors, and smoke tests proving Claude Code and Codex can operate through `okfh --json` without MCP. Do not implement MCP unless the roadmap has been explicitly reopened.
 
 Phase 7：Implement Phase 7 release prep. Write docs for a user who will mainly operate through Claude Code or Codex, not through CLI. Include macOS install, natural-language workflows, and explicit non-goals. Add Obsidian only to Roadmap. Do not add Obsidian code.
 ```
@@ -1117,7 +1062,6 @@ Phase 7：Implement Phase 7 release prep. Write docs for a user who will mainly 
 
 - CLAUDE.md / AGENTS.md
 - Claude skill SKILL.md files / Codex skill SKILL.md files
-- .mcp.json / .codex/config.toml
 
 ### 12.3 E2E 测试
 
@@ -1136,7 +1080,7 @@ Phase 7：Implement Phase 7 release prep. Write docs for a user who will mainly 
 1. 打开空测试文件夹
 2. 说："Initialize an OKF Harness workspace here for AI research."
 3. 验证 skills 被发现
-4. 验证 `/mcp` 显示 okf-harness pending 或 active
+4. 验证 Agent 通过 local shell 执行 `okfh status --json`
 5. 说："Add examples/sources/llm-wiki.md and prepare an ingest plan."
 6. 说："Now ingest it into the wiki and run lint."
 
@@ -1146,7 +1090,7 @@ Phase 7：Implement Phase 7 release prep. Write docs for a user who will mainly 
 2. 说："Use OKF Harness to initialize this workspace."
 3. 验证 AGENTS.md guidance 被加载
 4. 验证 `$okf-harness-*` skills 可用
-5. 验证 MCP server 已激活或 config 已就位
+5. 验证 Agent 通过 local shell 执行 `okfh status --json`
 6. 执行相同的 source add / ingest / lint 流程
 
 ---
@@ -1172,10 +1116,9 @@ Phase 7：Implement Phase 7 release prep. Write docs for a user who will mainly 
 
 ### 13.3 Secret 处理
 
-- 不在 `okfh.config.yaml`、`.mcp.json`、`.codex/config.toml` 中存储 API keys
+- 不在 `okfh.config.yaml` 或 agent guidance 文件中存储 API keys
 - 仅使用环境变量引用
 - 默认 .gitignore 排除 .env 文件
-- MCP server 不暴露任意环境变量
 
 ### 13.4 Agent 权限
 
@@ -1194,7 +1137,7 @@ README 首屏示例（英文）：
 ```
 In Claude Code or Codex, open an empty folder and say:
 
-"Set up an OKF Harness knowledge workspace for my AI research notes under ~/Documents. Use the default structure, install Claude and Codex agent support, and explain how I should add my first source."
+"Set up an OKF Harness workspace for my AI research notes under ~/Documents. Use the default structure, install Claude and Codex agent support, and explain how I should add my first source."
 ```
 
 中文示例：
@@ -1207,15 +1150,15 @@ In Claude Code or Codex, open an empty folder and say:
 
 | 用户自然语言 | Agent 应调用 |
 |---|---|
-| "帮我初始化知识库" | `okfh init ...` 或 MCP `workspace.init` |
+| "帮我初始化知识库" | `okfh init ... --json` |
 | "把这个文件加入知识库" | `okfh source add <path>` |
 | "整理 / 吸收这篇材料" | `okfh ingest plan <source>`，然后 Agent 编辑 wiki |
-| "问我的知识库" | MCP `search_concepts` + `read_concept` |
+| "问我的知识库" | `okfh search --json` + `okfh read --json` |
 | "检查知识库健康" | `okfh lint --json` |
 | "生成图谱" | `okfh graph --json` |
 | "安装 Claude / Codex 支持" | `okfh agent install claude\|codex\|all` |
 
-Agent 优先使用 MCP tools；MCP 不可用时用 CLI。CLI 不可用时，Agent 应提示用户安装或运行 `okfh doctor`，不要手写替代目录结构。
+Agent 优先使用 terminal-native tool channel 调用 `okfh --json`。CLI 不可用时，Agent 应提示用户安装或运行 `okfh doctor`，不要手写替代目录结构。
 
 ---
 
@@ -1237,7 +1180,7 @@ GitHub 公开前必须完成：
 - [ ] 生成的 Codex skills name / description 校验通过
 - [ ] 无 Obsidian runtime 代码
 - [ ] Tier 2 代码没有半实现残留
-- [ ] MCP server 通过 stdio 启动
+- [ ] Claude Code 和 Codex smoke test 通过 terminal-native workflow
 - [ ] Security policy 描述本地文件范围和零云端上传
 
 NPM 发布包：
@@ -1245,7 +1188,6 @@ NPM 发布包：
 ```
 @okf-harness/core
 @okf-harness/cli
-@okf-harness/mcp
 @okf-harness/agent-pack
 ```
 
@@ -1281,7 +1223,7 @@ README 不要以长 CLI 参考开头，CLI 参考放在 `docs/CLI.md`。
 
 **v0.1：Agent-first local MVP**
 
-macOS only，Claude Code + Codex Tier 1，OKF workspace init / linter / source manifest / source add / ingest plan / search & read / graph HTML / MCP stdio server / project skills 和 guidance files。
+macOS only，Claude Code + Codex Tier 1，OKF Harness workspace init / linter / source manifest / source add / ingest plan / search & read / graph HTML / project skills 和 guidance files。默认 tool channel 是 local shell + `okfh --json`，不依赖 MCP。
 
 **v0.2：Tier 2 Agent 适配器**
 
@@ -1299,6 +1241,10 @@ Obsidian plugin 或 helper、以 vault 方式打开 workspace、Graph handoff、
 
 SQLite FTS5 cache、更优排序、可选本地 embedding index，仅 rebuildable cache。
 
+**v0.6+：Optional MCP integration**
+
+如果未来 agent client 明确需要 MCP 工具发现，再提供 optional MCP integration。它不得替代 terminal-native default workflow。
+
 **Tier 3 生态（远期）**：Cursor、VS Code generic MCP clients、Aider、Goose、Continue、GitHub Copilot coding agent。
 
 ---
@@ -1314,10 +1260,6 @@ SQLite FTS5 cache、更优排序、可选本地 embedding index，仅 rebuildabl
 - [Agent Skills specification](https://agentskills.io/specification)
 - [Claude Code skills](https://code.claude.com/docs/en/skills)
 - [Claude Code subagents](https://code.claude.com/docs/en/sub-agents)
-- [Claude Code MCP](https://code.claude.com/docs/en/mcp)
 - [Codex AGENTS.md](https://developers.openai.com/codex/guides/agents-md)
 - [Codex skills](https://developers.openai.com/codex/skills)
-- [Codex MCP](https://developers.openai.com/codex/mcp)
 - [Codex config basics](https://developers.openai.com/codex/config-basic)
-- [MCP intro](https://modelcontextprotocol.io/docs/getting-started/intro)
-- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)

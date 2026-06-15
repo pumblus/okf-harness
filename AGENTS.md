@@ -3,7 +3,7 @@
 ## Source of Truth
 
 - Product and architecture spec: `docs/implementation.md`.
-- Current repository state: Phase 2 CLI init/status/lint is implemented. MCP, agent-pack runtime behavior, source management, search, and graph generation are still future phase work.
+- Current repository state: Phase 2 CLI init/status/lint is implemented. Agent-pack runtime behavior, source management, search, and graph generation are still future phase work. MCP is future optional integration, not the v0.1 default path.
 - Implement phases in order from `docs/implementation.md` section 11.2. Do not jump ahead to later phases unless the user asks.
 
 ## Project Boundaries
@@ -14,19 +14,41 @@
 - v0.1 does not include Obsidian runtime code, GUI, cloud sync, accounts, team permissions, vector databases, background daemons, Windows/Linux support, automatic web crawling, silent bulk wiki rewrites, or a private agent runtime.
 - The core package must not depend on CLI, Agent, or MCP packages.
 - The agent-pack package renders shared templates for Claude and Codex adapters; do not maintain divergent manual skill copies.
-- The mcp package wraps core behavior and must not expose arbitrary file write tools.
-- The cli package connects core, agent-pack, and mcp behavior.
+- The cli package connects core and agent-pack behavior through `okfh --json`.
+- The mcp package is future optional integration and must not become the default v0.1 tool path.
 
 ## Planned Repo Map
 
 - `docs/implementation.md`: current implementation spec and phased roadmap.
 - `packages/core`: OKF parsing, config, manifest, path safety, lint, search, graph, source handling.
 - `packages/cli`: `okfh` command line entrypoint and commands.
-- `packages/mcp`: stdio MCP server and tool handlers.
+- `packages/mcp`: future optional MCP integration scaffold.
 - `packages/agent-pack`: Claude/Codex adapter renderers and shared skill templates.
 - `packages/mac`: optional macOS helpers after the core MVP.
-- `templates/workspace`: generated OKF workspace skeletons.
+- `templates/workspace`: generated OKF Harness workspace skeletons.
 - `examples/minimal-workspace`: fixture workspace and sample sources.
+
+## Hotspot Ownership
+
+- `docs/implementation.md` owns the product scope, architecture decisions, and phased roadmap. Keep section 11.2 as the phase gate; do not move future-phase behavior into current code unless the user explicitly asks.
+- `packages/core/src/workspace/index.ts` owns the Phase 2 OKF Harness workspace skeleton and workspace plan. Keep generated placeholder agent guidance thin until Phase 3 agent-pack rendering replaces it.
+- `packages/cli/src/index.ts` owns the terminal-native JSON command surface. Keep CLI output compatible with `okfh --json` and do not add MCP-first behavior here.
+
+## Agent skills
+
+Engineering workflow skills share repo-local setup through `docs/agents/` so issue, triage, and domain assumptions stay versioned with the project.
+
+### Issue tracker
+
+Use local markdown under `.scratch/` for issues and PRDs while the project remains local. Switch this config to GitHub Issues after the repo is pushed and GitHub becomes the tracker. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default triage state strings: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use a single-context domain documentation layout. See `docs/agents/domain.md`.
 
 ## Working Rules
 
@@ -34,9 +56,9 @@
 - Keep changes scoped to the active phase or the user's explicit request.
 - Do not auto-commit, tag, push, publish, or create releases unless the user explicitly asks in the current turn.
 - Do not store API keys, tokens, or credentials in tracked files.
-- Do not edit generated raw source files in OKF workspaces. `raw/sources/` is immutable by design.
+- Do not edit generated raw source files in OKF Harness workspaces. `raw/sources/` is immutable by design.
 - For source ingestion behavior, copy source files and record hashes; never move or rewrite the user's originals.
-- For write-capable CLI or MCP behavior, support dry-run or a pending action before overwriting files.
+- For write-capable CLI behavior, support dry-run or a pending action before overwriting files.
 
 ## Verification
 
