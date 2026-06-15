@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+
+# Dependencies and package managers
+node_modules/
+.pnpm-store/
+
+# Build and test output
+dist/
+coverage/
+*.tsbuildinfo
+
+# OKF Harness generated caches
+.okfh/cache/
+.okfh/*.sqlite
+.okfh/reports/*.tmp
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log

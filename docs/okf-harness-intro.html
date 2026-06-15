@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<!-- ==================================================================
+     OKF Harness 产品介绍 · One-Pager
+     面向普通用户（非开发者），单页 A4
+     构建：python3 scripts/build.py --verify one-pager
+     ================================================================== -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>OKF Harness 产品介绍</title>
+<meta name="author" content="OKF Harness">
+<meta name="description" content="OKF Harness 是开源、本地优先的个人知识库引擎。在 Agent 里用自然语言收集、整理、检索你的所有资料，数据 100% 留在 Mac 上。">
+<meta name="keywords" content="OKF Harness, 知识库, LLM Wiki, Claude Code, Codex, Agent, macOS, 开源">
+<meta name="generator" content="Kami">
+<style>
+  /* Regular weight */
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: local("TsangerJinKai02"),
+         url("file:///Users/ericzhou/.claude/skills/kami/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  /* Bold weight - W05 for all bold variants */
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: local("TsangerJinKai02"),
+         url("file:///Users/ericzhou/.claude/skills/kami/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm 18mm 15mm 18mm;
+    background: #f5f4ed;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
+    --sans: var(--serif);
+  }
+
+  html, body { background: var(--parchment); }
+
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 15mm 18mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 10pt;
+    line-height: 1.45;
+    letter-spacing: 0.3pt;
+  }
+
+  .serif {
+    font-family: var(--serif);
+  }
+
+  /* ========== HEADER ========== */
+  .header {
+    margin-bottom: 16pt;
+    padding-bottom: 12pt;
+    border-bottom: 0.5pt solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20pt;
+  }
+  .title-block {
+    flex: 1;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 7pt;
+    font-size: 9pt;
+    color: var(--brand);
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+    margin-bottom: 7pt;
+    font-weight: 500;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 8pt;
+    height: 1.5pt;
+    border-radius: 0.75pt;
+    background: var(--brand);
+    flex-shrink: 0;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 24pt;
+    font-weight: 500;
+    color: var(--near-black);
+    line-height: 1.15;
+    margin-bottom: 5pt;
+  }
+  .subtitle {
+    font-size: 11pt;
+    color: var(--olive);
+    line-height: 1.4;
+  }
+  .meta {
+    font-size: 9pt;
+    color: var(--stone);
+    text-align: right;
+    line-height: 1.45;
+    white-space: nowrap;
+  }
+  .brand-logo {
+    height: 44px;
+    width: auto;
+    max-width: 160px;
+    object-fit: contain;
+    align-self: flex-start;
+  }
+
+  /* ========== METRICS ========== */
+  .metrics {
+    display: flex;
+    gap: 14pt;
+    margin-bottom: 18pt;
+    padding: 4pt 0 6pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+  }
+  .metric {
+    flex: 1;
+    background: transparent;
+    padding: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 4pt;
+    break-inside: avoid;
+  }
+  .metric-value {
+    font-family: var(--serif);
+    font-size: 20pt;
+    font-weight: 500;
+    color: var(--brand);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    letter-spacing: -0.2pt;
+  }
+  .metric-label {
+    font-size: 9pt;
+    color: var(--olive);
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  /* ========== SECTIONS ========== */
+  .product-shot { margin-bottom: 16pt; break-inside: avoid; }
+  .product-shot .frame {
+    height: 110mm;
+    overflow: hidden;
+    border-radius: 5pt;
+    box-shadow: 0 1.5pt 6pt rgba(20, 20, 19, 0.16);
+  }
+  .product-shot .frame img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center; display: block;
+  }
+  .product-shot figcaption {
+    margin-top: 7pt; font-size: 8.5pt;
+    color: var(--stone); line-height: 1.45; text-align: center;
+  }
+  .product-shot figcaption .hl { color: var(--brand); font-weight: 500; }
+
+  section { margin-bottom: 18pt; break-inside: avoid; }
+  section:last-of-type { margin-bottom: 0; }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 16pt;
+    font-weight: 500;
+    color: var(--near-black);
+    margin-bottom: 6pt;
+  }
+  h2 .sub {
+    font-size: 9pt;
+    color: var(--stone);
+    font-weight: 400;
+    margin-left: 6pt;
+  }
+
+  p { margin-bottom: 6pt; line-height: 1.45; }
+  p:last-child { margin-bottom: 0; }
+
+  .lead {
+    font-size: 12pt;
+    line-height: 1.5;
+    color: var(--dark-warm);
+    margin-bottom: 14pt;
+  }
+
+  .hl { color: var(--brand); font-weight: 500; }
+
+  /* ========== 2-column grid ========== */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18pt;
+  }
+
+  /* ========== 短横线 list ========== */
+  ul.dash {
+    margin: 0;
+    padding-left: 16pt;
+  }
+  ul.dash li {
+    margin-bottom: 5pt;
+    line-height: 1.45;
+  }
+  ul.dash li:last-child { margin-bottom: 0; }
+  ul.dash li::marker { color: var(--brand); }
+
+  /* ========== Timeline ========== */
+  .timeline {
+    display: flex;
+    gap: 12pt;
+    margin-top: 6pt;
+  }
+  .tl-step {
+    flex: 1;
+    break-inside: avoid;
+  }
+  .tl-year {
+    font-family: var(--serif);
+    font-size: 11pt;
+    font-weight: 500;
+    color: var(--brand);
+    margin-bottom: 2pt;
+  }
+  .tl-head {
+    font-size: 10pt;
+    font-weight: 500;
+    color: var(--near-black);
+    margin-bottom: 2pt;
+  }
+  .tl-body {
+    font-size: 9pt;
+    color: var(--olive);
+    line-height: 1.4;
+  }
+
+  /* ========== Tag ========== */
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--brand);
+    font-size: 9pt;
+    font-weight: 500;
+    padding: 1pt 5pt;
+    border-radius: 3pt;
+    letter-spacing: 0.3pt;
+    margin-right: 3pt;
+  }
+
+  /* ========== Callout ========== */
+  .callout {
+    background: transparent;
+    border-left: 1.8pt solid var(--brand);
+    padding: 4pt 0 4pt 14pt;
+    margin: 10pt 0;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: var(--olive);
+    break-inside: avoid;
+  }
+  .callout .hl, .callout .em-brand { color: var(--brand); }
+
+  /* ========== TABLE ========== */
+  table, .kami-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin: 8pt 0;
+    break-inside: avoid;
+  }
+  table th, .kami-table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--dark-warm);
+    padding: 4pt 6pt;
+    border-bottom: 1pt solid var(--border);
+    background: transparent;
+  }
+  table td, .kami-table td {
+    padding: 3pt 6pt;
+    border-bottom: 0.3pt solid var(--border-soft);
+    vertical-align: top;
+  }
+  table.compact th, .kami-table.compact th { padding: 2pt 5pt; font-size: 8pt; }
+  table.compact td, .kami-table.compact td { padding: 1pt 5pt; font-size: 8pt; line-height: 1.4; }
+  table.financial td:not(:first-child), .kami-table.financial td:not(:first-child) {
+    text-align: right; font-variant-numeric: tabular-nums;
+  }
+  table.financial th:not(:first-child), .kami-table.financial th:not(:first-child) { text-align: right; }
+  table.striped tbody tr:nth-child(even) td, .kami-table.striped tbody tr:nth-child(even) td {
+    background: var(--ivory);
+  }
+  table .total td, .kami-table .total td {
+    font-weight: 500; border-top: 1pt solid var(--brand); border-bottom: none; color: var(--near-black);
+  }
+
+  /* ========== FOOTER ========== */
+  .footer {
+    margin-top: 18pt;
+    padding-top: 6pt;
+    border-top: 0.3pt dotted var(--border);
+    font-size: 9pt;
+    color: var(--stone);
+    display: flex;
+    justify-content: space-between;
+    letter-spacing: 0.3pt;
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">开源工具</div>
+    <h1>OKF Harness——用自然语言打理个人知识库</h1>
+    <div class="subtitle">在 Agent 里说句话，知识库就帮你建好、整理好、随问随答</div>
+  </div>
+  <div class="meta">
+    OKF Harness<br>
+    2026.06.15<br>
+    v0.1
+  </div>
+</div>
+
+<!-- ========== METRICS ========== -->
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-value">0</div>
+    <div class="metric-label">条命令需要记</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">2</div>
+    <div class="metric-label">款 Agent 支持</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">100%</div>
+    <div class="metric-label">数据留在本地</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">Apache-2.0</div>
+    <div class="metric-label">永久开源</div>
+  </div>
+</div>
+
+<!-- ========== LEAD ========== -->
+<p class="lead">
+  OKF Harness 不是又一个笔记应用。它是藏在 <span class="hl">Agent</span> 背后的知识库引擎——你对 Agent 说自然语言，它帮你收集资料、整理成结构化 Wiki、随问随答。没有云端，没有账号，所有数据安安静静留在你自己的 Mac 上。
+</p>
+
+<!-- ========== 核心内容（两栏） ========== -->
+<div class="two-col">
+  <section>
+    <h2>你能让它做什么</h2>
+    <ul class="dash">
+      <li><span class="hl">初始化知识库</span>：一句话创建完整工作空间，目录、索引、Agent 配置全部就位</li>
+      <li><span class="hl">添加资料</span>：拖进 PDF、Markdown、网页链接，自动归档、校验、登记</li>
+      <li><span class="hl">整理吸收</span>：Agent 读懂你的资料，生成摘要页、更新主题页、补全引用</li>
+      <li><span class="hl">搜索提问</span>：用自然语言问你的知识库，Agent 查索引、读全文、给出带来源的回答</li>
+      <li><span class="hl">健康检查</span>：一键扫描坏链接、缺引用、过期页面，知识库始终可用</li>
+      <li><span class="hl">可视化图谱</span>：生成本地 HTML 知识图谱，看清概念之间的关联</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>它跟其他工具有什么不同</h2>
+    <ul class="dash">
+      <li><span class="hl">没有 GUI，Agent 是界面</span>：你不是在点点点，是在跟 Agent 对话</li>
+      <li><span class="hl">数据是你的，不是云的</span>：所有 markdown 文件都在本地文件夹里，用 Git 管理，任何编辑器都能打开</li>
+      <li><span class="hl">OKF 格式，不锁定</span>：Wiki 遵循 Open Knowledge Format，随时可以带走，不绑定任何特定工具</li>
+      <li><span class="hl">三层结构，清清楚楚</span>：原始资料（不可改）→ Wiki 正文（Agent 维护）→ 工作流指令（可审计）</li>
+      <li><span class="hl">CLI 是后门，不是正门</span>：普通用户永远不需要记命令；高级用户可以用命令行做自动化</li>
+      <li><span class="hl">开源透明</span>：Apache-2.0 协议，代码可查、可改、可审计</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ========== 路线图 ========== -->
+<section>
+  <h2>路线图</h2>
+  <div class="timeline">
+    <div class="tl-step">
+      <div class="tl-year">v0.1</div>
+      <div class="tl-head">Agent 优先本地 MVP</div>
+      <div class="tl-body">Claude Code + Codex 支持，初始化、收录、整理、搜索、检查、图谱全部可用</div>
+    </div>
+    <div class="tl-step">
+      <div class="tl-year">v0.2</div>
+      <div class="tl-head">更多 Agent 适配</div>
+      <div class="tl-body">扩展 Pi、OpenCode 支持，适配器一致性测试</div>
+    </div>
+    <div class="tl-step">
+      <div class="tl-year">v0.3</div>
+      <div class="tl-head">macOS 便捷层</div>
+      <div class="tl-body">Raycast 插件、Shortcuts 动作、Finder 快捷操作</div>
+    </div>
+    <div class="tl-step">
+      <div class="tl-year">v0.4</div>
+      <div class="tl-head">Obsidian 集成</div>
+      <div class="tl-body">以 vault 方式打开 workspace，可选 wikilink 兼容，无锁定</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== CALLOUT ========== -->
+<div class="callout">
+  <span class="hl">Agent 是界面，Markdown 是格式，CLI 是引擎。</span>这是 OKF Harness 的核心设计——你不需要理解它，你只需要对 Agent 说话。
+</div>
+
+<!-- ========== FOOTER ========== -->
+<div class="footer">
+  <span>开源项目 · Apache-2.0</span>
+  <span>github.com/okf-harness</span>
+</div>
+
+</body>
+</html>
