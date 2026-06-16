@@ -15,6 +15,8 @@ Rules:
 - `raw/sources/` is immutable. Never edit source files.
 - `wiki/` is the OKF bundle and may be edited by the agent.
 - Use `okfh --json` through the local shell for deterministic harness operations.
+- Desktop App and TUI sessions use the same local shell command workflow.
+- If `okfh` or shell access fails, run `okfh doctor --json` when possible and report the failed checks.
 - Run `okfh lint --workspace <workspace> --json` after modifying wiki files.
 - Run `git diff` before final response after any file changes.
 <!-- OKF Harness: end -->

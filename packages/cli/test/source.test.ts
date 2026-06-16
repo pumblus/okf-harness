@@ -306,7 +306,8 @@ describe("@okf-harness/cli source", () => {
     expect(JSON.parse(result.stderr)).toMatchObject({
       ok: false,
       command: "source add",
-      data: { code: "SOURCE_REGISTRATION_FAILED" },
+      data: {},
+      error: { code: "SOURCE_REGISTRATION_FAILED" },
     });
     await expect(listRawSourceFiles(workspace)).resolves.toEqual(["raw/sources/README.md"]);
   });

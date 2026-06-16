@@ -17,7 +17,8 @@ import {
   WorkspaceInitError,
 } from "@okf-harness/core";
 import { Command } from "commander";
-import { handleCliError, writeError, writePhase5Error } from "./errors/index.js";
+import { runDoctor } from "./doctor/index.js";
+import { handleCliError, writeCliError, writeValidationError } from "./errors/index.js";
 import {
   commandFromArgv,
   type InitAgentTarget,
@@ -33,7 +34,7 @@ export type { CliIo, JsonEnvelope } from "./types.js";
 export const packageInfo = {
   name: "@okf-harness/cli",
   role: "cli",
-  phase: 5,
+  phase: 6,
 } as const;
 
 export type PackageInfo = typeof packageInfo;
@@ -72,13 +73,14 @@ export async function runCli(
       };
       const agentTarget = parseInitAgentTarget(options.agents);
       if (agentTarget === undefined) {
-        writeError(
-          io,
-          "init",
-          "Agents must be one of: claude, codex, all, none, claude,codex.",
-          "INVALID_AGENT_TARGET",
-          path.resolve(workspace),
-        );
+        writeValidationError(io, {
+          command: "init",
+          code: "INVALID_AGENT_TARGET",
+          message: "Agents must be one of: claude, codex, all, none, claude,codex.",
+          workspace: path.resolve(workspace),
+          next: ["Rerun okfh init with --agents all, claude, codex, none, or claude,codex."],
+          json: options.json === true,
+        });
         exitCode = 1;
         return;
       }
@@ -93,7 +95,16 @@ export async function runCli(
         });
       } catch (error) {
         if (error instanceof WorkspaceInitError) {
-          writeError(io, "init", error.message, error.code, path.resolve(workspace));
+          writeCliError(io, {
+            command: "init",
+            error,
+            workspace: path.resolve(workspace),
+            next:
+              error.code === "INIT_NOT_EMPTY"
+                ? ["Choose an empty directory, or run okfh doctor --workspace <path> --json."]
+                : ["Fix the initialization input and rerun okfh init --json."],
+            json: options.json === true,
+          });
           exitCode = error.code === "DEPENDENCY_MISSING" ? 4 : 1;
           return;
         }
@@ -241,7 +252,7 @@ export async function runCli(
         writeResult(io, envelope, options.json);
         exitCode = 0;
       } catch (error) {
-        const handled = writePhase5Error(io, {
+        const handled = writeCliError(io, {
           command: "search",
           error,
           workspace: workspaceRoot,
@@ -303,7 +314,7 @@ export async function runCli(
         writeResult(io, envelope, options.json);
         exitCode = 0;
       } catch (error) {
-        const handled = writePhase5Error(io, {
+        const handled = writeCliError(io, {
           command: "read",
           error,
           workspace: workspaceRoot,
@@ -346,7 +357,7 @@ export async function runCli(
         writeResult(io, envelope, options.json);
         exitCode = 0;
       } catch (error) {
-        const handled = writePhase5Error(io, {
+        const handled = writeCliError(io, {
           command: "graph",
           error,
           workspace: workspaceRoot,
@@ -359,6 +370,38 @@ export async function runCli(
         }
         throw error;
       }
+    });
+
+  program
+    .command("doctor")
+    .description("Check okfh, local shell dependencies, and workspace readiness.")
+    .storeOptionsAsProperties(false)
+    .option("--workspace <path>", "workspace path")
+    .option("--json", "write machine-readable JSON")
+    .action(async (command: Command) => {
+      const options = command.opts() as { workspace?: string; json?: boolean };
+      const result = await runDoctor({ workspaceRoot: options.workspace });
+      const envelope: JsonEnvelope = {
+        ok: result.ok,
+        command: "doctor",
+        workspace: result.workspace,
+        data: {
+          checks: result.checks,
+          summary: result.summary,
+        },
+        warnings: result.checks
+          .filter((check) => check.status === "warn")
+          .map((check) => ({
+            code: check.id.toUpperCase().replaceAll("-", "_"),
+            message: check.message,
+          })),
+        next: result.ok
+          ? ["Use okfh --json commands through the local shell for OKF Harness workflows."]
+          : ["Fix failed checks, then rerun okfh doctor --json."],
+      };
+
+      writeResult(io, envelope, options.json);
+      exitCode = result.ok ? 0 : 1;
     });
 
   program
@@ -386,13 +429,13 @@ export async function runCli(
           exitCode = 0;
         } catch (error) {
           if (error instanceof SourceManagementError) {
-            writeError(
-              io,
-              "source list",
-              error.message,
-              error.code,
-              path.resolve(options.workspace),
-            );
+            writeCliError(io, {
+              command: "source list",
+              error,
+              workspace: path.resolve(options.workspace),
+              next: ["Check the workspace path and rerun okfh source list --json."],
+              json: options.json === true,
+            });
             exitCode = 1;
             return;
           }
@@ -402,24 +445,26 @@ export async function runCli(
       }
 
       if (actionInput !== "add") {
-        writeError(
-          io,
-          "source",
-          "Source action must be one of: add, list.",
-          "INVALID_SOURCE_ACTION",
-          path.resolve(options.workspace),
-        );
+        writeValidationError(io, {
+          command: "source",
+          code: "INVALID_SOURCE_ACTION",
+          message: "Source action must be one of: add, list.",
+          workspace: path.resolve(options.workspace),
+          next: ["Use okfh source add <path-or-url> --workspace <path> --json."],
+          json: options.json === true,
+        });
         exitCode = 1;
         return;
       }
       if (input === undefined) {
-        writeError(
-          io,
-          "source add",
-          "source add requires a file path or URL.",
-          "SOURCE_INPUT_REQUIRED",
-          path.resolve(options.workspace),
-        );
+        writeValidationError(io, {
+          command: "source add",
+          code: "SOURCE_INPUT_REQUIRED",
+          message: "source add requires a file path or URL.",
+          workspace: path.resolve(options.workspace),
+          next: ["Pass a local file path or URL to okfh source add."],
+          json: options.json === true,
+        });
         exitCode = 2;
         return;
       }
@@ -447,7 +492,13 @@ export async function runCli(
         exitCode = 0;
       } catch (error) {
         if (error instanceof SourceManagementError) {
-          writeError(io, "source add", error.message, error.code, path.resolve(options.workspace));
+          writeCliError(io, {
+            command: "source add",
+            error,
+            workspace: path.resolve(options.workspace),
+            next: ["Check the source input and workspace path, then rerun okfh source add --json."],
+            json: options.json === true,
+          });
           exitCode = error.code === "SOURCE_INPUT_UNSUPPORTED" ? 1 : 5;
           return;
         }
@@ -464,13 +515,14 @@ export async function runCli(
     .action(async (actionInput: string, sourceInput: string, command: Command) => {
       const options = command.opts() as { workspace: string; json?: boolean };
       if (actionInput !== "plan") {
-        writeError(
-          io,
-          "ingest",
-          "Ingest action must be: plan.",
-          "INVALID_INGEST_ACTION",
-          path.resolve(options.workspace),
-        );
+        writeValidationError(io, {
+          command: "ingest",
+          code: "INVALID_INGEST_ACTION",
+          message: "Ingest action must be: plan.",
+          workspace: path.resolve(options.workspace),
+          next: ["Use okfh ingest plan <source-id-or-path> --workspace <path> --json."],
+          json: options.json === true,
+        });
         exitCode = 1;
         return;
       }
@@ -498,7 +550,13 @@ export async function runCli(
         exitCode = 0;
       } catch (error) {
         if (error instanceof SourceManagementError) {
-          writeError(io, "ingest plan", error.message, error.code, path.resolve(options.workspace));
+          writeCliError(io, {
+            command: "ingest plan",
+            error,
+            workspace: path.resolve(options.workspace),
+            next: ["Register the source first with okfh source add, then rerun okfh ingest plan."],
+            json: options.json === true,
+          });
           exitCode = error.code === "SOURCE_NOT_REGISTERED" ? 1 : 5;
           return;
         }
@@ -522,39 +580,42 @@ export async function runCli(
         json?: boolean;
       };
       if (actionInput !== "install") {
-        writeError(
-          io,
-          "agent",
-          "Agent action must be: install.",
-          "INVALID_AGENT_ACTION",
-          path.resolve(options.workspace),
-        );
+        writeValidationError(io, {
+          command: "agent",
+          code: "INVALID_AGENT_ACTION",
+          message: "Agent action must be: install.",
+          workspace: path.resolve(options.workspace),
+          next: ["Use okfh agent install claude|codex|all --workspace <path> --json."],
+          json: options.json === true,
+        });
         exitCode = 1;
         return;
       }
 
       const adapter = parseAgentInstallTarget(adapterInput);
       if (adapter === undefined) {
-        writeError(
-          io,
-          "agent install",
-          "Adapter must be one of: claude, codex, all.",
-          "INVALID_AGENT_ADAPTER",
-          path.resolve(options.workspace),
-        );
+        writeValidationError(io, {
+          command: "agent install",
+          code: "INVALID_AGENT_ADAPTER",
+          message: "Adapter must be one of: claude, codex, all.",
+          workspace: path.resolve(options.workspace),
+          next: ["Rerun with adapter claude, codex, or all."],
+          json: options.json === true,
+        });
         exitCode = 1;
         return;
       }
 
       const workspaceStatus = await readWorkspaceStatus(options.workspace);
       if (!workspaceStatus.initialized) {
-        writeError(
-          io,
-          "agent install",
-          "Workspace is not initialized. Run okfh init first.",
-          "WORKSPACE_NOT_INITIALIZED",
-          workspaceStatus.workspaceRoot,
-        );
+        writeValidationError(io, {
+          command: "agent install",
+          code: "WORKSPACE_NOT_INITIALIZED",
+          message: "Workspace is not initialized. Run okfh init first.",
+          workspace: workspaceStatus.workspaceRoot,
+          next: ["Run okfh init <workspace> --name <name> --agents all --json first."],
+          json: options.json === true,
+        });
         exitCode = 1;
         return;
       }

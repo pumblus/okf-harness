@@ -74,7 +74,8 @@ describe("@okf-harness/cli agent", () => {
       ok: false,
       command: "agent install",
       workspace,
-      data: {
+      data: {},
+      error: {
         code: "WORKSPACE_NOT_INITIALIZED",
       },
     });

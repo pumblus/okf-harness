@@ -10,10 +10,6 @@ export function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): vo
 }
 
 function renderHumanResult(envelope: JsonEnvelope): string {
-  if (!envelope.ok) {
-    return `FAILED ${envelope.command}\n`;
-  }
-
   if (envelope.command === "search") {
     const data = envelope.data as {
       results?: Array<{ title?: string; path?: string; type?: string; score?: number }>;
@@ -49,6 +45,25 @@ function renderHumanResult(envelope: JsonEnvelope): string {
       report?: { htmlPath?: string; backlinksPath?: string };
     };
     return `Graph report: ${data.report?.htmlPath ?? "(not written)"}\nBacklinks: ${data.report?.backlinksPath ?? "(not written)"}\n`;
+  }
+
+  if (envelope.command === "doctor") {
+    const data = envelope.data as {
+      checks?: Array<{ label?: string; status?: string; message?: string }>;
+      summary?: { pass?: number; warn?: number; fail?: number; skip?: number };
+    };
+    const summary = data.summary ?? {};
+    const rows = (data.checks ?? []).map((check) => {
+      const label = check.label ?? "Check";
+      const status = (check.status ?? "unknown").toUpperCase();
+      const message = check.message ?? "";
+      return `${status} ${label}: ${message}`;
+    });
+    return `Doctor: ${summary.pass ?? 0} pass, ${summary.warn ?? 0} warn, ${summary.fail ?? 0} fail, ${summary.skip ?? 0} skip\n${rows.join("\n")}${rows.length > 0 ? "\n" : ""}`;
+  }
+
+  if (!envelope.ok) {
+    return `FAILED ${envelope.command}\n`;
   }
 
   return `${envelope.ok ? "OK" : "FAILED"} ${envelope.command}\n`;

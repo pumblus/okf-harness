@@ -6,11 +6,11 @@ import { describe, expect, it } from "vitest";
 import { installAgentAdapters, packageInfo, renderAgentAdapter } from "../src/index.js";
 
 describe("@okf-harness/agent-pack", () => {
-  it("exposes Phase 3 package metadata", () => {
+  it("exposes Phase 6 package metadata", () => {
     expect(packageInfo).toEqual({
       name: "@okf-harness/agent-pack",
       role: "agent-pack",
-      phase: 5,
+      phase: 6,
     });
   });
 
@@ -56,6 +56,7 @@ describe("@okf-harness/agent-pack", () => {
 
     expect(fileContents(claude.files, "CLAUDE.md")).toContain("/okf-harness-init");
     expect(fileContents(codex.files, "AGENTS.md")).toContain("$okf-harness-init");
+    expect(fileContents(codex.files, "AGENTS.md")).toContain("okfh doctor --json");
     expect(codexQuery).toContain("okfh read index --json");
     expect(codexQuery).toContain("Do not run or hallucinate an `okfh query` command.");
     expect(codexMaintain).toContain("Run `okfh graph --json` only when the user asks");

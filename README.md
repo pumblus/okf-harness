@@ -3,9 +3,10 @@
 OKF Harness is a macOS-first, agent-first local harness for maintaining
 OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
 
-This repository is in Phase 5. It contains the TypeScript pnpm monorepo scaffold,
+This repository is in Phase 6. It contains the TypeScript pnpm monorepo scaffold,
 core OKF primitives, `okfh` init/status/lint/source/ingest/search/read/graph
-behavior, and Claude/Codex adapter rendering through the agent pack.
+behavior, terminal-native doctor checks, and Claude/Codex adapter rendering through
+the agent pack.
 
 Ask Claude Code or Codex questions through the generated OKF Harness query skill,
 or use the CLI directly:
@@ -14,6 +15,7 @@ or use the CLI directly:
 okfh search "LLM Wiki" --workspace <workspace> --json
 okfh read topics/llm-wiki --workspace <workspace> --json
 okfh graph --workspace <workspace> --json
+okfh doctor --workspace <workspace> --json
 ```
 
 ## Packages

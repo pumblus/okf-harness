@@ -4,7 +4,7 @@ import path from "node:path";
 export const packageInfo = {
   name: "@okf-harness/agent-pack",
   role: "agent-pack",
-  phase: 5,
+  phase: 6,
 } as const;
 
 export type PackageInfo = typeof packageInfo;
@@ -86,13 +86,14 @@ const skillTemplates: SkillTemplate[] = [
       "Locate or choose the workspace path with the user.",
       "Use the local shell to run `okfh init <workspace> --name <name> --agents all --json` for first-time setup.",
       "Use `okfh agent install all --workspace <workspace> --json` to repair adapter files in an existing workspace.",
-      "If the CLI is unavailable, stop and tell the user to install OKF Harness instead of hand-writing the workspace structure.",
+      "If the CLI or local shell is unavailable, run `okfh doctor --json` when possible; otherwise stop and tell the user to install OKF Harness instead of hand-writing the workspace structure.",
       "After initialization, run `okfh status --workspace <workspace> --json` and report the workspace path, lint status, warnings, and next step.",
     ],
     hardRules: [
       "Do not create a parallel workspace skeleton by hand.",
       "Do not overwrite a non-empty directory unless `okfh` returns an explicit safe plan.",
       "Do not add MCP, plugin, hook, Pi, OpenCode, or Obsidian setup.",
+      "Use the same local shell `okfh --json` workflow in Desktop App and TUI sessions.",
       "Run `git diff` before final response when file changes were made.",
     ],
     reference: {
@@ -367,6 +368,8 @@ Rules:
 - \`raw/sources/\` is immutable. Never edit source files.
 - \`wiki/\` is the OKF bundle and may be edited by the agent.
 - Use \`okfh --json\` through the local shell for deterministic harness operations.
+- Desktop App and TUI sessions use the same local shell command workflow.
+- If \`okfh\` or shell access fails, run \`okfh doctor --json\` when possible and report the failed checks.
 - Run \`okfh lint --workspace <workspace> --json\` after modifying wiki files.
 - Run \`git diff\` before final response after any file changes.
 ${managedBlockEnd}

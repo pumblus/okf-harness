@@ -579,6 +579,27 @@ JSON `data` 至少包含：
 okfh doctor --json
 ```
 
+行为：检查当前 `okfh` CLI entrypoint、Node.js 22+、git、pnpm，并在可解析 workspace 时检查 workspace 初始化 / lint 摘要和 Claude / Codex adapter 文件状态。`doctor` 不写文件，不修复 workspace；只返回诊断和下一步。
+
+JSON `data` 至少包含：
+
+```json
+{
+  "checks": [
+    {
+      "id": "workspace-status",
+      "label": "Workspace status",
+      "status": "pass",
+      "message": "Workspace AI Research is initialized and lint passes.",
+      "details": {}
+    }
+  ],
+  "summary": { "pass": 7, "warn": 0, "fail": 0, "skip": 0 }
+}
+```
+
+`status` 只使用 `pass`、`warn`、`fail`、`skip`。只有 `fail` 使 `ok:false` 和退出码 1；未提供 workspace 且当前目录无法向上找到 `okfh.config.yaml` 时返回 warning / skip，不阻塞用户诊断 CLI 环境。
+
 ### 6.3 命令安全规则
 
 每个读命令必须有 `--json`；每个写文件命令必须支持 `--dry-run`；每个可能覆盖文件的命令必须先生成 diff 或显式返回 pending action。
@@ -1151,9 +1172,9 @@ okf-harness/
 
 **Phase 6：Terminal-native hardening**
 
-- [ ] doctor 检查 `okfh`、git、Node.js、pnpm 和 workspace 状态
-- [ ] CLI 错误输出适合 Agent 解析和用户转述
-- [ ] Agent guidance 覆盖 Desktop App 和 TUI 的一致 shell command workflow
+- [x] doctor 检查 `okfh`、git、Node.js、pnpm 和 workspace 状态
+- [x] CLI 错误输出适合 Agent 解析和用户转述
+- [x] Agent guidance 覆盖 Desktop App 和 TUI 的一致 shell command workflow
 
 验收：Claude Code 和 Codex 在不依赖 MCP 的情况下完成 init / source add / ingest plan / lint / graph smoke test。
 

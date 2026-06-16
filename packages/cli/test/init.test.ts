@@ -165,7 +165,8 @@ describe("@okf-harness/cli init", () => {
       ok: false,
       command: "init",
       workspace,
-      data: {
+      data: {},
+      error: {
         code: "INIT_NOT_EMPTY",
       },
     });
@@ -194,7 +195,8 @@ describe("@okf-harness/cli init", () => {
     expect(JSON.parse(stderr)).toMatchObject({
       ok: false,
       command: "init",
-      data: {
+      data: {},
+      error: {
         code: "commander.missingMandatoryOptionValue",
         message: "error: required option '--name <name>' not specified",
       },
