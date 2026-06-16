@@ -4,7 +4,7 @@ import path from "node:path";
 export const packageInfo = {
   name: "@okf-harness/agent-pack",
   role: "agent-pack",
-  phase: 3,
+  phase: 5,
 } as const;
 
 export type PackageInfo = typeof packageInfo;
@@ -179,16 +179,20 @@ The ingest plan is metadata-level guidance. It returns a recommended reference p
     summary: "Use this skill to answer from existing OKF wiki knowledge.",
     requiredBehavior: [
       "Locate the workspace by finding `okfh.config.yaml`.",
-      "Prefer `okfh search <query> --json` and `okfh read <concept-id> --json` when those commands exist.",
-      "If search/read commands are unavailable, stop and report that query support is not implemented in this OKF Harness phase.",
-      "Read full relevant wiki pages before synthesizing.",
-      "Cite wiki paths or concept IDs in the answer.",
-      "Keep uncertainty and contradictions visible.",
+      "Run `okfh status --json` and confirm `data.capabilities.search`, `read`, and `graph` are available while `queryCommand` is not available.",
+      "Run `okfh read index --json` first to inspect the wiki map.",
+      "Run `okfh search <question> --json` to get candidate concept cards.",
+      "Run `okfh read <concept-id-or-path> --json` for relevant candidates before synthesizing.",
+      "Follow useful reference citations with `okfh read <reference-concept-id-or-path> --json` when factual precision matters.",
+      "If a read is truncated, continue with `--section`, `--section-id`, `--offset/--limit`, or `--full` before relying on omitted content.",
+      "Answer directly first, then list supporting concept paths and available source IDs.",
+      "If hits are weak, citations are missing, or only wiki synthesis was read, state the evidence limit plainly.",
     ],
     hardRules: [
       "Do not ingest new source material from this skill.",
       "Do not invent citations or claim the wiki says something without reading it.",
-      "Do not build an ad hoc search index when the CLI command is unavailable.",
+      "Do not run or hallucinate an `okfh query` command.",
+      "Do not build an ad hoc search index or search `raw/sources/` for normal query answers.",
       "Do not edit `raw/sources/`.",
     ],
     reference: {
@@ -196,17 +200,28 @@ The ingest plan is metadata-level guidance. It returns a recommended reference p
       title: "Answer Contract",
       body: `# Answer Contract
 
-## Phase boundary
+## Phase 5 query workflow
 
-Search and read are Phase 5 capabilities. If \`okfh search\` or \`okfh read\` is unavailable, stop and say the installed OKF Harness version does not implement query support yet.
+Use the CLI as the deterministic retrieval layer:
+
+\`\`\`bash
+okfh status --json
+okfh read index --json
+okfh search "<question>" --json
+okfh read <concept-id-or-path> --json
+\`\`\`
+
+There is no \`okfh query\` command in v0.1. Compose answers from search candidate cards plus bounded reads.
 
 ## Answer shape
 
-When query commands are available, answer with:
+Answer with:
 
 - Direct answer.
-- Evidence from wiki paths or concept IDs.
+- Evidence from concept paths and available source IDs.
+- A note when evidence came only from wiki synthesis rather than raw source bodies.
 - Open questions or contradictions.
+- Insufficient-evidence statement when search hits are weak or citations are missing.
 - Suggested follow-up only when it naturally follows from the wiki evidence.
 `,
     },
@@ -219,17 +234,17 @@ When query commands are available, answer with:
     summary: "Use this skill to lint and repair an existing OKF Harness workspace.",
     requiredBehavior: [
       "Locate the workspace by finding `okfh.config.yaml`.",
-      "Run `okfh lint --workspace <workspace> --json` before deciding what to change.",
+      "Run `okfh lint --json` before deciding what to change.",
       "Use small patches for wiki repairs.",
-      "Run `okfh lint --workspace <workspace> --json` again after wiki edits.",
-      "Use `okfh graph --json` only when that command exists.",
-      "If graph support is unavailable, stop and report that graph generation is not implemented in this OKF Harness phase.",
-      "Report lint status, changed files, and any remaining manual fixes.",
+      "Run `okfh lint --json` again after wiki edits.",
+      "Run `okfh graph --json` only when the user asks for a graph, visualization, or graph report.",
+      "Report lint status, changed files, graph report paths when generated, and any remaining manual fixes.",
+      "If the user did not ask for a graph, mention graph generation only as an optional follow-up.",
     ],
     hardRules: [
       "Never edit `raw/sources/`.",
       "Do not silently rewrite large wiki sections.",
-      "Do not hand-roll graph reports or source hash checks when CLI commands are unavailable.",
+      "Do not hand-roll graph reports or source hash checks.",
       "Run `git diff` before final response when file changes were made.",
     ],
     reference: {
@@ -242,14 +257,20 @@ When query commands are available, answer with:
 Run:
 
 \`\`\`bash
-okfh lint --workspace <workspace> --json
+okfh lint --json
 \`\`\`
 
 Fix only issues that can be resolved from current wiki context without inventing missing source facts.
 
-## Future maintenance commands
+## Graph reports
 
-Source hash checks are supported by \`okfh lint\`. Graph generation is a later-phase capability; if \`okfh graph\` is unavailable, stop and say the installed OKF Harness version does not implement graph generation yet.
+Source hash checks are supported by \`okfh lint\`. Graph generation is supported by:
+
+\`\`\`bash
+okfh graph --json
+\`\`\`
+
+Run graph only when the user asks to visualize or generate a graph report. Maintain workflows should not generate graph reports automatically.
 `,
     },
   },

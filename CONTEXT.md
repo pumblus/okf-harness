@@ -44,6 +44,10 @@ _Avoid_: OKF workspace, Obsidian vault, project repo
 The JSON-readable plan for creating an OKF Harness workspace: directories, files, placeholder agent guidance, post-create checks, and warnings. It is primarily for the Harness CLI and agent clients, not a document an agent-first knowledge worker must read directly.
 _Avoid_: setup doc, user-facing checklist, installer script
 
+**Workspace resolution**:
+The way OKF Harness decides which local workspace a command should operate on, either from an explicit workspace path or by finding the nearest `okfh.config.yaml` from the current directory. Command output should expose the resolved workspace so agents and people can verify the target.
+_Avoid_: current project guess, global default workspace, hidden app state
+
 **Source material**:
 Original material that a person wants to bring into the knowledge base, such as a file, URL, markdown document, text snippet, or clipboard content. It is evidence for later synthesis, not the synthesized wiki content itself.
 _Avoid_: data, document, note
@@ -59,6 +63,10 @@ _Avoid_: webpage archive, fetched page, URL snapshot
 **Source registration**:
 The act of bringing source material under OKF Harness management by creating or reusing a raw source record. Registration preserves evidence identity; it is not the same as synthesizing knowledge into concept documents.
 _Avoid_: import, upload, wiki edit
+
+**Online source review**:
+An explicit workflow where an agent searches, fetches, or previews public online material so a person can decide whether it should become source material. It is source acquisition support, not normal wiki query, background crawling, or automatic web ingestion.
+_Avoid_: web search query, background crawler, raw-source-wide answer
 
 **Source provenance**:
 The non-sensitive traceability information that identifies where source material came from and how a raw source relates to it. Provenance should preserve evidence identity without exposing private local filesystem context.
@@ -79,6 +87,38 @@ _Avoid_: import, upload, summarize, auto-ingest
 **Ingest plan**:
 A deterministic work plan that tells an agent how a raw source may relate to existing concept documents before synthesis begins. It is guidance for agent work, not source reading, a complete search result, or an automatic wiki rewrite.
 _Avoid_: search result, summary, source digest, auto-ingest output
+
+**Query**:
+The workflow of answering from an OKF bundle by finding and reading relevant concept documents, then following cited reference documents when factual precision matters. Query is not a raw-source discovery pass; registered source material that has not been synthesized into concept documents remains outside normal answers.
+_Avoid_: raw source search, RAG, auto-ingest
+
+**Search result**:
+A candidate concept list that helps an agent decide which full concept documents to read. It may describe matched fields and hit counts, but it is not final evidence for an answer and should not be treated as a snippet-based search engine page.
+_Avoid_: answer excerpt, evidence snippet, source digest
+
+**Search miss**:
+A query outcome where deterministic search finds no relevant concept documents in the OKF bundle. It means the synthesized wiki has no matching concept yet; it must not be presented as proof that registered source material contains no answer.
+_Avoid_: no source evidence, knowledge base disproved it, raw source absence
+
+**Read result**:
+The bounded content view and metadata for one concept document in an OKF bundle. A read result may expose citation and raw-source pointers, but it does not automatically include raw source bodies or unbounded page content.
+_Avoid_: raw source read, attachment fetch, source dump
+
+**Reserved wiki document**:
+An OKF bundle file with a special workspace role, such as `wiki/index.md` or `wiki/log.md`, rather than a normal concept document. It may be read explicitly for orientation or activity history, but it should not be presented as a concept.
+_Avoid_: concept document, arbitrary workspace file, wiki page
+
+**Index document**:
+The reserved wiki document that acts as the OKF bundle's human-maintained homepage and orientation map. It can help an agent discover linked concept documents, but a homepage link is not by itself an importance ranking.
+_Avoid_: ranking source, concept document, search result
+
+**Graph report**:
+A local structure report that helps a person or agent understand links between concept documents in an OKF bundle. It is a maintenance and orientation aid, not an editing interface or standalone knowledge-base browser.
+_Avoid_: GUI, graph editor, knowledge-base app
+
+**Evidence link**:
+A relationship from a synthesized concept document to the reference document or source ID that supports a factual claim. It is part of the wiki's traceability model; it does not turn raw source files into normal graph nodes.
+_Avoid_: raw source node, attachment link, proof of truth
 
 **Semantic analysis**:
 The agent-owned interpretation of source material, including meaning, claims, contradictions, and which concept documents should change. OKF Harness may prepare deterministic inputs for semantic analysis, but it should not present its metadata matching as understanding.
@@ -111,3 +151,7 @@ _Avoid_: prompt injection, hidden prompt, monolithic instructions
 **Harness-managed guidance block**:
 A clearly marked section inside a generated OKF Harness workspace's agent guidance file that OKF Harness may insert, replace, or remove without owning the rest of the file. It lets agent adapters update their own instructions while preserving user-written project guidance.
 _Avoid_: full-file ownership, silent overwrite, prompt injection
+
+**Product roadmap**:
+The public-facing direction of OKF Harness across releases, including accepted themes and candidate ideas. It is not the detailed implementation phase gate; implementation order and hard scope still come from the implementation spec.
+_Avoid_: implementation checklist, issue tracker, release promise

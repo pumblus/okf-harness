@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { stringify as stringifyYaml } from "yaml";
@@ -57,6 +57,20 @@ export type WorkspaceStatus = {
   lint: LintResult;
   warnings: WorkspaceWarning[];
 };
+
+export const WORKSPACE_NOT_FOUND = "WORKSPACE_NOT_FOUND" as const;
+
+export class WorkspaceResolutionError extends Error {
+  readonly code = WORKSPACE_NOT_FOUND;
+
+  constructor(
+    message: string,
+    readonly startDir: string,
+  ) {
+    super(message);
+    this.name = "WorkspaceResolutionError";
+  }
+}
 
 export class WorkspaceInitError extends Error {
   constructor(
@@ -176,6 +190,45 @@ export async function readWorkspaceStatus(workspaceRootInput: string): Promise<W
     lint,
     warnings: workspacePendingWarnings(),
   };
+}
+
+export async function resolveWorkspaceRoot(options: {
+  workspaceRoot?: string | undefined;
+  startDir?: string | undefined;
+}): Promise<string> {
+  if (options.workspaceRoot !== undefined && options.workspaceRoot.trim().length > 0) {
+    return path.resolve(options.workspaceRoot);
+  }
+
+  const startDir = path.resolve(options.startDir ?? process.cwd());
+  const nearest = await findNearestWorkspaceRoot(startDir);
+  if (nearest === undefined) {
+    throw new WorkspaceResolutionError(
+      "Could not find okfh.config.yaml in the current directory or its parents.",
+      startDir,
+    );
+  }
+  return nearest;
+}
+
+async function findNearestWorkspaceRoot(startDir: string): Promise<string | undefined> {
+  let current = startDir;
+  while (true) {
+    try {
+      await access(path.join(current, "okfh.config.yaml"));
+      return current;
+    } catch (error) {
+      if (errorCode(error) !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return undefined;
+    }
+    current = parent;
+  }
 }
 
 function workspacePendingWarnings(): WorkspaceWarning[] {
@@ -312,7 +365,7 @@ function workspaceFiles(
     {
       path: ".gitignore",
       contents:
-        "# OKF Harness generated caches\n.okfh/cache/\n.okfh/*.sqlite\n.okfh/reports/*.tmp\n\n# OS\n.DS_Store\n\n# Secrets\n.env\n.env.*\n!.env.example\n",
+        "# OKF Harness generated caches\n.okfh/cache/\n.okfh/*.sqlite\n.okfh/backlinks.json\n.okfh/reports/graph.html\n.okfh/reports/*.tmp\n\n# OS\n.DS_Store\n\n# Secrets\n.env\n.env.*\n!.env.example\n",
     },
     {
       path: ".okfh/cache/.gitkeep",

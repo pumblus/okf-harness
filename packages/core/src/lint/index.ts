@@ -4,6 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { CONFIG_INVALID, readWorkspaceConfig } from "../config/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
 import { readSourceManifest, type SourceManifestEntry } from "../source/index.js";
 
 export type LintSeverity = "error" | "warning" | "info";
@@ -31,6 +32,9 @@ export const LOG_INVALID_DATE_HEADING = "LOG_INVALID_DATE_HEADING" as const;
 export const SOURCE_HASH_DRIFT = "SOURCE_HASH_DRIFT" as const;
 export const SOURCE_MISSING = "SOURCE_MISSING" as const;
 export const REFERENCE_SOURCE_MISSING = "REFERENCE_SOURCE_MISSING" as const;
+export const BROKEN_LINK = "BROKEN_LINK" as const;
+export const MISSING_INDEX_ENTRY = "MISSING_INDEX_ENTRY" as const;
+export const MISSING_CITATIONS_SECTION = "MISSING_CITATIONS_SECTION" as const;
 
 export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> {
   const configResult = await readWorkspaceConfig(workspaceRoot);
@@ -63,6 +67,7 @@ export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> 
         : [];
     const issues = [
       ...scanResult.files.flatMap((file) => lintMarkdownFile(file)),
+      ...lintPhase5WikiWarnings(scanResult.files),
       ...sourceManifest.issues.map(
         (issue) =>
           ({
@@ -279,6 +284,99 @@ function lintMarkdownFile(file: OkfMarkdownFile): LintIssue[] {
   return issues;
 }
 
+function lintPhase5WikiWarnings(files: OkfMarkdownFile[]): LintIssue[] {
+  const existingConceptIds = new Set(files.map((file) => file.conceptId));
+  const indexedConceptIds = indexMentionedConceptIds(files);
+  return [
+    ...lintBrokenLinks(files, existingConceptIds),
+    ...lintMissingIndexEntries(files, indexedConceptIds),
+    ...lintMissingCitationSections(files),
+  ];
+}
+
+function lintBrokenLinks(files: OkfMarkdownFile[], existingConceptIds: Set<string>): LintIssue[] {
+  return files.flatMap((file) =>
+    parseMarkdownLinks(file.markdown).flatMap((link) => {
+      const conceptId = resolveOkfLinkTarget(link.target, file.bundlePath);
+      if (conceptId === undefined || existingConceptIds.has(conceptId)) {
+        return [];
+      }
+
+      return [
+        {
+          code: BROKEN_LINK,
+          severity: "warning",
+          path: file.workspacePath,
+          line: link.line,
+          message: `Markdown link target does not exist: ${link.target}`,
+        } satisfies LintIssue,
+      ];
+    }),
+  );
+}
+
+function lintMissingIndexEntries(
+  files: OkfMarkdownFile[],
+  indexedConceptIds: Set<string>,
+): LintIssue[] {
+  return files.flatMap((file) => {
+    if (file.isReserved || indexedConceptIds.has(file.conceptId)) {
+      return [];
+    }
+
+    return [
+      {
+        code: MISSING_INDEX_ENTRY,
+        severity: "warning",
+        path: file.workspacePath,
+        message: `Concept is not linked from a root or directory index: ${file.workspacePath}`,
+      } satisfies LintIssue,
+    ];
+  });
+}
+
+function lintMissingCitationSections(files: OkfMarkdownFile[]): LintIssue[] {
+  return files.flatMap((file) => {
+    if (file.isReserved || !file.frontmatter.ok) {
+      return [];
+    }
+    const type = stringValue(file.frontmatter.data.type)?.toLocaleLowerCase();
+    if (
+      type === undefined ||
+      !new Set(["topic", "entity", "project", "decision"]).has(type) ||
+      hasOkfhSources(file.frontmatter.data) ||
+      /^#\s+Citations\s*$/im.test(file.frontmatter.body)
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        code: MISSING_CITATIONS_SECTION,
+        severity: "warning",
+        path: file.workspacePath,
+        message: `${file.bundlePath} should include # Citations or okfh.sources.`,
+      } satisfies LintIssue,
+    ];
+  });
+}
+
+function indexMentionedConceptIds(files: OkfMarkdownFile[]): Set<string> {
+  const indexed = new Set<string>();
+  for (const file of files) {
+    if (path.posix.basename(file.bundlePath) !== "index.md") {
+      continue;
+    }
+    for (const link of parseMarkdownLinks(file.markdown)) {
+      const conceptId = resolveOkfLinkTarget(link.target, file.bundlePath);
+      if (conceptId !== undefined) {
+        indexed.add(conceptId);
+      }
+    }
+  }
+  return indexed;
+}
+
 function lintLogDateHeadings(file: OkfMarkdownFile): LintIssue[] {
   return file.markdown.split(/\r?\n/).flatMap((line, index) => {
     const heading = /^(#{2,6})\s+(.+?)\s*$/.exec(line);
@@ -313,6 +411,19 @@ function hasFrontmatterData(file: OkfMarkdownFile): boolean {
 
 function hasNonEmptyType(value: unknown): boolean {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function hasOkfhSources(frontmatter: Record<string, unknown>): boolean {
+  const okfh = frontmatter.okfh;
+  if (typeof okfh !== "object" || okfh === null || Array.isArray(okfh)) {
+    return false;
+  }
+  const sources = (okfh as { sources?: unknown }).sources;
+  return Array.isArray(sources) && sources.length > 0;
 }
 
 function errorCode(error: unknown): string | undefined {

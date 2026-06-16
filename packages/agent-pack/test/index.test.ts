@@ -10,7 +10,7 @@ describe("@okf-harness/agent-pack", () => {
     expect(packageInfo).toEqual({
       name: "@okf-harness/agent-pack",
       role: "agent-pack",
-      phase: 3,
+      phase: 5,
     });
   });
 
@@ -43,6 +43,8 @@ describe("@okf-harness/agent-pack", () => {
 
     const claudeIngest = fileContents(claude.files, ".claude/skills/okf-harness-ingest/SKILL.md");
     const codexIngest = fileContents(codex.files, ".agents/skills/okf-harness-ingest/SKILL.md");
+    const codexQuery = fileContents(codex.files, ".agents/skills/okf-harness-query/SKILL.md");
+    const codexMaintain = fileContents(codex.files, ".agents/skills/okf-harness-maintain/SKILL.md");
     expect(claudeIngest).toContain("name: okf-harness-ingest");
     expect(claudeIngest).toContain("Use when the user asks to add, ingest");
     expect(claudeIngest).toContain("Do not use for general question answering");
@@ -54,6 +56,9 @@ describe("@okf-harness/agent-pack", () => {
 
     expect(fileContents(claude.files, "CLAUDE.md")).toContain("/okf-harness-init");
     expect(fileContents(codex.files, "AGENTS.md")).toContain("$okf-harness-init");
+    expect(codexQuery).toContain("okfh read index --json");
+    expect(codexQuery).toContain("Do not run or hallucinate an `okfh query` command.");
+    expect(codexMaintain).toContain("Run `okfh graph --json` only when the user asks");
   });
 
   it("installs an adapter while preserving user root guidance outside the managed block", async () => {

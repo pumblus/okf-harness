@@ -1,10 +1,28 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { WorkspaceConfig } from "../config/index.js";
-import { safeResolveWorkspacePath, toPosixPath, toPosixRelativePath } from "../paths/index.js";
+import {
+  safeResolveWorkspacePath,
+  toPosixPath,
+  toPosixRelativePath,
+  type WorkspacePathResolution,
+} from "../paths/index.js";
 import { type MarkdownFrontmatter, parseMarkdownFrontmatter } from "./frontmatter.js";
 
 export const RESERVED_OKF_FILENAMES = new Set(["index.md", "log.md"]);
+export const SCAN_FAILED = "SCAN_FAILED" as const;
+
+export class ConceptScanError extends Error {
+  readonly code = SCAN_FAILED;
+
+  constructor(
+    message: string,
+    readonly details: Record<string, unknown> = {},
+  ) {
+    super(message);
+    this.name = "ConceptScanError";
+  }
+}
 
 export type OkfMarkdownFile = {
   absolutePath: string;
@@ -41,23 +59,35 @@ export async function scanConcepts(
   workspaceRoot: string,
   config: WorkspaceConfig,
 ): Promise<ConceptScanResult> {
-  const wikiRoot = await safeResolveWorkspacePath(workspaceRoot, config.okf.bundle_root);
-  const files = await scanMarkdownFiles(wikiRoot.absolutePath);
-  const markdownFiles = await Promise.all(
-    files.map(async (absolutePath) => {
-      const bundlePath = toPosixRelativePath(wikiRoot.absolutePath, absolutePath);
-      const markdown = await readFile(absolutePath, "utf8");
-      return {
-        absolutePath,
-        workspacePath: toPosixRelativePath(wikiRoot.workspaceRoot, absolutePath),
-        bundlePath,
-        conceptId: conceptIdFromPath(bundlePath),
-        isReserved: isReservedOkfFile(bundlePath),
-        markdown,
-        frontmatter: parseMarkdownFrontmatter(markdown),
-      } satisfies OkfMarkdownFile;
-    }),
-  );
+  let wikiRoot: WorkspacePathResolution;
+  let markdownFiles: OkfMarkdownFile[];
+
+  try {
+    wikiRoot = await safeResolveWorkspacePath(workspaceRoot, config.okf.bundle_root);
+    const files = await scanMarkdownFiles(wikiRoot.absolutePath);
+    markdownFiles = await Promise.all(
+      files.map(async (absolutePath) => {
+        const bundlePath = toPosixRelativePath(wikiRoot.absolutePath, absolutePath);
+        const markdown = await readFile(absolutePath, "utf8");
+        return {
+          absolutePath,
+          workspacePath: toPosixRelativePath(wikiRoot.workspaceRoot, absolutePath),
+          bundlePath,
+          conceptId: conceptIdFromPath(bundlePath),
+          isReserved: isReservedOkfFile(bundlePath),
+          markdown,
+          frontmatter: parseMarkdownFrontmatter(markdown),
+        } satisfies OkfMarkdownFile;
+      }),
+    );
+  } catch (error) {
+    throw new ConceptScanError(
+      error instanceof Error ? error.message : "Could not scan OKF wiki.",
+      {
+        wikiRoot: config.okf.bundle_root,
+      },
+    );
+  }
 
   const concepts = markdownFiles.flatMap((file) => {
     if (file.isReserved || !file.frontmatter.ok) {

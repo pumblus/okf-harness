@@ -15,17 +15,21 @@ Use this skill to answer from existing OKF wiki knowledge.
 ## Required Behavior
 
 1. Locate the workspace by finding `okfh.config.yaml`.
-2. Prefer `okfh search <query> --json` and `okfh read <concept-id> --json` when those commands exist.
-3. If search/read commands are unavailable, stop and report that query support is not implemented in this OKF Harness phase.
-4. Read full relevant wiki pages before synthesizing.
-5. Cite wiki paths or concept IDs in the answer.
-6. Keep uncertainty and contradictions visible.
+2. Run `okfh status --json` and confirm `data.capabilities.search`, `read`, and `graph` are available while `queryCommand` is not available.
+3. Run `okfh read index --json` first to inspect the wiki map.
+4. Run `okfh search <question> --json` to get candidate concept cards.
+5. Run `okfh read <concept-id-or-path> --json` for relevant candidates before synthesizing.
+6. Follow useful reference citations with `okfh read <reference-concept-id-or-path> --json` when factual precision matters.
+7. If a read is truncated, continue with `--section`, `--section-id`, `--offset/--limit`, or `--full` before relying on omitted content.
+8. Answer directly first, then list supporting concept paths and available source IDs.
+9. If hits are weak, citations are missing, or only wiki synthesis was read, state the evidence limit plainly.
 
 ## Hard Rules
 
 - Do not ingest new source material from this skill.
 - Do not invent citations or claim the wiki says something without reading it.
-- Do not build an ad hoc search index when the CLI command is unavailable.
+- Do not run or hallucinate an `okfh query` command.
+- Do not build an ad hoc search index or search `raw/sources/` for normal query answers.
 - Do not edit `raw/sources/`.
 
 See [the answer contract](references/answer-contract.md) for details.

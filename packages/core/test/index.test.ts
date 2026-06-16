@@ -7,7 +7,7 @@ describe("@okf-harness/core", () => {
     expect(packageInfo).toEqual({
       name: "@okf-harness/core",
       role: "core",
-      phase: 4,
+      phase: 5,
     });
   });
 
@@ -25,6 +25,10 @@ describe("@okf-harness/core", () => {
         expect.objectContaining({ path: "okfh.config.yaml" }),
         expect.objectContaining({ path: "AGENTS.md" }),
         expect.objectContaining({ path: "CLAUDE.md" }),
+        expect.objectContaining({
+          path: ".gitignore",
+          contents: expect.stringContaining(".okfh/reports/graph.html"),
+        }),
         expect.objectContaining({ path: "wiki/index.md" }),
       ]),
       warnings: [expect.objectContaining({ code: "AGENT_PACK_PENDING" })],

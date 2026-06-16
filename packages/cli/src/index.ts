@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import path from "node:path";
 import {
   type AgentInstallTarget,
@@ -6,21 +7,28 @@ import {
 } from "@okf-harness/agent-pack";
 import {
   addSource,
+  buildWorkspaceGraph,
   createIngestPlan,
+  GraphWorkspaceError,
   type InitWorkspaceResult,
   initWorkspace,
   lintWorkspace,
   listSources,
+  ReadWorkspaceError,
+  readWorkspaceDocument,
   readWorkspaceStatus,
+  resolveWorkspaceRoot,
   SourceManagementError,
+  searchWorkspace,
   WorkspaceInitError,
+  WorkspaceResolutionError,
 } from "@okf-harness/core";
 import { Command } from "commander";
 
 export const packageInfo = {
   name: "@okf-harness/cli",
   role: "cli",
-  phase: 4,
+  phase: 5,
 } as const;
 
 export type PackageInfo = typeof packageInfo;
@@ -33,10 +41,15 @@ export type CliIo = {
 export type JsonEnvelope = {
   ok: boolean;
   command: string;
-  workspace?: string;
+  workspace?: string | null;
   data: unknown;
   warnings: Array<{ code: string; message: string }>;
   next: string[];
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
 };
 
 export async function runCli(
@@ -151,11 +164,12 @@ export async function runCli(
     .command("status")
     .description("Report OKF Harness workspace status.")
     .storeOptionsAsProperties(false)
-    .requiredOption("--workspace <path>", "workspace path")
+    .option("--workspace <path>", "workspace path")
     .option("--json", "write machine-readable JSON")
     .action(async (command: Command) => {
-      const options = command.opts() as { workspace: string; json?: boolean };
-      const result = await readWorkspaceStatus(options.workspace);
+      const options = command.opts() as { workspace?: string; json?: boolean };
+      const workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+      const result = await readWorkspaceStatus(workspaceRoot);
       const envelope: JsonEnvelope = {
         ok: result.initialized && result.lint.ok,
         command: "status",
@@ -166,10 +180,16 @@ export async function runCli(
           wikiFiles: result.wikiFiles,
           concepts: result.concepts,
           lint: result.lint,
+          capabilities: {
+            search: "available",
+            read: "available",
+            graph: "available",
+            queryCommand: "not_available",
+          },
         },
         warnings: filterPhase2AgentPackWarnings(result.warnings),
         next: result.initialized
-          ? ["Run okfh lint --workspace <path> --json after editing wiki files."]
+          ? ["Use okfh search and okfh read to answer from the synthesized wiki."]
           : [],
       };
 
@@ -181,15 +201,16 @@ export async function runCli(
     .command("lint")
     .description("Lint an OKF Harness workspace.")
     .storeOptionsAsProperties(false)
-    .requiredOption("--workspace <path>", "workspace path")
+    .option("--workspace <path>", "workspace path")
     .option("--json", "write machine-readable JSON")
     .action(async (command: Command) => {
-      const options = command.opts() as { workspace: string; json?: boolean };
-      const lint = await lintWorkspace(options.workspace);
+      const options = command.opts() as { workspace?: string; json?: boolean };
+      const workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+      const lint = await lintWorkspace(workspaceRoot);
       const envelope: JsonEnvelope = {
         ok: lint.ok,
         command: "lint",
-        workspace: options.workspace,
+        workspace: workspaceRoot,
         data: lint,
         warnings: [],
         next: lint.ok ? [] : ["Fix lint errors and rerun okfh lint --workspace <path> --json."],
@@ -197,6 +218,161 @@ export async function runCli(
 
       writeResult(io, envelope, options.json);
       exitCode = lint.ok ? 0 : 1;
+    });
+
+  program
+    .command("search <query>")
+    .description("Search synthesized OKF wiki concept documents.")
+    .storeOptionsAsProperties(false)
+    .option("--workspace <path>", "workspace path")
+    .option("--limit <number>", "maximum results to return", parseIntegerOption)
+    .option("--json", "write machine-readable JSON")
+    .action(async (query: string, command: Command) => {
+      const options = command.opts() as { workspace?: string; limit?: number; json?: boolean };
+      let workspaceRoot: string | null = null;
+      try {
+        workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+        const result = await searchWorkspace({
+          workspaceRoot,
+          query,
+          limit: options.limit,
+        });
+        const { workspaceRoot: _workspaceRoot, warnings, ...data } = result;
+        const envelope: JsonEnvelope = {
+          ok: true,
+          command: "search",
+          workspace: result.workspaceRoot,
+          data,
+          warnings,
+          next:
+            result.totalMatches === 0
+              ? [
+                  "Run okfh read index --json to inspect the wiki map.",
+                  "Try broader keywords, or ingest sources first if the material is only registered raw source.",
+                ]
+              : ["Run okfh read <concept-id> --json for the most relevant candidate."],
+        };
+        writeResult(io, envelope, options.json);
+        exitCode = 0;
+      } catch (error) {
+        const handled = writePhase5Error(io, {
+          command: "search",
+          error,
+          workspace: workspaceRoot,
+          next: ["Check the workspace path and rerun okfh search --json."],
+          json: options.json === true,
+        });
+        if (handled) {
+          exitCode = 1;
+          return;
+        }
+        throw error;
+      }
+    });
+
+  program
+    .command("read <target>")
+    .description("Read a bounded OKF wiki document.")
+    .storeOptionsAsProperties(false)
+    .option("--workspace <path>", "workspace path")
+    .option("--section <heading>", "read a section by heading")
+    .option("--section-id <id>", "read a section by stable section id")
+    .option("--offset <number>", "read from a character offset", parseIntegerOption)
+    .option("--limit <number>", "maximum characters for range reads", parseIntegerOption)
+    .option("--full", "explicitly request a full bounded read")
+    .option("--json", "write machine-readable JSON")
+    .action(async (target: string, command: Command) => {
+      const options = command.opts() as {
+        workspace?: string;
+        section?: string;
+        sectionId?: string;
+        offset?: number;
+        limit?: number;
+        full?: boolean;
+        json?: boolean;
+      };
+      let workspaceRoot: string | null = null;
+      try {
+        workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+        const result = await readWorkspaceDocument({
+          workspaceRoot,
+          target,
+          section: options.section,
+          sectionId: options.sectionId,
+          offset: options.offset,
+          limit: options.limit,
+          full: options.full === true,
+        });
+        const { workspaceRoot: _workspaceRoot, warnings, ...data } = result;
+        const envelope: JsonEnvelope = {
+          ok: true,
+          command: "read",
+          workspace: result.workspaceRoot,
+          data,
+          warnings,
+          next: result.content.truncated
+            ? ["Use --section, --section-id, --offset/--limit, or --full to continue reading."]
+            : [],
+        };
+        writeResult(io, envelope, options.json);
+        exitCode = 0;
+      } catch (error) {
+        const handled = writePhase5Error(io, {
+          command: "read",
+          error,
+          workspace: workspaceRoot,
+          next: ["Run okfh search with broader keywords, then read one returned concept path."],
+          json: options.json === true,
+        });
+        if (handled) {
+          exitCode = 1;
+          return;
+        }
+        throw error;
+      }
+    });
+
+  program
+    .command("graph")
+    .description("Generate OKF backlinks data and a self-contained graph report.")
+    .storeOptionsAsProperties(false)
+    .option("--workspace <path>", "workspace path")
+    .option("--open", "open the generated graph report in the default macOS browser")
+    .option("--json", "write machine-readable JSON")
+    .action(async (command: Command) => {
+      const options = command.opts() as { workspace?: string; open?: boolean; json?: boolean };
+      let workspaceRoot: string | null = null;
+      try {
+        workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+        const result = await buildWorkspaceGraph({ workspaceRoot });
+        if (options.open === true) {
+          await openGraphReport(result.report.htmlPath);
+        }
+        const { workspaceRoot: _workspaceRoot, ...data } = result;
+        const envelope: JsonEnvelope = {
+          ok: true,
+          command: "graph",
+          workspace: result.workspaceRoot,
+          data,
+          warnings: [],
+          next: options.open === true ? [] : ["Open the graph HTML report in a browser if needed."],
+        };
+        writeResult(io, envelope, options.json);
+        exitCode = 0;
+      } catch (error) {
+        const handled = writePhase5Error(io, {
+          command: "graph",
+          error,
+          workspace: workspaceRoot,
+          next: ["Check write permissions under .okfh and rerun okfh graph --json."],
+          json: options.json === true,
+        });
+        if (handled) {
+          exitCode = 1;
+          return;
+        }
+        throw error;
+      }
     });
 
   program
@@ -440,7 +616,52 @@ function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): void {
     return;
   }
 
-  io.writeOut(`${envelope.ok ? "OK" : "FAILED"} ${envelope.command}\n`);
+  io.writeOut(renderHumanResult(envelope));
+}
+
+function renderHumanResult(envelope: JsonEnvelope): string {
+  if (!envelope.ok) {
+    return `FAILED ${envelope.command}\n`;
+  }
+
+  if (envelope.command === "search") {
+    const data = envelope.data as {
+      results?: Array<{ title?: string; path?: string; type?: string; score?: number }>;
+      totalMatches?: number;
+      truncated?: boolean;
+    };
+    const rows = (data.results ?? []).map((result, index) => {
+      const title = result.title ?? "(untitled)";
+      const pathValue = result.path ?? "(unknown path)";
+      const type = result.type ?? "Unknown";
+      const score = result.score === undefined ? "" : ` score=${result.score}`;
+      return `${index + 1}. ${title} [${type}] ${pathValue}${score}`;
+    });
+    const summary = `Found ${data.totalMatches ?? rows.length}${data.truncated ? " (truncated)" : ""}`;
+    return `${summary}\n${rows.join("\n")}${rows.length > 0 ? "\n" : ""}`;
+  }
+
+  if (envelope.command === "read") {
+    const data = envelope.data as {
+      metadata?: { title?: string; type?: string };
+      target?: { path?: string };
+      content?: { text?: string; truncated?: boolean };
+    };
+    const title = data.metadata?.title ?? "(untitled)";
+    const type = data.metadata?.type ?? "Unknown";
+    const pathValue = data.target?.path ?? "(unknown path)";
+    const truncated = data.content?.truncated ? " truncated" : "";
+    return `${title} [${type}] ${pathValue}${truncated}\n\n${data.content?.text ?? ""}\n`;
+  }
+
+  if (envelope.command === "graph") {
+    const data = envelope.data as {
+      report?: { htmlPath?: string; backlinksPath?: string };
+    };
+    return `Graph report: ${data.report?.htmlPath ?? "(not written)"}\nBacklinks: ${data.report?.backlinksPath ?? "(not written)"}\n`;
+  }
+
+  return `${envelope.ok ? "OK" : "FAILED"} ${envelope.command}\n`;
 }
 
 function handleCliError(
@@ -450,6 +671,21 @@ function handleCliError(
 ): number {
   if (error instanceof WorkspaceInitError) {
     writeError(io, "init", error.message, error.code);
+    return 1;
+  }
+
+  if (error instanceof WorkspaceResolutionError) {
+    if (options.json) {
+      writePhase5Error(io, {
+        command: options.command,
+        error,
+        workspace: null,
+        next: ["Run from inside an OKF Harness workspace or pass --workspace <path>."],
+        json: true,
+      });
+    } else {
+      io.writeErr(`${error.message}\n`);
+    }
     return 1;
   }
 
@@ -487,6 +723,102 @@ function writeError(
     envelope.workspace = workspace;
   }
   io.writeErr(`${JSON.stringify(envelope)}\n`);
+}
+
+function writePhase5Error(
+  io: CliIo,
+  options: {
+    command: string;
+    error: unknown;
+    workspace: string | null;
+    next: string[];
+    json?: boolean | undefined;
+  },
+): boolean {
+  const normalized = normalizePhase5Error(options.error);
+  if (normalized === undefined) {
+    return false;
+  }
+
+  const envelope: JsonEnvelope = {
+    ok: false,
+    command: options.command,
+    workspace: options.workspace,
+    data: {},
+    warnings: [],
+    error: normalized,
+    next: options.next,
+  };
+  if (options.json === true) {
+    io.writeErr(`${JSON.stringify(envelope)}\n`);
+  } else {
+    io.writeErr(renderHumanError(normalized.message, options.next));
+  }
+  return true;
+}
+
+function renderHumanError(message: string, next: string[]): string {
+  const nextStep = next[0];
+  return nextStep === undefined ? `${message}\n` : `${message}\nNext: ${nextStep}\n`;
+}
+
+function normalizePhase5Error(error: unknown):
+  | {
+      code: string;
+      message: string;
+      details?: Record<string, unknown>;
+    }
+  | undefined {
+  if (error instanceof WorkspaceResolutionError) {
+    return {
+      code: error.code,
+      message: error.message,
+      details: { startDir: error.startDir },
+    };
+  }
+  if (error instanceof ReadWorkspaceError) {
+    const normalized = {
+      code: error.code,
+      message: error.message,
+    };
+    return Object.keys(error.details).length > 0
+      ? { ...normalized, details: error.details }
+      : normalized;
+  }
+  if (error instanceof GraphWorkspaceError) {
+    return {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+    };
+  }
+  if (isErrorWithCode(error)) {
+    return {
+      code: error.code,
+      message: error.message,
+    };
+  }
+  return undefined;
+}
+
+function parseIntegerOption(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Expected an integer option value, received: ${value}`);
+  }
+  return parsed;
+}
+
+async function openGraphReport(htmlPath: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    execFile("open", [htmlPath], (error) => {
+      if (error !== null) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
 }
 
 function captureCommanderConsoleError(capturedErrors: string[]): () => void {
@@ -557,4 +889,13 @@ function isCommanderError(
     typeof candidate.exitCode === "number" &&
     typeof candidate.message === "string"
   );
+}
+
+function isErrorWithCode(error: unknown): error is { code: string; message: string } {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const candidate = error as { code?: unknown; message?: unknown };
+  return typeof candidate.code === "string" && typeof candidate.message === "string";
 }

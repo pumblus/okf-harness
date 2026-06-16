@@ -235,6 +235,8 @@ safety:
 # OKF Harness generated caches
 .okfh/cache/
 .okfh/*.sqlite
+.okfh/backlinks.json
+.okfh/reports/graph.html
 .okfh/reports/*.tmp
 
 # OS
@@ -369,7 +371,7 @@ See [LLM Wiki](/topics/llm-wiki.md).
 
 - `--json`：machine-readable 输出
 - `--dry-run`：不写文件，返回计划写入的内容
-- `--workspace`：指定 workspace 路径，默认当前目录或最近 `okfh.config.yaml`
+- `--workspace`：指定 workspace 路径。只读 / 维护命令可以在未提供时从当前目录向上查找最近 `okfh.config.yaml`；会改变 evidence 或 workspace 状态的命令默认要求显式指定 workspace，除非该命令文档另有说明。
 - `--quiet`：抑制非错误的人类可读文本
 
 退出码：
@@ -396,6 +398,30 @@ JSON 输出封套：
 }
 ```
 
+所有 `--json` command 都必须使用同一顶层封套：`ok`、`command`、`workspace`、`data`、`warnings`、`next`。命令专属结构只放在 `data` 里，例如 `data.results`、`data.target`、`data.graph`，避免 Agent 为不同命令猜不同返回形状。
+
+失败的 `--json` command 也必须使用同一封套，并额外返回 `error`：
+
+```json
+{
+  "ok": false,
+  "command": "read",
+  "workspace": "/Users/me/Documents/OKF Harness/ai-research",
+  "data": {},
+  "warnings": [],
+  "error": {
+    "code": "TARGET_NOT_FOUND",
+    "message": "No OKF concept document matched the read target.",
+    "details": {}
+  },
+  "next": ["Run okfh search with broader keywords, then read one of the returned concept paths."]
+}
+```
+
+`workspace` 在无法解析 workspace 时可以是 `null`，但只要 workspace 已解析就必须返回 resolved path。错误信息面向用户和 Agent，不输出 stack trace。
+
+非 `--json` 输出只做最小可读，不作为稳定机器契约。search 打印排名、标题、path、type；read 打印标题、path、截断提示和返回内容；graph 打印 report 路径和可选打开提示；失败时打印一句人话和下一步。不要实现 TUI、分页器、富表格或额外交互。
+
 ### 6.2 核心命令
 
 **okfh init**
@@ -415,6 +441,19 @@ okfh init ~/Documents/OKF\ Harness/ai-research \
 ```bash
 okfh status --workspace <workspace> --json
 ```
+
+Phase 5 起，`status` 可省略 `--workspace` 并向上查找最近 `okfh.config.yaml`。JSON `data` 必须包含 `capabilities` 摘要，至少包括：
+
+```json
+{
+  "search": "available",
+  "read": "available",
+  "graph": "available",
+  "queryCommand": "not_available"
+}
+```
+
+`queryCommand: "not_available"` 表示 v0.1 没有 `okfh query` 或 LLM answer command，Agent 应使用 `search` + `read` workflow。
 
 **okfh source add**
 
@@ -671,7 +710,7 @@ description: Add source material and compile it into an OKF-compatible LLM Wiki 
 **okf-harness-query**：查询知识库。
 
 ```yaml
-description: Answer questions using the local OKF Harness wiki by searching concepts, reading full pages, following citations, and citing concept paths. Use when the user asks what their knowledge base says, asks a research question, or requests synthesis from existing wiki knowledge. Do not use to ingest new source material.
+description: Answer questions using the local OKF Harness wiki by searching concepts, bounded-reading relevant pages, following citations when needed, and citing concept paths plus source IDs when available. Use when the user asks what their knowledge base says, asks a research question, or requests synthesis from existing wiki knowledge. Do not use to ingest new source material.
 ```
 
 **okf-harness-maintain**：lint、修复、graph、重构。
@@ -1041,11 +1080,74 @@ okf-harness/
 
 **Phase 5：Search + read + graph**
 
-- [ ] search / read 命令
-- [ ] backlink graph builder
-- [ ] self-contained graph.html
+- [x] search / read 命令
+- [x] 不实现 `okfh query` 或 LLM answer command；query 编排由 Agent skill 使用 search + read 完成，`okfh query plan` 留给 v0.2 bounded evidence pack
+- [x] core 保持保守模块边界：新增 `packages/core/src/search`、`packages/core/src/read`、`packages/core/src/graph`；共享 workspace resolution helper 和 markdown link parser；不要提前抽象成统一 query engine
+- [x] CLI 只负责参数解析、调用 core、渲染统一 JSON envelope / 最小人类输出；ranking、read target resolution、graph building 等行为留在 core
+- [x] search / read / graph 支持显式 `--workspace`，并在未提供时从当前目录向上查找最近 `okfh.config.yaml`；JSON 必须返回 resolved `workspace`
+- [x] search / read / graph JSON 使用统一 CLI envelope：`ok`、`command`、`workspace`、`data`、`warnings`、`next`；命令专属 payload 只放在 `data` 内
+- [x] search / read / graph 失败 JSON 也使用统一 envelope：`ok:false`、`data:{}`、`warnings:[]`、`next:[...]`，并返回 `error: { code, message, details? }`
+- [x] Phase 5 固定错误码：`WORKSPACE_NOT_FOUND`、`INVALID_TARGET`、`TARGET_NOT_FOUND`、`AMBIGUOUS_SECTION`、`READ_LIMIT_EXCEEDED`、`NON_MARKDOWN_TARGET`、`NON_UTF8_TARGET`、`CONFIG_INVALID`、`SCAN_FAILED`、`GRAPH_WRITE_FAILED`
+- [x] search / read / graph 非 `--json` 输出只做最小可读：search ranked list + path + type；read 标题 / path / 截断提示 / content；graph report path + open 提示；失败输出一句人话 + next step；不得做 TUI / 富交互，稳定机器契约只认 `--json`
+- [x] Phase 5 将 `status` / `lint` 同步迁移为可省略 `--workspace` 的只读/维护命令，和 `search` / `read` / `graph` 一样从当前目录向上查找最近 `okfh.config.yaml`；JSON 返回 resolved `workspace`
+- [x] Phase 5 更新 `okfh status --json`，在 `data.capabilities` 中返回 `search: "available"`、`read: "available"`、`graph: "available"`、`queryCommand: "not_available"`，让用户和 Agent 明确应该用 search/read 组合回答问题
+- [x] `source add` / `ingest plan` 等 evidence-changing workflows 暂时保持显式 workspace，留给 Phase 6 统一评估，避免用户在错误目录里登记 source 或生成 ingest plan
+- [x] read target 支持 concept id、workspace path、absolute bundle link 形式：`topics/x`、`wiki/topics/x.md`、`/topics/x.md`；reserved targets 支持 `index`、`log`、`wiki/index.md`、`wiki/log.md`；不得变成任意 workspace file reader
+- [x] search 不自动运行完整 lint，也不因 lint warnings 阻塞；config / scan 失败才报错，单个坏 concept 文件可作为 warnings 跳过或降级处理
+- [x] search 可索引 frontmatter 无效但正文可读的 markdown 文件；结果标记 `frontmatterOk: false`，title / type 使用 heading 或 path fallback，并返回 warning
+- [x] read 只读 OKF bundle 内 `.md` 文本；非 UTF-8 / 非 markdown 失败；search 对超大 markdown 使用 `maxSearchBodyChars = 200000` 初始可调整上限，超过时只索引 metadata / title / path 并返回 warning
+- [x] v0.1 保持 out-of-box：search 权重、扫描上限、read preview 上限作为代码中的初始默认常量，不暴露到 `okfh.config.yaml`；用户可调面只保留请求级 `limit` / section / range / full 等显式读取选择
+- [x] Phase 5 不实现持久 search cache / SQLite FTS；每次确定性扫描 markdown，缓存和 FTS 留给后续 Search / Graph upgrades
+- [x] `read index` 作为 reserved document bounded read，可额外返回 `indexLinks: [{ title, target, conceptId?, exists }]`
+- [x] `read log` 作为 reserved document bounded read，可额外返回按日期 heading 解析的 `logEntries`；不做复杂时间线 UI
+- [x] bounded read 默认返回 target / frontmatter / metadata / outline / links / citations / citationIssues / availableSections / content，不默认返回无界正文
+- [x] read JSON 的 `data.content` 统一承载正文：`mode: "preview" | "section" | "range" | "full"`、`text`、`startOffset`、`endOffset`、`contentLength`、`returnedChars`、`truncated`；不要混用 `bodyPreview` / `body` / `fullText` 等字段
+- [x] read JSON 的 `data` 顶层固定返回 `target`、`frontmatter`、`metadata`、`outline`、`availableSections`、`links`、`citations`、`citationIssues`、`content`、`source?`
+- [x] read 解析 `# Citations` 中的 wiki reference paths 和 source IDs；对 source IDs 返回对应 source manifest metadata（path / title / sha256 / status 等），但不返回 raw source body
+- [x] read 读取 Reference document 时，若 frontmatter `okfh.source_id` 可解析，顶层返回对应 `source` manifest metadata；非 Reference documents 的 source metadata 只通过 `citations` 暴露
+- [x] read 遇到不存在的 cited source ID 或 reference path 时不失败，返回 `citationIssues` warning；正式坏引用检查仍由 lint 报告
+- [x] read 目标文件 frontmatter 无效时尽量返回 bounded body preview，并返回 `frontmatter.ok=false` / warning；仅路径非法、文件不存在、非 UTF-8 等不可读场景失败
+- [x] `defaultReadPreviewChars = 12000` 作为初始可调整默认值，不作为永久协议保证；长文档必须支持显式 full / section / range 读取
+- [x] read continuation 优先支持 `--section <heading>`；对无清晰标题结构的文档支持 `--offset <n> --limit <n>` fallback
+- [x] `availableSections` 返回 `sectionId`、`headingPath`、`heading`、`startOffset`、`endOffset`；重名 heading 的 `--section` 必须返回歧义错误并提示使用 `--section-id`
+- [x] `read --full` 必须显式 opt-in 且受 `maxFullReadChars = 100000` 初始可调整硬上限约束；超过上限时拒绝并提示 section / range 读取
+- [x] search 覆盖所有非保留 concept documents，包括 Reference documents；不搜索 `raw/sources/`
+- [x] search query 支持最小 field filters：`type:<value>`、`tag:<value>`、`path:<prefix>`；其他 token 作为普通关键词处理，不引入复杂 DSL
+- [x] search tokenization：英文按分隔符 token；中文连续字符生成 unigram + bigram；保留原始 query phrase 子串匹配；不引入分词依赖；小型内置中英文 stop words 仅用于 token scoring，不影响 phrase match
+- [x] search 使用初始可调整权重：exact title/id/path +100；title phrase +60；id/path phrase +50；exact tag +40；type match +25；description phrase +20；title token +12/token cap 5；id/path token +10/token cap 5；tag token +8/token cap 5；description token +4/token cap 5；body phrase +4/occurrence cap 5；body unique token +2/token cap 10；`indexMentioned` +0；Reference type penalty +0
+- [x] search 排序 tie-break：score desc → exact title/id/path first → title phrase first → concept id asc；返回 `scoreBreakdown`，并声明权重是实现默认值、后续可调整，但不是 v0.1 用户配置项
+- [x] search JSON 的 `data.results[]` 是 candidate card，不返回 body snippet；每条结果固定返回 `conceptId`、`path`、`title`、`type`、`tags`、`description`、`frontmatterOk`、`indexMentioned`、`score`、`scoreBreakdown`、`matchedFields`、`bodyHitCount`
+- [x] search JSON 的 `data` 顶层固定返回 `query`、`filtersApplied`、`limit`、`totalMatches`、`truncated`、`results`，让 Agent 能解释搜索范围和是否需要继续 broaden query
+- [x] search results 返回 `indexMentioned: boolean`，表示该 concept 是否由根 `wiki/index.md` 直接链接；该字段不参与排序加分，v0.1 不递归使用子目录 index
+- [x] search 默认 `limit = 10`、最大 `limit = 50`；JSON 返回 `limit`、`totalMatches`、`truncated`
+- [x] search miss 返回清晰 next steps：读 index、换更宽关键词、如资料只在 source 中则先 ingest；v0.1 不自动触发 online search
+- [x] lint 可补 `MISSING_INDEX_ENTRY` warning：非保留 concept 未出现在根 index 或对应子目录 index 中；不是 hard error，auto-fix 留给 maintain workflow
+- [x] lint 补 `BROKEN_LINK` warning：解析 markdown links / OKF absolute bundle links，目标不存在时报 warning；auto-fix 留给 maintain workflow
+- [x] lint 补 `MISSING_CITATIONS_SECTION` warning：Topic / Entity / Project / Decision 缺少 `# Citations` 且无 `okfh.sources` 时报警；Question 豁免
+- [x] Phase 5 不实现 `STALE_TIMESTAMP` warning；staleness policy 依赖 workspace 用途，后续可通过 config 策略显式开启
+- [x] Phase 5 不实现 `LARGE_UNSUMMARIZED_SOURCE` warning；该检查依赖成熟 source status / reference linking，留给后续 evidence pack 或 source audit
+- [x] Phase 5 不实现 `ORPHAN_CONCEPT` warning；孤立概念 / knowledge gap 留给后续 graph insights，避免早期知识库噪音
+- [x] backlink graph builder
+- [x] `okfh graph` 不自动运行完整 lint；只返回 graph-specific `issues` / `missingTargets` 摘要，完整健康检查由 maintain workflow 显式先跑 lint
+- [x] graph 默认节点只包含非保留 concept documents；`wiki/index.md` / `wiki/log.md` 不作为 graph nodes，index 链接只作为 metadata / navigation signal
+- [x] `okfh graph --json` 默认不返回完整 `nodes` / `edges`，只在 envelope `data` 中返回 `report.htmlPath`、`report.backlinksPath`、`stats`、`issues`、`missingTargets`
+- [x] 完整图数据写入 `.okfh/backlinks.json`；其中 edges 保留 directed shape：`from`、`to`、`kind`，供 Agent 在需要时单独读取
+- [x] graph HTML 默认可以用无向连线展示，避免用户视图噪音
+- [x] graph JSON summary / `.okfh/backlinks.json` 可记录 `missingTargets` / `issues`；graph HTML 不把 missing targets 渲染为普通节点，正式坏链 warning 仍归 lint
+- [x] self-contained graph.html，可包含轻量交互：节点搜索、type filter、点击节点查看 path / type / title / links / citations；不做编辑、布局保存、community detection 或 graph insights
+- [x] graph.html 不引入远程脚本或重型 graph runtime 依赖；v0.1 使用自包含 HTML + 内联极简 SVG/Canvas JS
+- [x] graph 默认覆盖稳定输出 `.okfh/backlinks.json` 和 `.okfh/reports/graph.html`；不默认生成时间戳 report，后续如需留存可加 `--snapshot`
+- [x] generated workspace `.gitignore` 默认忽略可重建 graph artifacts：`.okfh/backlinks.json`、`.okfh/reports/graph.html`
+- [x] 更新 `packages/core/src/workspace/index.ts` workspace `.gitignore` 模板和相关测试，确保新 workspace 不把 graph artifacts 纳入默认 git diff
+- [x] `okfh graph --open --json` 可选用 macOS 默认浏览器打开生成的 graph HTML；默认 `okfh graph` 不打开外部 UI，JSON 仍返回 report path
+- [x] 更新 agent-pack `okf-harness-query` workflow 和 golden tests：locate workspace → read index → search → read relevant concepts → follow citations when needed → answer with concept paths / source IDs
+- [x] `okf-harness-query` final answer 契约：先给直接答案，再给依据列表；依据必须列出 concept path 和可用 source IDs；如果只读到 wiki synthesis，应标注依据为 wiki concept；如果搜索命中弱或 citation 缺失，应说明知识库证据不足；不得假装读过 raw source
+- [x] 更新 agent-pack `okf-harness-maintain` workflow：默认只运行 lint / repair；仅当用户要求 graph / visualize / graph report 时运行 `okfh graph`，但 final response 可提示用户可选择生成图谱
+- [x] Phase 5 测试分三层：core 单元测试验证 search / read / graph 逻辑；CLI e2e 测 `okfh search` / `okfh read` / `okfh graph` / `okfh status` / `okfh lint --json` 的 envelope、错误码、workspace resolution；agent-pack golden tests 验证 Claude / Codex query 和 maintain workflow 使用真实 Phase 5 commands
+- [x] Phase 5 只补 README 最小示例，不写完整使用手册：3-5 行自然语言 / CLI examples，展示 ask agent、`okfh search`、`okfh read`、`okfh graph` 的入口；完整 `docs/CLI.md` 留 Phase 7
+- [x] Phase 5 实现和验证完成后，同步更新 README 和 AGENTS.md 的 current state，明确 search / read / graph 已实现；不做 npm version bump，除非进入 release 阶段
 
-验收：确定性 markdown / frontmatter search 和自包含 graph HTML 通过。
+验收：core 层确定性 markdown / frontmatter search、bounded read、link / citation parsing、自包含 graph HTML 通过；CLI 层 JSON envelope、workspace resolution、limits、errors、status capabilities 有 e2e 测试；agent-pack query / maintain golden fixtures 更新，证明 Claude / Codex skills 使用 Phase 5 真 workflow 而不是 unavailable placeholder。
 
 **Phase 6：Terminal-native hardening**
 
@@ -1058,6 +1160,7 @@ okf-harness/
 **Phase 7：Docs + examples + release prep**
 
 - [ ] README 用户流程（自然语言示例）
+- [ ] 上线版 README / docs 参考 tw93 项目组织风格：一句话定位、视觉或截图信号、badges、Why、Features、Quick Start、Usage / workflows、Docs index、FAQ / troubleshooting、Support、License；保持克制、示例优先、避免长 CLI 参考堆在 README 顶部
 - [ ] docs/ROADMAP.md（Obsidian 仅在 roadmap）
 - [ ] example workspace
 - [ ] macOS 安装说明
@@ -1272,33 +1375,22 @@ CLI package 的 bin 配置：
 
 README 不要以长 CLI 参考开头，CLI 参考放在 `docs/CLI.md`。
 
+上线版 README / docs 参考 tw93 项目组织风格，但不照搬视觉语言或产品叙事。OKF Harness 文档应优先体现：一句话定位、开箱即用的第一步、agent-first 工作流、可验证 JSON / file contract、最短 CLI 示例、清晰 docs index、FAQ / troubleshooting、Support / License。README 保持克制，长命令和完整参数放 `docs/CLI.md`。
+
 ### 15.3 路线图
 
-**v0.1：Agent-first local MVP**
+Public-facing roadmap lives in `docs/ROADMAP.md`. This implementation document remains the detailed phase gate for v0.1 work.
 
-macOS only，Claude Code + Codex Tier 1，OKF Harness workspace init / linter / source manifest / source add / ingest plan / search & read / graph HTML / project skills 和 guidance files。默认 tool channel 是 local shell + `okfh --json`，不依赖 MCP。
+当前产品排序：
 
-**v0.2：Tier 2 Agent 适配器**
-
-Pi adapter、OpenCode adapter、adapter conformance tests、可选 AGENTS.md 优化。
-
-**v0.3：macOS 便捷层**
-
-Raycast extension、Shortcuts actions、Finder service / Quick Action、可选 Desktop inbox alias、可选 menu bar status app。
-
-**v0.4：Obsidian 集成**
-
-Obsidian plugin 或 helper、以 vault 方式打开 workspace、Graph handoff、可选 wikilink 兼容模式，无 proprietary lock-in。
-
-**v0.5：搜索升级**
-
-SQLite FTS5 cache、更优排序、可选本地 embedding index，仅 rebuildable cache。
-
-**v0.6+：Optional MCP integration**
-
-如果未来 agent client 明确需要 MCP 工具发现，再提供 optional MCP integration。它不得替代 terminal-native default workflow。
-
-**Tier 3 生态（远期）**：Cursor、VS Code generic MCP clients、Aider、Goose、Continue、GitHub Copilot coding agent。
+- **v0.1：Agent-first local MVP** — macOS only，Claude Code + Codex Tier 1，workspace init / linter / source manifest / source add / ingest plan / bounded search & read / graph HTML / project skills 和 guidance files。默认 tool channel 是 local shell + `okfh --json`，不依赖 MCP。
+- **v0.2：Bounded evidence query pack** — 围绕有限 evidence pack、section/range read、truncation metadata 和 Agent query guidance，解决 query 阶段上下文爆炸问题。
+- **Later：Agent adapter expansion** — Pi、OpenCode、adapter conformance tests、Tier 3 agent client 调研。
+- **Later：Cross-platform terminal-native support** — Windows shell command support 和跨平台路径 / shell guidance hardening。
+- **Later：Source connectors** — Feishu 等明确授权的 source registration / ingest workflow，不做默认云同步或后台爬取。
+- **Later：Online source review and research collection** — 借鉴 Waza read / learn 的 URL/PDF fetch、privacy-first preview、多 source collect → fetch → file → digest 流程；必须显式注册 source，不进入 v0.1 query 默认行为。
+- **Later：Search / graph upgrades** — SQLite FTS5 cache、更优排序、可选本地 embedding index，仅 rebuildable cache。
+- **Later：Optional app and ecosystem integrations** — Raycast、Shortcuts、Finder Quick Action、Obsidian helper、optional MCP integration。MCP 不得替代 terminal-native default workflow。
 
 ---
 

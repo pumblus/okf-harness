@@ -54,12 +54,14 @@ describe("OKF hard linter", () => {
     const result = await lintWorkspace(workspaceRoot);
 
     expect(result.ok).toBe(false);
-    expect(result.issues).toEqual([
-      expect.objectContaining({
-        code: "RESERVED_FILE_HAS_CONCEPT_FRONTMATTER",
-        path: "wiki/index.md",
-      }),
-    ]);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "RESERVED_FILE_HAS_CONCEPT_FRONTMATTER",
+          path: "wiki/index.md",
+        }),
+      ]),
+    );
   });
 
   it("reports invalid log date headings", async () => {
@@ -158,12 +160,14 @@ describe("OKF hard linter", () => {
     const result = await lintWorkspace(workspaceRoot);
 
     expect(result.ok).toBe(false);
-    expect(result.issues).toEqual([
-      expect.objectContaining({
-        code: "REFERENCE_SOURCE_MISSING",
-        path: "wiki/references/unregistered-source.md",
-      }),
-    ]);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "REFERENCE_SOURCE_MISSING",
+          path: "wiki/references/unregistered-source.md",
+        }),
+      ]),
+    );
   });
 
   it("warns about unregistered raw source files without failing lint", async () => {
@@ -182,6 +186,66 @@ describe("OKF hard linter", () => {
         code: "UNREGISTERED_RAW_SOURCE",
         severity: "warning",
         path: "raw/sources/2026/06/unregistered.md",
+      }),
+    ]);
+  });
+
+  it("warns about broken OKF markdown links without failing lint", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await writeFile(
+      `${workspaceRoot}/wiki/topics/llm-wiki.md`,
+      "---\ntype: Topic\ntitle: LLM Wiki\n---\n# Overview\n\nSee [Missing](/topics/missing.md).\n\n# Citations\n\n- /references/karpathy-llm-wiki.md\n",
+      "utf8",
+    );
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "BROKEN_LINK",
+        severity: "warning",
+        path: "wiki/topics/llm-wiki.md",
+      }),
+    ]);
+  });
+
+  it("warns about missing index entries without failing lint", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await writeFile(
+      `${workspaceRoot}/wiki/topics/unlisted.md`,
+      "---\ntype: Topic\ntitle: Unlisted\n---\n# Overview\n\nA topic not linked from indexes.\n\n# Citations\n\n- /references/karpathy-llm-wiki.md\n",
+      "utf8",
+    );
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "MISSING_INDEX_ENTRY",
+        severity: "warning",
+        path: "wiki/topics/unlisted.md",
+      }),
+    ]);
+  });
+
+  it("warns about content concepts missing citations without failing lint", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await writeFile(
+      `${workspaceRoot}/wiki/topics/llm-wiki.md`,
+      "---\ntype: Topic\ntitle: LLM Wiki\n---\n# Overview\n\nA topic without citations.\n",
+      "utf8",
+    );
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "MISSING_CITATIONS_SECTION",
+        severity: "warning",
+        path: "wiki/topics/llm-wiki.md",
       }),
     ]);
   });
