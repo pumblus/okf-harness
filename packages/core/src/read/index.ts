@@ -293,7 +293,7 @@ function selectContent(
   if (options.full === true) {
     if (contentLength > maxFullReadChars) {
       throw new ReadWorkspaceError(
-        "Full read exceeds the Phase 5 hard cap. Use section or range reads.",
+        "Full read exceeds the current hard cap. Use section or range reads.",
         READ_LIMIT_EXCEEDED,
         { contentLength, maxFullReadChars },
       );

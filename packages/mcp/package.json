@@ -1,6 +1,7 @@
 {
   "name": "@okf-harness/mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "private": true,
   "description": "Future optional MCP integration scaffold for OKF Harness.",
   "license": "Apache-2.0",
   "type": "module",

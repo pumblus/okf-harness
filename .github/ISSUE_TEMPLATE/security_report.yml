@@ -1,0 +1,27 @@
+name: Security report
+description: Learn how to report sensitive security issues privately.
+title: "security: private report needed"
+labels:
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include exploit details, private source material, credentials, tokens, or full workspace archives in a public issue.
+
+        For sensitive reports, email `eric.zhou.0921@gmail.com` before using any public channel.
+
+        Use this email subject format:
+
+        ```text
+        [OKF Harness Security] <short summary>
+        ```
+
+        For non-sensitive vulnerability reports, use GitHub Security Advisories when available. A public issue should only coordinate private follow-up.
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I understand this public issue must not contain exploit details, private source material, credentials, or tokens.
+          required: true

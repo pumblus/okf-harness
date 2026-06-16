@@ -24,7 +24,7 @@ Use this skill to create a workspace or repair Claude/Codex adapter support.
 
 - Do not create a parallel workspace skeleton by hand.
 - Do not overwrite a non-empty directory unless `okfh` returns an explicit safe plan.
-- Do not add MCP, plugin, hook, Pi, OpenCode, or Obsidian setup.
+- Do not add plugin, hook, Pi, OpenCode, or Obsidian setup.
 - Use the same local shell `okfh --json` workflow in Desktop App and TUI sessions.
 - Run `git diff` before final response when file changes were made.
 

@@ -1,6 +1,6 @@
 # Answer Contract
 
-## Phase 5 query workflow
+## Query workflow
 
 Use the CLI as the deterministic retrieval layer:
 
@@ -11,7 +11,7 @@ okfh search "<question>" --json
 okfh read <concept-id-or-path> --json
 ```
 
-There is no `okfh query` command in v0.1. Compose answers from search candidate cards plus bounded reads.
+There is no `okfh query` command in the current CLI. Compose answers from search candidate cards plus bounded reads.
 
 ## Answer shape
 

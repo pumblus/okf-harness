@@ -2,6 +2,10 @@
 
 OKF Harness 是为通过 Claude Code 或 Codex 操作的人设计的。CLI 仍然可见，但日常工作应从自然语言开始。
 
+这个工作流遵循 [Andrej Karpathy 的 LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 模式，并使用 Google 的 [OKF 规范](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) 作为 bundle 格式。
+
+OKF Harness 是独立项目，与 Andrej Karpathy 或 Google 没有关联，也不代表其背书。
+
 [English](../WORKFLOWS.md) | 中文
 
 ## Workspace 模型
@@ -83,7 +87,7 @@ okfh search "<question>" --json
 okfh read <concept-id-or-path> --json
 ```
 
-v0.1 没有 `okfh query` 命令。agent 通过组合搜索候选卡片和受控读取来组织答案。当证据仅来自 wiki 页面而非原始资料正文时，agent 应明确说明。
+当前 CLI 没有 `okfh query` 命令。agent 通过组合搜索候选卡片和受控读取来组织答案。当证据仅来自 wiki 页面而非原始资料正文时，agent 应明确说明。
 
 ## 维护 Workspace
 
@@ -145,18 +149,6 @@ AGENTS.md         Codex workspace 指引
 CLAUDE.md         Claude Code workspace 指引
 ```
 
-## v0.1 不做的事
+## 设计克制
 
-OKF Harness v0.1 不提供：
-
-- 桌面应用或 GUI
-- 云端同步或用户账户
-- 后台守护进程
-- 自动网页抓取
-- 向量搜索或 RAG
-- 跨原始资料的全文搜索
-- Obsidian 运行时代码
-- MCP 优先工作流
-- Windows 或 Linux 支持
-
-这些边界保证了第一个版本保持本地化、可检查，并且可以通过普通终端命令调试。
+OKF Harness 保持本地化、可检查，并且可以通过普通终端命令调试。Agent 回答来自已整理的 `wiki/` 内容和受控读取；GUI、云端同步、来源连接器、向量检索、Obsidian 辅助和跨平台支持等更宽的产品面，会留在路线图中，直到它们能保留这些保证。

@@ -4,6 +4,10 @@ English | [中文](zh-CN/WORKFLOWS.md)
 
 OKF Harness is built for people who operate through Claude Code or Codex. The CLI is still visible, but normal work should start with natural language.
 
+The workflow follows [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and uses Google's [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) as the bundle format.
+
+OKF Harness is independent and is not affiliated with or endorsed by Andrej Karpathy or Google.
+
 ## Workspace Model
 
 Create one workspace per knowledge domain, research area, or privacy boundary. Good examples:
@@ -83,7 +87,7 @@ okfh search "<question>" --json
 okfh read <concept-id-or-path> --json
 ```
 
-There is no `okfh query` command in v0.1. The agent composes answers from search candidate cards plus bounded reads. It should say when evidence came only from synthesized wiki pages and not raw source bodies.
+There is no `okfh query` command in the current CLI. The agent composes answers from search candidate cards plus bounded reads. It should say when evidence came only from synthesized wiki pages and not raw source bodies.
 
 ## Maintain A Workspace
 
@@ -145,18 +149,6 @@ AGENTS.md         Codex workspace guidance
 CLAUDE.md         Claude Code workspace guidance
 ```
 
-## Non-Goals In v0.1
+## Design Restraint
 
-OKF Harness v0.1 does not provide:
-
-- a desktop app or GUI
-- cloud sync or accounts
-- a background daemon
-- automatic web crawling
-- vector search or RAG
-- raw-source-wide answer search
-- Obsidian runtime code
-- MCP-first workflow
-- Windows or Linux support
-
-These boundaries keep the first release local, inspectable, and easy to debug from normal terminal commands.
+OKF Harness keeps the workflow local, inspectable, and easy to debug from normal terminal commands. Agent answers are built from synthesized `wiki/` content plus bounded reads, while broader product surfaces such as GUI, cloud sync, source connectors, vector retrieval, Obsidian helpers, and cross-platform support stay on the roadmap until they can preserve those guarantees.

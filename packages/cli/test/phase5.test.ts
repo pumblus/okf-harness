@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
 import { runJsonCli } from "./helpers.js";
 
-describe("@okf-harness/cli phase 5", () => {
-  it("runs Phase 5 status, search, read, graph, and lint from an auto-resolved workspace", async () => {
+describe("@okf-harness/cli query workflow", () => {
+  it("runs status, search, read, graph, and lint from an auto-resolved workspace", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {
@@ -117,7 +117,7 @@ describe("@okf-harness/cli phase 5", () => {
     }
   });
 
-  it("returns SCAN_FAILED envelopes for Phase 5 commands when wiki scanning fails", async () => {
+  it("returns SCAN_FAILED envelopes for query commands when wiki scanning fails", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {
@@ -156,7 +156,7 @@ describe("@okf-harness/cli phase 5", () => {
     }
   });
 
-  it("renders Phase 5 command failures as human text without --json", async () => {
+  it("renders query command failures as human text without --json", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {

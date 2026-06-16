@@ -7,11 +7,10 @@ describe("@okf-harness/core", () => {
     expect(packageInfo).toEqual({
       name: "@okf-harness/core",
       role: "core",
-      phase: 7,
     });
   });
 
-  it("creates the Phase 2 workspace plan used by dry-run and init", () => {
+  it("creates the workspace plan used by dry-run and init", () => {
     const plan = createWorkspacePlan({
       name: "AI Research",
       now: new Date("2026-06-15T12:00:00.000Z"),

@@ -99,7 +99,7 @@ Reports workspace initialization, wiki file count, concept count, lint state, an
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-In v0.1, `search`, `read`, and `graph` are available. There is no `okfh query` command.
+In the current CLI, `search`, `read`, and `graph` are available. There is no `okfh query` command.
 
 ### lint
 
@@ -120,7 +120,7 @@ okfh source add ~/Downloads/paper.pdf --workspace "$HOME/Documents/OKF Harness/a
 okfh source add https://example.com/article --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-File sources are copied under `raw/sources/YYYY/MM/` and recorded in `.okfh/manifest.jsonl` with a SHA-256 hash. URL sources record the URL as a source pointer. v0.1 does not fetch webpage contents automatically.
+File sources are copied under `raw/sources/YYYY/MM/` and recorded in `.okfh/manifest.jsonl` with a SHA-256 hash. URL sources record the URL as a source pointer. The current CLI does not fetch webpage contents automatically.
 
 Use `--dry-run` to see the planned source record without writing.
 

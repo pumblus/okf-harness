@@ -1,10 +1,13 @@
 {
   "name": "@okf-harness/agent-pack",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Claude and Codex adapter renderers and shared skill templates.",
   "license": "Apache-2.0",
   "type": "module",
   "author": "Eric Zhou",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "homepage": "https://github.com/pumblus/okf-harness#readme",
   "repository": {
     "type": "git",
@@ -37,6 +40,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean"
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "prepublishOnly": "pnpm run build"
   }
 }

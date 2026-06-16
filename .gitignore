@@ -16,6 +16,14 @@ coverage/
 .okfh/*.sqlite
 .okfh/reports/*.tmp
 
+# Internal planning documents
+docs/implementation.md
+docs/okf-harness-intro.html
+docs/okf-harness-intro.pdf
+
+# Private agent instruction overrides
+/AGENTS.override.md
+
 # Local environment and secrets
 .env
 .env.*

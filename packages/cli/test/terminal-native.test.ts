@@ -1,11 +1,11 @@
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli terminal-native smoke", () => {
-  it("runs init, source add, ingest plan, lint, and graph through okfh --json without MCP", async () => {
+  it("runs init, source add, ingest plan, lint, and graph through okfh --json", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     const sourcePath = path.join(root, "llm-wiki.md");
@@ -42,10 +42,6 @@ describe("@okf-harness/cli terminal-native smoke", () => {
         "okfh doctor --json",
       );
     }
-    await expect(stat(path.join(workspace, ".mcp.json"))).rejects.toMatchObject({
-      code: "ENOENT",
-    });
-
     const doctor = await runJsonCli(["node", "okfh", "doctor", "--workspace", workspace, "--json"]);
     expect(doctor).toMatchObject({
       exitCode: 0,

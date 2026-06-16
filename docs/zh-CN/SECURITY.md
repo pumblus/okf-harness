@@ -1,12 +1,12 @@
 # 安全策略
 
-OKF Harness 是本地优先的。v0.1 不运行云端服务、不创建账户、不上传资料、不启动后台守护进程。
+OKF Harness 是本地优先的。当前运行面是本地 CLI 和它写入的 workspace 文件；云端服务、账户、资料上传和后台守护进程不属于这个运行面。
 
 [English](../SECURITY.md) | 中文
 
 ## 支持范围
 
-安全报告应关注当前 v0.1 的以下方面：
+安全报告应关注当前运行面的以下方面：
 
 - `okfh` CLI 行为
 - workspace 路径安全
@@ -17,7 +17,7 @@ OKF Harness 是本地优先的。v0.1 不运行云端服务、不创建账户、
 - 本地文件写入边界
 - `@okf-harness/core`、`@okf-harness/cli` 和 `@okf-harness/agent-pack` 的包内容
 
-MCP、Obsidian、GUI、云端同步、网页抓取、账户和跨平台行为不在 v0.1 运行时范围内。
+涉及 Obsidian、GUI、云端同步、网页抓取、账户或跨平台行为的问题，除非影响上面列出的运行面，否则应先作为路线图或设计讨论处理。
 
 ## 本地数据边界
 
@@ -40,7 +40,7 @@ wiki/
 
 `okfh source add <file>` 将源文件复制到 `raw/sources/YYYY/MM/` 并在 `.okfh/manifest.jsonl` 中记录哈希。它不会移动或改写原始文件。
 
-`okfh source add <url>` 记录一个 URL 来源指针。v0.1 不会抓取网页正文或创建网页快照。
+`okfh source add <url>` 只记录一个 URL 来源指针。需要保留网页内容快照时，应先保存内容，再作为独立资料注册。
 
 `okfh graph` 在 `.okfh/` 下生成本地图谱文件。
 
@@ -65,7 +65,13 @@ wiki/
 
 ## 报告漏洞
 
-在可用时使用本仓库的 GitHub Security Advisories。如果该功能不可用，开一个最小化的公开 issue 说明需要私下报告安全问题，但不要在 issue 中包含漏洞细节或私有资料。
+敏感问题请先发邮件到 `eric.zhou.0921@gmail.com`，不要使用任何公开渠道。邮件标题使用：
+
+```text
+[OKF Harness Security] <问题简述>
+```
+
+非敏感漏洞报告可以在可用时使用本仓库的 GitHub Security Advisories。公开 issue 只作为最后的协调兜底：开一个最小化 issue 说明需要私下报告安全问题，但不要包含漏洞细节、私有资料或凭证。
 
 有用的报告应包含：
 
@@ -88,4 +94,3 @@ wiki/
 - 不支持的 Windows 或 Linux 行为
 - 缺失的 Obsidian 行为
 - 搜索排序质量
-- 计划中的 MCP 功能尚未可用

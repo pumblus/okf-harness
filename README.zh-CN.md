@@ -9,6 +9,8 @@
 
 一个 macOS 优先、agent 优先的本地知识管理工具。在 Claude Code、Codex 以及未来的编程 agent 里维护 OKF 兼容的 LLM Wiki，不需要额外安装知识库应用。
 
+OKF Harness 是一个独立开源项目，基于两个上游想法：Andrej Karpathy 的 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 模式，以及 Google 的 [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF 规范](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)。
+
 ```text
 源文件或 URL
         |
@@ -23,6 +25,15 @@ Claude Code 或 Codex 通过 okfh search/read/graph 查阅
 ```
 
 装一个 CLI 包，每个知识领域建一个本地 workspace，然后让 Claude Code 或 Codex 帮你添加资料、维护 wiki、回答问题。
+
+## 来源
+
+OKF Harness 建立在：
+
+- [Andrej Karpathy 的 LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)：agent 维护 index、log、互链页面，并执行 ingest、query、lint 的 living wiki 模式。
+- Google 的 [Open Knowledge Format 介绍](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) 和 [OKF 规范](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)：用 markdown + frontmatter 表达可移植知识 bundle 的格式。
+
+本仓库与 Andrej Karpathy 或 Google 没有关联，也不代表其背书。
 
 ## 快速开始
 
@@ -64,6 +75,8 @@ npx --package @okf-harness/cli okfh doctor --json
 - 图谱报告是一个本地 HTML 文件，不依赖任何在线服务
 
 推荐按知识领域、研究方向或隐私边界各建一个 workspace，统一放在 `~/Documents/OKF Harness/` 下，除非你有特别的分离需求。
+
+产品有意保持克制：本地文件、终端原生命令、受控读取和显式溯源优先。GUI、云端同步、Obsidian 辅助、来源连接器、向量检索和跨平台支持等更宽的产品面，只有在不破坏这些保证时才会进入路线图。
 
 ## 能做什么
 
@@ -107,16 +120,10 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 - [工作流](docs/zh-CN/WORKFLOWS.md)：面向用户的 Claude Code 和 Codex 操作流程
 - [CLI 参考](docs/zh-CN/CLI.md)：命令、选项和 JSON 行为说明
-- [路线图](docs/zh-CN/ROADMAP.md)：v0.1 范围和后续规划
+- [路线图](docs/zh-CN/ROADMAP.md)：当前重点和按需求排序的候选想法
 - [示例 workspace](examples/ai-research-workspace/README.md)：一个可通过 lint 检查的小型 workspace
 - [参与贡献](docs/zh-CN/CONTRIBUTING.md)：项目范围和验证方式
 - [安全策略](docs/zh-CN/SECURITY.md)：本地数据边界和漏洞报告
-
-## 不做的事
-
-v0.1 不包含：GUI、云端同步、用户账户、后台守护进程、向量数据库、自动网页抓取、Obsidian 运行时代码、MCP 优先工作流、Windows/Linux 支持，以及私有 agent 运行时。
-
-MCP、Obsidian 辅助工具、更多 agent 适配器、来源连接器和跨平台支持属于本地 agent 优先工作流稳定之后的路线图内容。
 
 ## 开发
 
@@ -127,7 +134,13 @@ pnpm typecheck
 pnpm build
 ```
 
-详细的产品和架构规格见 [docs/implementation.md](docs/implementation.md)。
+项目术语见 [CONTEXT.md](CONTEXT.md)，架构决策见 [docs/adr](docs/adr)。
+
+## 致谢
+
+感谢 Andrej Karpathy 公开 LLM Wiki 模式，也感谢 Google 公开 Open Knowledge Format 这一简洁、可移植的 markdown 知识 bundle 形态。OKF Harness 在此基础上面向本地优先、agent 优先的工作流做了适配。
+
+也感谢 [Tw93 的 Waza](https://github.com/tw93/waza) 和 [Matt Pocock 的 Skills for Real Engineers](https://github.com/mattpocock/skills) 对本项目开发工作流的帮助。
 
 ## 许可证
 

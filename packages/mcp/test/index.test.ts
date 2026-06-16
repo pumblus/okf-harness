@@ -6,7 +6,6 @@ describe("@okf-harness/mcp", () => {
     expect(packageInfo).toEqual({
       name: "@okf-harness/mcp",
       role: "mcp",
-      phase: 0,
     });
   });
 });

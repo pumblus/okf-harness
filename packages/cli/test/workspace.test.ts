@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
 
 describe("@okf-harness/cli workspace", () => {
-  it("reports Phase 4 workspace status as JSON", async () => {
+  it("reports workspace status as JSON", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {

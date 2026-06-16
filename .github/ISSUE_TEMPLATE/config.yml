@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report by email
+    url: mailto:eric.zhou.0921@gmail.com?subject=%5BOKF%20Harness%20Security%5D%20
+    about: Report sensitive security issues privately before opening a public issue.
+  - name: Documentation
+    url: https://github.com/pumblus/okf-harness#readme
+    about: Read the README, workflows, CLI reference, and roadmap before opening an issue.

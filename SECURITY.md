@@ -2,11 +2,11 @@
 
 English | [中文](docs/zh-CN/SECURITY.md)
 
-OKF Harness is local-first. v0.1 does not run a cloud service, create accounts, upload source material, or start a background daemon.
+OKF Harness is local-first. Its current runtime surface is the local CLI and the workspace files it writes; cloud services, accounts, source uploads, and background daemons are not part of that surface.
 
 ## Supported Scope
 
-Security reports should focus on the current v0.1 surfaces:
+Security reports should focus on the current runtime surfaces:
 
 - `okfh` CLI behavior
 - workspace path safety
@@ -17,7 +17,7 @@ Security reports should focus on the current v0.1 surfaces:
 - local file write boundaries
 - package contents for `@okf-harness/core`, `@okf-harness/cli`, and `@okf-harness/agent-pack`
 
-MCP, Obsidian, GUI, cloud sync, web crawling, accounts, and cross-platform behavior are not v0.1 runtime surfaces.
+Reports about Obsidian, GUI, cloud sync, web crawling, accounts, or cross-platform behavior should start as roadmap or design discussions unless they affect the runtime surfaces above.
 
 ## Local Data Boundaries
 
@@ -40,7 +40,7 @@ It may also initialize git in that workspace when you pass `--git`.
 
 `okfh source add <file>` copies a source file into `raw/sources/YYYY/MM/` and records a hash in `.okfh/manifest.jsonl`. It does not move or rewrite the original file.
 
-`okfh source add <url>` records a URL source pointer. v0.1 does not fetch the webpage body or create a webpage snapshot.
+`okfh source add <url>` records a URL source pointer only. Save and register webpage content separately when a durable snapshot is required.
 
 `okfh graph` writes local graph artifacts under `.okfh/`.
 
@@ -65,7 +65,13 @@ Use environment variables for local development secrets. The generated gitignore
 
 ## Reporting A Vulnerability
 
-Use GitHub Security Advisories for this repository when available. If that is not available, open a minimal public issue that says a private security report is needed, but do not include exploit details or private source material.
+For sensitive reports, email `eric.zhou.0921@gmail.com` before using any public channel. Use this subject format:
+
+```text
+[OKF Harness Security] <short summary>
+```
+
+For non-sensitive vulnerability reports, use GitHub Security Advisories when available. Public issues are only a last-resort coordination channel: open a minimal issue that says a private security report is needed, but do not include exploit details, private source material, or credentials.
 
 In a useful report, include:
 
@@ -88,4 +94,3 @@ These are usually regular bugs, not security vulnerabilities:
 - unsupported Windows or Linux behavior
 - missing Obsidian behavior
 - search ranking quality
-- planned MCP features not being available

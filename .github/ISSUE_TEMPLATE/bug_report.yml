@@ -1,0 +1,68 @@
+name: Bug report
+description: Report a reproducible problem in OKF Harness.
+title: "bug: "
+labels:
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Do not include private source material, credentials, tokens, or full workspace archives.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect instead?
+      placeholder: "I ran ... and expected ..., but ..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include exact commands and a minimal workspace shape when possible.
+      placeholder: |
+        1. pnpm install
+        2. node packages/cli/dist/main.js ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Command output
+      description: Paste the relevant output. Prefer `--json` output when available, with private paths or content redacted.
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor output
+      description: If possible, paste `okfh doctor --json` output with private paths or content redacted.
+      render: json
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: OKF Harness version or commit
+      placeholder: "npm version, git commit, or local branch"
+    validations:
+      required: false
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "macOS version, Node.js version, pnpm version"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed private source material, credentials, tokens, and personal local paths.
+          required: true
+        - label: I searched existing issues and docs before opening this.
+          required: true

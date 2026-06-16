@@ -235,7 +235,7 @@ function workspacePendingWarnings(): WorkspaceWarning[] {
   return [
     {
       code: "AGENT_PACK_PENDING",
-      message: "Claude and Codex skill rendering is planned for Phase 3.",
+      message: "Claude and Codex skill rendering is not included in the base workspace plan.",
     },
   ];
 }
@@ -344,7 +344,7 @@ function workspaceFiles(
     {
       path: "AGENTS.md",
       contents:
-        "# OKF Harness workspace\n\nPhase 2 placeholder. Agent skills are installed in Phase 3.\n",
+        "# OKF Harness workspace\n\nPlaceholder. Install agent guidance with okfh init or okfh agent.\n",
     },
     {
       path: "CLAUDE.md",

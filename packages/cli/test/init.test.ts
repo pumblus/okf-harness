@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
 
 describe("@okf-harness/cli init", () => {
-  it("initializes a Phase 4 workspace with Claude and Codex adapters by default", async () => {
+  it("initializes a workspace with Claude and Codex adapters by default", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     let stdout = "";

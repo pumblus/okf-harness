@@ -67,7 +67,7 @@ export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> 
         : [];
     const issues = [
       ...scanResult.files.flatMap((file) => lintMarkdownFile(file)),
-      ...lintPhase5WikiWarnings(scanResult.files),
+      ...lintWikiWarnings(scanResult.files),
       ...sourceManifest.issues.map(
         (issue) =>
           ({
@@ -284,7 +284,7 @@ function lintMarkdownFile(file: OkfMarkdownFile): LintIssue[] {
   return issues;
 }
 
-function lintPhase5WikiWarnings(files: OkfMarkdownFile[]): LintIssue[] {
+function lintWikiWarnings(files: OkfMarkdownFile[]): LintIssue[] {
   const existingConceptIds = new Set(files.map((file) => file.conceptId));
   const indexedConceptIds = indexMentionedConceptIds(files);
   return [

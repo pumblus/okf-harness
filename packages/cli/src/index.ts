@@ -34,7 +34,6 @@ export type { CliIo, JsonEnvelope } from "./types.js";
 export const packageInfo = {
   name: "@okf-harness/cli",
   role: "cli",
-  phase: 7,
 } as const;
 
 export type PackageInfo = typeof packageInfo;
@@ -146,7 +145,7 @@ export async function runCli(
           directories: result.directories,
           lint: result.lint,
         },
-        warnings: filterPhase2AgentPackWarnings(result.warnings),
+        warnings: filterAgentPackPendingWarnings(result.warnings),
         next: [
           "Use the generated OKF Harness skills from Claude Code or Codex.",
           "Run okfh lint --workspace <path> --json after editing wiki files.",
@@ -184,7 +183,7 @@ export async function runCli(
             queryCommand: "not_available",
           },
         },
-        warnings: filterPhase2AgentPackWarnings(result.warnings),
+        warnings: filterAgentPackPendingWarnings(result.warnings),
         next: result.initialized
           ? ["Use okfh search and okfh read to answer from the synthesized wiki."]
           : [],
@@ -690,7 +689,7 @@ function renderInitAgentData(
   return { requested, install };
 }
 
-function filterPhase2AgentPackWarnings(
+function filterAgentPackPendingWarnings(
   warnings: Array<{ code: string; message: string }>,
 ): Array<{ code: string; message: string }> {
   return warnings.filter((warning) => warning.code !== "AGENT_PACK_PENDING");

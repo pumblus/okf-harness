@@ -1,0 +1,49 @@
+name: Feature discussion
+description: Propose a scoped improvement or roadmap direction.
+title: "idea: "
+labels:
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        OKF Harness is intentionally local-first and agent-first. Please frame proposals around a user workflow, safety boundary, and verification path.
+  - type: textarea
+    id: workflow
+    attributes:
+      label: User workflow
+      description: What should a Claude Code or Codex user be able to do?
+      placeholder: "As a user, I want to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Why this matters
+      description: What becomes easier, safer, or more reliable?
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Safety and scope boundary
+      description: How should this preserve local files, explicit provenance, bounded reads, and `okfh --json` behavior?
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification idea
+      description: What command, test, or example would prove this works?
+      placeholder: "A good acceptance check would be ..."
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: This is not asking OKF Harness to upload private source material or run a background sync service.
+          required: true
+        - label: I am not including private documents, credentials, tokens, or full workspace archives.
+          required: true

@@ -99,7 +99,7 @@ okfh agent install codex --workspace "$HOME/Documents/OKF Harness/ai-research" -
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-v0.1 中可用能力包括 `search`、`read` 和 `graph`。没有 `okfh query` 命令。
+当前 CLI 可用能力包括 `search`、`read` 和 `graph`。没有 `okfh query` 命令。
 
 ### lint
 
@@ -120,7 +120,7 @@ okfh source add ~/Downloads/paper.pdf --workspace "$HOME/Documents/OKF Harness/a
 okfh source add https://example.com/article --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-文件来源会被复制到 `raw/sources/YYYY/MM/` 下，并在 `.okfh/manifest.jsonl` 中记录 SHA-256 哈希。URL 来源将 URL 记录为来源指针。v0.1 不会自动抓取网页内容。
+文件来源会被复制到 `raw/sources/YYYY/MM/` 下，并在 `.okfh/manifest.jsonl` 中记录 SHA-256 哈希。URL 来源将 URL 记录为来源指针。当前 CLI 不会自动抓取网页内容。
 
 用 `--dry-run` 查看计划注册的来源记录，不实际写入。
 

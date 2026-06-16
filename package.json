@@ -1,6 +1,6 @@
 {
   "name": "okf-harness",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Agent-first local harness for OKF-compatible LLM Wikis.",
   "license": "Apache-2.0",
@@ -22,8 +22,9 @@
     "build": "pnpm --recursive --filter '@okf-harness/*' build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "lint": "biome check package.json biome.json tsconfig.json tsconfig.base.json vitest.config.ts packages/*/package.json packages/*/tsconfig.json packages/*/src packages/*/test",
-    "format": "biome format --write package.json biome.json tsconfig.json tsconfig.base.json vitest.config.ts packages/*/package.json packages/*/tsconfig.json packages/*/src packages/*/test"
+    "lint": "biome check package.json biome.json tsconfig.json tsconfig.base.json vitest.config.ts scripts/*.mjs packages/*/package.json packages/*/tsconfig.json packages/*/src packages/*/test",
+    "format": "biome format --write package.json biome.json tsconfig.json tsconfig.base.json vitest.config.ts scripts/*.mjs packages/*/package.json packages/*/tsconfig.json packages/*/src packages/*/test",
+    "smoke:tarball": "node scripts/smoke-npm-tarballs.mjs"
   },
   "keywords": [
     "okf",

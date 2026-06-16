@@ -1,10 +1,13 @@
 {
   "name": "@okf-harness/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The okfh command-line package for local OKF Harness workspaces.",
   "license": "Apache-2.0",
   "type": "module",
   "author": "Eric Zhou",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "homepage": "https://github.com/pumblus/okf-harness#readme",
   "repository": {
     "type": "git",
@@ -30,8 +33,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "okfh": "./dist/main.js",
-    "okf-harness": "./dist/main.js"
+    "okfh": "dist/main.js",
+    "okf-harness": "dist/main.js"
   },
   "exports": {
     ".": {
@@ -43,11 +46,12 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm --dir ../.. --filter @okf-harness/core build && pnpm --dir ../.. --filter @okf-harness/agent-pack build && tsup src/index.ts src/main.ts --format esm --dts --clean"
+    "build": "pnpm --dir ../.. --filter @okf-harness/core build && pnpm --dir ../.. --filter @okf-harness/agent-pack build && tsup src/index.ts src/main.ts --format esm --dts --clean",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@okf-harness/agent-pack": "workspace:*",
-    "@okf-harness/core": "workspace:*",
+    "@okf-harness/agent-pack": "0.1.0",
+    "@okf-harness/core": "0.1.0",
     "commander": "4.1.1"
   }
 }

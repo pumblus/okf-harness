@@ -9,6 +9,8 @@ English | [中文](README.zh-CN.md)
 
 A macOS-first, agent-first local harness for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
 
+OKF Harness is an independent open-source project built on two upstream ideas: [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern for agent-maintained living wikis, and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) for portable markdown knowledge bundles.
+
 ```text
 source files or URLs
         |
@@ -23,6 +25,15 @@ Claude Code or Codex uses okfh search/read/graph
 ```
 
 OKF Harness does not ask you to learn a new knowledge-base app. You install one CLI package, create one local workspace per knowledge domain, then ask Claude Code or Codex to add sources, maintain the wiki, and answer from it.
+
+## Origins
+
+OKF Harness builds on:
+
+- [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): the agent-maintained wiki pattern of index, log, linked pages, ingest, query, and lint.
+- Google's [Open Knowledge Format announcement](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) and [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): the markdown-plus-frontmatter bundle shape that keeps knowledge portable across tools.
+
+This repository is not affiliated with or endorsed by Andrej Karpathy or Google.
 
 ## Quick Start
 
@@ -64,6 +75,8 @@ Most personal knowledge tools make the app the center. OKF Harness makes the loc
 - the graph report is a local HTML file, not a hosted service
 
 The recommended layout is one workspace per knowledge domain, research area, or privacy boundary. Keep them under `~/Documents/OKF Harness/` unless you have a reason to separate them.
+
+The product stays narrow on purpose: local files, terminal-native commands, bounded reads, and explicit provenance come first. Broader surfaces such as GUI, cloud sync, Obsidian helpers, source connectors, vector retrieval, and cross-platform support belong in the roadmap only when they preserve those guarantees.
 
 ## What It Does
 
@@ -107,16 +120,10 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 - [Workflows](docs/WORKFLOWS.md) explains the user-facing Claude Code and Codex flows.
 - [CLI reference](docs/CLI.md) lists commands, options, and JSON behavior.
-- [Roadmap](docs/ROADMAP.md) shows v0.1 scope and later ideas.
+- [Roadmap](docs/ROADMAP.md) shows the current focus and demand-ranked ideas.
 - [Example workspace](examples/ai-research-workspace/README.md) gives a small lintable workspace.
 - [Contributing](CONTRIBUTING.md) explains project scope and verification.
 - [Security](SECURITY.md) explains local data boundaries and reporting.
-
-## Non-Goals
-
-v0.1 does not include a GUI, cloud sync, accounts, a background daemon, vector database, automatic web crawling, Obsidian runtime code, MCP-first workflow, Windows/Linux support, or private agent runtime.
-
-MCP, Obsidian helpers, more agent adapters, source connectors, and cross-platform support belong on the roadmap after the local agent-first workflow is stable.
 
 ## Development
 
@@ -127,7 +134,13 @@ pnpm typecheck
 pnpm build
 ```
 
-See [docs/implementation.md](docs/implementation.md) for the detailed product and architecture spec.
+See [CONTEXT.md](CONTEXT.md) for the project glossary and [docs/adr](docs/adr) for architecture decisions.
+
+## Acknowledgements
+
+Thanks to Andrej Karpathy for publishing the LLM Wiki pattern, and to Google for publishing Open Knowledge Format as a simple, portable shape for markdown knowledge bundles. OKF Harness adapts those ideas for a local, agent-first workflow.
+
+Thanks also to [Tw93's Waza](https://github.com/tw93/waza) and [Matt Pocock's Skills for Real Engineers](https://github.com/mattpocock/skills) for shaping the development workflow behind this project.
 
 ## License
 

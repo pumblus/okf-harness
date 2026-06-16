@@ -5,7 +5,7 @@ OKF Harness is the product context for a macOS-first, agent-first, local-first h
 ## Language
 
 **OKF Harness**:
-A local harness for maintaining OKF bundles through Claude Code, Codex, and future coding agents. It is the product around the format, not the OKF specification itself, and it is not a standalone knowledge-base application or an Obsidian plugin.
+A local harness for maintaining OKF bundles through Claude Code, Codex, and future coding agents. It builds on [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing). It is an independent project around the format, not the OKF specification itself, an official implementation, a standalone knowledge-base application, or an Obsidian plugin.
 _Avoid_: OKF app, Obsidian plugin, private agent runtime
 
 **Harness**:
@@ -18,10 +18,10 @@ _Avoid_: user interface, primary workflow, app
 
 **Terminal-native tool channel**:
 The default way an agent client operates OKF Harness by running explicit local shell commands, especially `okfh --json`, through the user's macOS terminal environment. This means local, observable, and debuggable command execution; it does not mean only macOS built-in commands, and it does not require the user to learn CLI language.
-_Avoid_: MCP-first integration, native macOS command only, user-facing CLI workflow
+_Avoid_: alternate default tool channel, native macOS command only, user-facing CLI workflow
 
 **OKF**:
-The external Open Knowledge Format specification: a minimal, human- and agent-friendly format for representing knowledge as markdown files with YAML frontmatter. OKF is a format, not this product.
+The external [Open Knowledge Format specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): a minimal, human- and agent-friendly format for representing knowledge as markdown files with YAML frontmatter. OKF is a format, not this product.
 _Avoid_: OKF Harness, Google wiki, knowledge app
 
 **OKF bundle**:
@@ -157,5 +157,5 @@ A clearly marked section inside a generated OKF Harness workspace's agent guidan
 _Avoid_: full-file ownership, silent overwrite, prompt injection
 
 **Product roadmap**:
-The public-facing direction of OKF Harness across releases, including accepted themes and candidate ideas. It is not the detailed implementation phase gate; implementation order and hard scope still come from the implementation spec.
+The public-facing direction of OKF Harness across releases, including accepted themes and candidate ideas. It communicates demand level, constraints, and candidate work without promising a specific release version.
 _Avoid_: implementation checklist, issue tracker, release promise

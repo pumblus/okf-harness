@@ -288,7 +288,7 @@ async function addFileSource(context: {
 
   if (!sourceStat.isFile()) {
     throw new SourceManagementError(
-      "Phase 4 source add supports ordinary files and URLs only.",
+      "Source add supports ordinary files and URLs only.",
       SOURCE_INPUT_UNSUPPORTED,
       context.workspaceRoot,
     );
@@ -500,7 +500,7 @@ function parseManifestEntry(
     return { ok: false, message: "Manifest kind must be file or url." };
   }
   if (row.status !== "registered") {
-    return { ok: false, message: "Phase 4 manifest status must be registered." };
+    return { ok: false, message: "Manifest status must be registered." };
   }
   if (!/^src_\d{8}_\d{4}$/.test(String(row.id))) {
     return { ok: false, message: "Manifest source id must match src_YYYYMMDD_NNNN." };

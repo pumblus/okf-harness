@@ -4,7 +4,6 @@ import path from "node:path";
 export const packageInfo = {
   name: "@okf-harness/agent-pack",
   role: "agent-pack",
-  phase: 7,
 } as const;
 
 export type PackageInfo = typeof packageInfo;
@@ -92,7 +91,7 @@ const skillTemplates: SkillTemplate[] = [
     hardRules: [
       "Do not create a parallel workspace skeleton by hand.",
       "Do not overwrite a non-empty directory unless `okfh` returns an explicit safe plan.",
-      "Do not add MCP, plugin, hook, Pi, OpenCode, or Obsidian setup.",
+      "Do not add plugin, hook, Pi, OpenCode, or Obsidian setup.",
       "Use the same local shell `okfh --json` workflow in Desktop App and TUI sessions.",
       "Run `git diff` before final response when file changes were made.",
     ],
@@ -201,7 +200,7 @@ The ingest plan is metadata-level guidance. It returns a recommended reference p
       title: "Answer Contract",
       body: `# Answer Contract
 
-## Phase 5 query workflow
+## Query workflow
 
 Use the CLI as the deterministic retrieval layer:
 
@@ -212,7 +211,7 @@ okfh search "<question>" --json
 okfh read <concept-id-or-path> --json
 \`\`\`
 
-There is no \`okfh query\` command in v0.1. Compose answers from search candidate cards plus bounded reads.
+There is no \`okfh query\` command in the current CLI. Compose answers from search candidate cards plus bounded reads.
 
 ## Answer shape
 
@@ -436,7 +435,7 @@ async function planManagedFileWrite(
   if (
     existing !== undefined &&
     !isHarnessManagedSkill(existing) &&
-    !isPhase2Placeholder(existing) &&
+    !isBaseWorkspacePlaceholder(existing) &&
     !context.force
   ) {
     context.result.conflicts.push({
@@ -465,7 +464,7 @@ function mergeRootGuidance(
   renderedRoot: string,
 ): { contents: string; action: ManagedBlockAction; conflict?: string } {
   const renderedBlock = extractManagedBlock(renderedRoot);
-  if (existing === undefined || isPhase2Placeholder(existing)) {
+  if (existing === undefined || isBaseWorkspacePlaceholder(existing)) {
     return { contents: renderedRoot, action: existing === undefined ? "created" : "replaced" };
   }
 
@@ -507,10 +506,10 @@ function isHarnessManagedSkill(contents: string): boolean {
   return contents.includes("okf-harness-managed: true");
 }
 
-function isPhase2Placeholder(contents: string): boolean {
+function isBaseWorkspacePlaceholder(contents: string): boolean {
   return (
     contents.trim() === "@AGENTS.md" ||
-    contents.includes("Phase 2 placeholder. Agent skills are installed in Phase 3.")
+    contents.includes("Placeholder. Install agent guidance with okfh init or okfh agent.")
   );
 }
 
