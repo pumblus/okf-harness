@@ -37,8 +37,12 @@ A concept document that records the origin, summary, key evidence, and citation 
 _Avoid_: source copy, source summary, attachment
 
 **OKF Harness workspace**:
-The local directory managed by OKF Harness around an OKF bundle, source material, agent guidance, and harness state. This is product-specific and should not be confused with the OKF bundle itself.
-_Avoid_: OKF workspace, Obsidian vault, project repo
+The local directory managed by OKF Harness around one OKF bundle, its source material, agent guidance, and harness state. People may have multiple workspaces on one machine, usually one per knowledge domain, research area, or privacy boundary; this is product-specific and should not be confused with the OKF bundle itself.
+_Avoid_: OKF workspace, Obsidian vault, project repo, global knowledge base
+
+**Workspace collection**:
+The set of separate OKF Harness workspaces a person keeps on one machine. It is a loose local organization pattern, not a global database or synchronized account.
+_Avoid_: global workspace, account, cloud library
 
 **Workspace plan**:
 The JSON-readable plan for creating an OKF Harness workspace: directories, files, placeholder agent guidance, post-create checks, and warnings. It is primarily for the Harness CLI and agent clients, not a document an agent-first knowledge worker must read directly.

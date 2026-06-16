@@ -7,7 +7,7 @@ describe("@okf-harness/core", () => {
     expect(packageInfo).toEqual({
       name: "@okf-harness/core",
       role: "core",
-      phase: 5,
+      phase: 7,
     });
   });
 

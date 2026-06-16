@@ -6,11 +6,11 @@ import { describe, expect, it } from "vitest";
 import { installAgentAdapters, packageInfo, renderAgentAdapter } from "../src/index.js";
 
 describe("@okf-harness/agent-pack", () => {
-  it("exposes Phase 6 package metadata", () => {
+  it("exposes Phase 7 package metadata", () => {
     expect(packageInfo).toEqual({
       name: "@okf-harness/agent-pack",
       role: "agent-pack",
-      phase: 6,
+      phase: 7,
     });
   });
 

@@ -5,6 +5,15 @@
   "description": "Agent-first local harness for OKF-compatible LLM Wikis.",
   "license": "Apache-2.0",
   "type": "module",
+  "author": "Eric Zhou",
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pumblus/okf-harness.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pumblus/okf-harness/issues"
+  },
   "packageManager": "pnpm@11.0.6",
   "engines": {
     "node": ">=22.0.0"

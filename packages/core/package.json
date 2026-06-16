@@ -4,6 +4,27 @@
   "description": "OKF parsing, config, manifest, path safety, lint, search, graph, and source handling.",
   "license": "Apache-2.0",
   "type": "module",
+  "author": "Eric Zhou",
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pumblus/okf-harness.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/pumblus/okf-harness/issues"
+  },
+  "keywords": [
+    "okf",
+    "open-knowledge-format",
+    "llm-wiki",
+    "markdown",
+    "local-first",
+    "knowledge-management"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

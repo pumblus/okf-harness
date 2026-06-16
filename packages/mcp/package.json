@@ -4,6 +4,22 @@
   "description": "Future optional MCP integration scaffold for OKF Harness.",
   "license": "Apache-2.0",
   "type": "module",
+  "author": "Eric Zhou",
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pumblus/okf-harness.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/pumblus/okf-harness/issues"
+  },
+  "keywords": [
+    "okf",
+    "llm-wiki",
+    "mcp",
+    "model-context-protocol"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

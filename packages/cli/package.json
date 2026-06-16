@@ -1,9 +1,32 @@
 {
   "name": "@okf-harness/cli",
   "version": "0.0.0",
-  "description": "The okfh command-line package.",
+  "description": "The okfh command-line package for local OKF Harness workspaces.",
   "license": "Apache-2.0",
   "type": "module",
+  "author": "Eric Zhou",
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pumblus/okf-harness.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/pumblus/okf-harness/issues"
+  },
+  "keywords": [
+    "okf",
+    "open-knowledge-format",
+    "llm-wiki",
+    "agent-skills",
+    "claude-code",
+    "codex",
+    "macos",
+    "knowledge-management"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {

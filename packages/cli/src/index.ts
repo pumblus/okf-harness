@@ -34,7 +34,7 @@ export type { CliIo, JsonEnvelope } from "./types.js";
 export const packageInfo = {
   name: "@okf-harness/cli",
   role: "cli",
-  phase: 6,
+  phase: 7,
 } as const;
 
 export type PackageInfo = typeof packageInfo;

@@ -1180,13 +1180,13 @@ okf-harness/
 
 **Phase 7：Docs + examples + release prep**
 
-- [ ] README 用户流程（自然语言示例）
-- [ ] 上线版 README / docs 参考 tw93 项目组织风格：一句话定位、视觉或截图信号、badges、Why、Features、Quick Start、Usage / workflows、Docs index、FAQ / troubleshooting、Support、License；保持克制、示例优先、避免长 CLI 参考堆在 README 顶部
-- [ ] docs/ROADMAP.md（Obsidian 仅在 roadmap）
-- [ ] example workspace
-- [ ] macOS 安装说明
-- [ ] contribution guide / security policy
-- [ ] npm package metadata
+- [x] README 用户流程（自然语言示例）
+- [x] 上线版 README / docs 参考 tw93 项目组织风格：一句话定位、视觉或截图信号、badges、Why、Features、Quick Start、Usage / workflows、Docs index、FAQ / troubleshooting、Support、License；保持克制、示例优先、避免长 CLI 参考堆在 README 顶部
+- [x] docs/ROADMAP.md（Obsidian 仅在 roadmap）
+- [x] example workspace
+- [x] macOS 安装说明
+- [x] contribution guide / security policy
+- [x] npm package metadata
 
 ### 11.3 Agent prompt 示例
 

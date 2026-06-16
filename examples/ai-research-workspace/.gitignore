@@ -1,0 +1,14 @@
+# OKF Harness generated caches
+.okfh/cache/
+.okfh/*.sqlite
+.okfh/backlinks.json
+.okfh/reports/graph.html
+.okfh/reports/*.tmp
+
+# OS
+.DS_Store
+
+# Secrets
+.env
+.env.*
+!.env.example
