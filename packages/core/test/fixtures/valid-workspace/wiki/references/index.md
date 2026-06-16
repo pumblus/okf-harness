@@ -1,3 +1,3 @@
 # References
 
-- [Karpathy LLM Wiki gist](/references/karpathy-llm-wiki.md)
+- [Karpathy LLM Wiki gist](karpathy-llm-wiki.md)

@@ -353,10 +353,10 @@ Decision pages：
 
 ### 5.4 链接与 Citation
 
-链接优先使用 bundle-root absolute markdown links：
+链接优先使用 bundle-root absolute markdown links。这里的 bundle root 是生成后的 OKF workspace/wiki 根路径，不是本仓库的 `docs/` 根路径：
 
-```markdown
-See [LLM Wiki](/topics/llm-wiki.md).
+```text
+Markdown example shape: link text "LLM Wiki" with URL path "/topics/llm-wiki.md".
 ```
 
 正文中来自外部 source 的事实性 claim，在页面底部 `# Citations` 中列出 source。内部 source mirror 可指向 `/references/...`。
@@ -690,7 +690,7 @@ Use this skill to register source material and compile it into the local OKF wik
 - If more than 20 wiki files seem affected, stop after an ingest plan and ask the user to narrow scope.
 - Run `git diff` before final response when file changes were made.
 
-See [the ingest contract](references/ingest-contract.md) for exact page templates.
+See `references/ingest-contract.md` inside the generated OKF workspace for exact page templates.
 ```
 
 ### 8.3 Skill 清单

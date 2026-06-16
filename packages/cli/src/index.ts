@@ -1,29 +1,34 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
-import {
-  type AgentInstallTarget,
-  type InstallAgentAdaptersResult,
-  installAgentAdapters,
-} from "@okf-harness/agent-pack";
+import { type InstallAgentAdaptersResult, installAgentAdapters } from "@okf-harness/agent-pack";
 import {
   addSource,
   buildWorkspaceGraph,
   createIngestPlan,
-  GraphWorkspaceError,
   type InitWorkspaceResult,
   initWorkspace,
   lintWorkspace,
   listSources,
-  ReadWorkspaceError,
   readWorkspaceDocument,
   readWorkspaceStatus,
   resolveWorkspaceRoot,
   SourceManagementError,
   searchWorkspace,
   WorkspaceInitError,
-  WorkspaceResolutionError,
 } from "@okf-harness/core";
 import { Command } from "commander";
+import { handleCliError, writeError, writePhase5Error } from "./errors/index.js";
+import {
+  commandFromArgv,
+  type InitAgentTarget,
+  parseAgentInstallTarget,
+  parseInitAgentTarget,
+  parseIntegerOption,
+} from "./options/index.js";
+import { writeResult } from "./render/result.js";
+import type { CliIo, JsonEnvelope } from "./types.js";
+
+export type { CliIo, JsonEnvelope } from "./types.js";
 
 export const packageInfo = {
   name: "@okf-harness/cli",
@@ -32,25 +37,6 @@ export const packageInfo = {
 } as const;
 
 export type PackageInfo = typeof packageInfo;
-
-export type CliIo = {
-  writeOut: (chunk: string) => void;
-  writeErr: (chunk: string) => void;
-};
-
-export type JsonEnvelope = {
-  ok: boolean;
-  command: string;
-  workspace?: string | null;
-  data: unknown;
-  warnings: Array<{ code: string; message: string }>;
-  next: string[];
-  error?: {
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
-  };
-};
 
 export async function runCli(
   argv: string[] = process.argv,
@@ -610,205 +596,6 @@ export async function runCli(
   }
 }
 
-function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): void {
-  if (json) {
-    io.writeOut(`${JSON.stringify(envelope)}\n`);
-    return;
-  }
-
-  io.writeOut(renderHumanResult(envelope));
-}
-
-function renderHumanResult(envelope: JsonEnvelope): string {
-  if (!envelope.ok) {
-    return `FAILED ${envelope.command}\n`;
-  }
-
-  if (envelope.command === "search") {
-    const data = envelope.data as {
-      results?: Array<{ title?: string; path?: string; type?: string; score?: number }>;
-      totalMatches?: number;
-      truncated?: boolean;
-    };
-    const rows = (data.results ?? []).map((result, index) => {
-      const title = result.title ?? "(untitled)";
-      const pathValue = result.path ?? "(unknown path)";
-      const type = result.type ?? "Unknown";
-      const score = result.score === undefined ? "" : ` score=${result.score}`;
-      return `${index + 1}. ${title} [${type}] ${pathValue}${score}`;
-    });
-    const summary = `Found ${data.totalMatches ?? rows.length}${data.truncated ? " (truncated)" : ""}`;
-    return `${summary}\n${rows.join("\n")}${rows.length > 0 ? "\n" : ""}`;
-  }
-
-  if (envelope.command === "read") {
-    const data = envelope.data as {
-      metadata?: { title?: string; type?: string };
-      target?: { path?: string };
-      content?: { text?: string; truncated?: boolean };
-    };
-    const title = data.metadata?.title ?? "(untitled)";
-    const type = data.metadata?.type ?? "Unknown";
-    const pathValue = data.target?.path ?? "(unknown path)";
-    const truncated = data.content?.truncated ? " truncated" : "";
-    return `${title} [${type}] ${pathValue}${truncated}\n\n${data.content?.text ?? ""}\n`;
-  }
-
-  if (envelope.command === "graph") {
-    const data = envelope.data as {
-      report?: { htmlPath?: string; backlinksPath?: string };
-    };
-    return `Graph report: ${data.report?.htmlPath ?? "(not written)"}\nBacklinks: ${data.report?.backlinksPath ?? "(not written)"}\n`;
-  }
-
-  return `${envelope.ok ? "OK" : "FAILED"} ${envelope.command}\n`;
-}
-
-function handleCliError(
-  error: unknown,
-  io: CliIo,
-  options: { command: string; json: boolean; capturedStderr: string },
-): number {
-  if (error instanceof WorkspaceInitError) {
-    writeError(io, "init", error.message, error.code);
-    return 1;
-  }
-
-  if (error instanceof WorkspaceResolutionError) {
-    if (options.json) {
-      writePhase5Error(io, {
-        command: options.command,
-        error,
-        workspace: null,
-        next: ["Run from inside an OKF Harness workspace or pass --workspace <path>."],
-        json: true,
-      });
-    } else {
-      io.writeErr(`${error.message}\n`);
-    }
-    return 1;
-  }
-
-  if (isCommanderError(error)) {
-    if (options.json) {
-      writeError(io, options.command, error.message, error.code);
-    } else {
-      io.writeErr(options.capturedStderr);
-    }
-    return error.exitCode;
-  }
-
-  writeError(io, "unknown", error instanceof Error ? error.message : "Unknown error.", "UNKNOWN");
-  return 5;
-}
-
-function writeError(
-  io: CliIo,
-  command: string,
-  message: string,
-  code: string,
-  workspace?: string,
-): void {
-  const envelope: JsonEnvelope = {
-    ok: false,
-    command,
-    data: {
-      code,
-      message,
-    },
-    warnings: [],
-    next: [],
-  };
-  if (workspace !== undefined) {
-    envelope.workspace = workspace;
-  }
-  io.writeErr(`${JSON.stringify(envelope)}\n`);
-}
-
-function writePhase5Error(
-  io: CliIo,
-  options: {
-    command: string;
-    error: unknown;
-    workspace: string | null;
-    next: string[];
-    json?: boolean | undefined;
-  },
-): boolean {
-  const normalized = normalizePhase5Error(options.error);
-  if (normalized === undefined) {
-    return false;
-  }
-
-  const envelope: JsonEnvelope = {
-    ok: false,
-    command: options.command,
-    workspace: options.workspace,
-    data: {},
-    warnings: [],
-    error: normalized,
-    next: options.next,
-  };
-  if (options.json === true) {
-    io.writeErr(`${JSON.stringify(envelope)}\n`);
-  } else {
-    io.writeErr(renderHumanError(normalized.message, options.next));
-  }
-  return true;
-}
-
-function renderHumanError(message: string, next: string[]): string {
-  const nextStep = next[0];
-  return nextStep === undefined ? `${message}\n` : `${message}\nNext: ${nextStep}\n`;
-}
-
-function normalizePhase5Error(error: unknown):
-  | {
-      code: string;
-      message: string;
-      details?: Record<string, unknown>;
-    }
-  | undefined {
-  if (error instanceof WorkspaceResolutionError) {
-    return {
-      code: error.code,
-      message: error.message,
-      details: { startDir: error.startDir },
-    };
-  }
-  if (error instanceof ReadWorkspaceError) {
-    const normalized = {
-      code: error.code,
-      message: error.message,
-    };
-    return Object.keys(error.details).length > 0
-      ? { ...normalized, details: error.details }
-      : normalized;
-  }
-  if (error instanceof GraphWorkspaceError) {
-    return {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-    };
-  }
-  if (isErrorWithCode(error)) {
-    return {
-      code: error.code,
-      message: error.message,
-    };
-  }
-  return undefined;
-}
-
-function parseIntegerOption(value: string): number {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`Expected an integer option value, received: ${value}`);
-  }
-  return parsed;
-}
-
 async function openGraphReport(htmlPath: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     execFile("open", [htmlPath], (error) => {
@@ -832,30 +619,6 @@ function captureCommanderConsoleError(capturedErrors: string[]): () => void {
   };
 }
 
-function commandFromArgv(argv: string[]): string {
-  const command = argv.slice(2).find((arg) => !arg.startsWith("-"));
-  return command ?? "unknown";
-}
-
-function parseAgentInstallTarget(input: string): AgentInstallTarget | undefined {
-  if (input === "claude" || input === "codex" || input === "all") {
-    return input;
-  }
-  return undefined;
-}
-
-type InitAgentTarget = AgentInstallTarget | "none";
-
-function parseInitAgentTarget(input: string): InitAgentTarget | undefined {
-  if (input === "none") {
-    return "none";
-  }
-  if (input === "claude,codex" || input === "codex,claude") {
-    return "all";
-  }
-  return parseAgentInstallTarget(input);
-}
-
 function renderInitAgentData(
   requested: InitAgentTarget,
   install: InstallAgentAdaptersResult | undefined,
@@ -874,28 +637,4 @@ function filterPhase2AgentPackWarnings(
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values)];
-}
-
-function isCommanderError(
-  error: unknown,
-): error is { code: string; exitCode: number; message: string } {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-
-  const candidate = error as { code?: unknown; exitCode?: unknown; message?: unknown };
-  return (
-    typeof candidate.code === "string" &&
-    typeof candidate.exitCode === "number" &&
-    typeof candidate.message === "string"
-  );
-}
-
-function isErrorWithCode(error: unknown): error is { code: string; message: string } {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-
-  const candidate = error as { code?: unknown; message?: unknown };
-  return typeof candidate.code === "string" && typeof candidate.message === "string";
 }

@@ -25,15 +25,17 @@
 - `packages/mcp`: future optional MCP integration scaffold.
 - `packages/agent-pack`: Claude/Codex adapter renderers and shared skill templates.
 - `packages/mac`: optional macOS helpers after the core MVP.
-- `templates/workspace`: generated OKF Harness workspace skeletons.
-- `examples/minimal-workspace`: fixture workspace and sample sources.
+- `packages/core/src/workspace/index.ts`: generated OKF Harness workspace skeleton and workspace plan until a durable template directory exists.
+- `packages/core/test/fixtures/valid-workspace`: fixture workspace and sample sources used by core and CLI tests.
 
 ## Hotspot Ownership
 
-- `docs/implementation.md` owns the product scope, architecture decisions, and phased roadmap. Keep section 11.2 as the phase gate; do not move future-phase behavior into current code unless the user explicitly asks.
-- `packages/core/src/workspace/index.ts` owns the OKF Harness workspace skeleton and workspace plan. Keep it free of agent-pack dependencies.
-- `packages/agent-pack/src/index.ts` owns Claude/Codex skill rendering, root guidance managed blocks, and adapter install planning.
-- `packages/cli/src/index.ts` owns the terminal-native JSON command surface and connects core with agent-pack. Keep CLI output compatible with `okfh --json` and do not add MCP-first behavior here.
+- `docs/implementation.md` owns the product scope, architecture decisions, and phased roadmap. Keep section 11.2 as the phase gate; do not move future-phase behavior into current code unless the user explicitly asks. Verify meaningful edits with `pnpm typecheck` and the relevant package tests.
+- `packages/core/src/workspace/index.ts` owns the OKF Harness workspace skeleton and workspace plan. Keep it free of agent-pack dependencies. Verify with `pnpm test packages/core/test` and `pnpm typecheck`.
+- `packages/agent-pack/src/index.ts` owns Claude/Codex skill rendering, root guidance managed blocks, and adapter install planning. Verify with `pnpm test packages/agent-pack/test` and `pnpm typecheck`.
+- `packages/cli/src/index.ts` owns the terminal-native command registration and connects core with agent-pack. Keep CLI output compatible with `okfh --json` and do not add MCP-first behavior here. Keep rendering, option parsing, and error normalization in dedicated CLI modules when they grow beyond command wiring. Verify with `pnpm test packages/cli/test` and `pnpm typecheck`.
+- `packages/cli/test`: owns CLI command contract coverage. Keep shared temp-workspace and JSON helpers in `packages/cli/test/helpers.ts`; split command-domain tests instead of growing one catch-all file. Verify with `pnpm test packages/cli/test`.
+- `pnpm-lock.yaml` owns dependency resolution state only. Do not hand-edit it; update it through pnpm when package manifests change, then verify with `pnpm install --frozen-lockfile` or the normal CI command set.
 
 ## Agent skills
 
