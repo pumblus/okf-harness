@@ -1,5 +1,7 @@
 # Contributing To OKF Harness
 
+English | [中文](docs/zh-CN/CONTRIBUTING.md)
+
 Thanks for taking the time to improve OKF Harness. The project is still small, so the best contributions are narrow, testable, and aligned with the v0.1 local agent-first scope.
 
 ## Scope

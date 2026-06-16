@@ -1,5 +1,7 @@
 # OKF Harness Roadmap
 
+English | [中文](zh-CN/ROADMAP.md)
+
 This is the public product roadmap for OKF Harness. The detailed implementation phase gate remains `docs/implementation.md` section 11.2; this file records release direction, accepted themes, and candidate ideas.
 
 Roadmap items are not release promises. Ideas move from the inbox into a release only after they have a clear user story, safety boundary, and verification path.

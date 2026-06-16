@@ -5,6 +5,8 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 [![macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](docs/ROADMAP.md)
 
+English | [中文](README.zh-CN.md)
+
 A macOS-first, agent-first local harness for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
 
 ```text

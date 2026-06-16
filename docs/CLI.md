@@ -1,5 +1,7 @@
 # OKF Harness CLI
 
+English | [中文](zh-CN/CLI.md)
+
 The npm package is `@okf-harness/cli`. It installs the `okfh` command and the longer `okf-harness` alias. Documentation uses `okfh`.
 
 ## Install

@@ -1,5 +1,7 @@
 # OKF Harness Workflows
 
+English | [中文](zh-CN/WORKFLOWS.md)
+
 OKF Harness is built for people who operate through Claude Code or Codex. The CLI is still visible, but normal work should start with natural language.
 
 ## Workspace Model

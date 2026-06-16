@@ -1,5 +1,7 @@
 # Security Policy
 
+English | [中文](docs/zh-CN/SECURITY.md)
+
 OKF Harness is local-first. v0.1 does not run a cloud service, create accounts, upload source material, or start a background daemon.
 
 ## Supported Scope
