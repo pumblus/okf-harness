@@ -1,6 +1,6 @@
 # OKF Harness
 
-OKF Harness is the product context for a macOS-first, agent-first, local-first harness that helps people maintain OKF-compatible local LLM Wikis through coding agents.
+OKF Harness is the product context for an agent-first, local-first, terminal-native harness that helps people maintain OKF-compatible local LLM Wikis through coding agents.
 
 ## Language
 
@@ -17,8 +17,8 @@ The `okfh` command-line tool that provides a deterministic tool surface for agen
 _Avoid_: user interface, primary workflow, app
 
 **Terminal-native tool channel**:
-The default way an agent client operates OKF Harness by running explicit local shell commands, especially `okfh --json`, through the user's macOS terminal environment. This means local, observable, and debuggable command execution; it does not mean only macOS built-in commands, and it does not require the user to learn CLI language.
-_Avoid_: alternate default tool channel, native macOS command only, user-facing CLI workflow
+The default way an agent client operates OKF Harness by running explicit local shell commands, especially `okfh --json`, through the user's local terminal environment. This means local, observable, and debuggable command execution across supported operating systems; it does not require the user to learn CLI language.
+_Avoid_: alternate default tool channel, OS-specific command channel, user-facing CLI workflow
 
 **OKF**:
 The external [Open Knowledge Format specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): a minimal, human- and agent-friendly format for representing knowledge as markdown files with YAML frontmatter. OKF is a format, not this product.
@@ -37,7 +37,7 @@ A concept document that records the origin, summary, key evidence, and citation 
 _Avoid_: source copy, source summary, attachment
 
 **OKF Harness workspace**:
-The local directory managed by OKF Harness around one OKF bundle, its source material, agent guidance, and harness state. People may have multiple workspaces on one machine, usually one per knowledge domain, research area, or privacy boundary; this is product-specific and should not be confused with the OKF bundle itself.
+The operating-system-independent local directory managed by OKF Harness around one OKF bundle, its source material, agent guidance, and harness state. People may have multiple workspaces on one machine, usually one per knowledge domain, research area, or privacy boundary; this is product-specific and should not be confused with the OKF bundle itself.
 _Avoid_: OKF workspace, Obsidian vault, project repo, global knowledge base
 
 **Workspace collection**:
