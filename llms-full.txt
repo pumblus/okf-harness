@@ -28,13 +28,13 @@ Source path: `README.md`
 [![CI](https://github.com/pumblus/okf-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/pumblus/okf-harness/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
-[![macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](docs/ROADMAP.md)
+[![Local terminal](https://img.shields.io/badge/platform-local%20terminal-lightgrey.svg)](docs/CLI.md)
 
 English | [中文](README.zh-CN.md)
 
-A macOS-first, agent-first local harness for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
+An agent-first, local-first, terminal-native harness for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
 
-OKF Harness is an independent open-source project built on two upstream ideas: [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern for agent-maintained living wikis, and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) for portable markdown knowledge bundles.
+OKF Harness is an independent open-source project built on two upstream ideas: Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern for agent-maintained living wikis, and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) for portable markdown knowledge bundles.
 
 ```text
 source files or URLs
@@ -55,7 +55,7 @@ OKF Harness does not ask you to learn a new knowledge-base app. You install one 
 
 OKF Harness builds on:
 
-- [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): the agent-maintained wiki pattern of index, log, linked pages, ingest, query, and lint.
+- Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): the agent-maintained wiki pattern of index, log, linked pages, ingest, query, and lint.
 - Google's [Open Knowledge Format announcement](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) and [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): the markdown-plus-frontmatter bundle shape that keeps knowledge portable across tools.
 
 This repository is not affiliated with or endorsed by Andrej Karpathy or Google.
@@ -69,13 +69,15 @@ npm install -g @okf-harness/cli
 okfh doctor --json
 ```
 
-Create your first workspace:
+Create your first workspace. This path is only a recommended parent folder, not a hidden CLI default:
 
 ```bash
 mkdir -p "$HOME/Documents/OKF Harness"
 okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents all --git --json
 cd "$HOME/Documents/OKF Harness/ai-research"
 ```
+
+On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness`. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.
 
 Open that folder in Claude Code or Codex and say:
 
@@ -99,13 +101,13 @@ Most personal knowledge tools make the app the center. OKF Harness makes the loc
 - `okfh --json` gives agents a deterministic tool surface
 - the graph report is a local HTML file, not a hosted service
 
-The recommended layout is one workspace per knowledge domain, research area, or privacy boundary. Keep them under `~/Documents/OKF Harness/` unless you have a reason to separate them.
+The recommended layout is one workspace per knowledge domain, research area, or privacy boundary. Keep them under a local `Documents/OKF Harness/` folder unless you have a reason to separate them.
 
-The product stays narrow on purpose: local files, terminal-native commands, bounded reads, and explicit provenance come first. Broader surfaces such as GUI, cloud sync, Obsidian helpers, source connectors, vector retrieval, and cross-platform support belong in the roadmap only when they preserve those guarantees.
+The product stays narrow on purpose: local files, terminal-native commands, bounded reads, and explicit provenance come first. Broader surfaces such as GUI, cloud sync, Obsidian helpers, source connectors, and vector retrieval belong in the roadmap only when they preserve those guarantees.
 
 #### What It Does
 
-- Initializes a local OKF Harness workspace for macOS.
+- Initializes a local OKF Harness workspace.
 - Installs Claude Code and Codex guidance into the workspace.
 - Registers files and URL pointers as raw sources.
 - Produces ingest plans so an agent can update the wiki with citations.
@@ -168,7 +170,7 @@ See [CONTEXT.md](CONTEXT.md) for the project glossary and [docs/adr](docs/adr) f
 
 Thanks to Andrej Karpathy for publishing the LLM Wiki pattern, and to Google for publishing Open Knowledge Format as a simple, portable shape for markdown knowledge bundles. OKF Harness adapts those ideas for a local, agent-first workflow.
 
-Thanks also to [Tw93's Waza](https://github.com/tw93/waza) and [Matt Pocock's Skills for Real Engineers](https://github.com/mattpocock/skills) for shaping the development workflow behind this project.
+Thanks also to Tw93's [Waza](https://github.com/tw93/waza) and Matt Pocock's [Skills for Real Engineers](https://github.com/mattpocock/skills) for shaping the development workflow behind this project.
 
 #### License
 
@@ -185,7 +187,7 @@ OKF Harness is the product context for an agent-first, local-first, terminal-nat
 #### Language
 
 **OKF Harness**:
-A local harness for maintaining OKF bundles through Claude Code, Codex, and future coding agents. It builds on [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing). It is an independent project around the format, not the OKF specification itself, an official implementation, a standalone knowledge-base application, or an Obsidian plugin.
+A local harness for maintaining OKF bundles through Claude Code, Codex, and future coding agents. It builds on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing). It is an independent project around the format, not the OKF specification itself, an official implementation, a standalone knowledge-base application, or an Obsidian plugin.
 _Avoid_: OKF app, Obsidian plugin, private agent runtime
 
 **Harness**:
@@ -350,7 +352,7 @@ English | [中文](zh-CN/WORKFLOWS.md)
 
 OKF Harness is built for people who operate through Claude Code or Codex. The CLI is still visible, but normal work should start with natural language.
 
-The workflow follows [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and uses Google's [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) as the bundle format.
+The workflow follows Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and uses Google's [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) as the bundle format.
 
 OKF Harness is independent and is not affiliated with or endorsed by Andrej Karpathy or Google.
 
@@ -362,11 +364,13 @@ Create one workspace per knowledge domain, research area, or privacy boundary. G
 - `~/Documents/OKF Harness/company-strategy`
 - `~/Documents/OKF Harness/personal-health-reading`
 
+On Windows, use the same convention under `%USERPROFILE%\Documents\OKF Harness\...`.
+
 Avoid one hidden global knowledge base. Separate workspaces make agent prompts clearer, keep private material apart, and make lint/search output easier to trust.
 
 #### First Setup
 
-Run this once on a Mac:
+Run this once in your local terminal:
 
 ```bash
 npm install -g @okf-harness/cli
@@ -465,7 +469,7 @@ The agent should call:
 okfh graph --json
 ```
 
-Use `--open` only when you want macOS to open the HTML report.
+Use `--open` only when you want the operating system to open the HTML report in the system default browser. In a Linux environment without a GUI or opener command, open the generated HTML file manually.
 
 #### Repair Agent Support
 
@@ -497,7 +501,7 @@ CLAUDE.md         Claude Code workspace guidance
 
 #### Design Restraint
 
-OKF Harness keeps the workflow local, inspectable, and easy to debug from normal terminal commands. Agent answers are built from synthesized `wiki/` content plus bounded reads, while broader product surfaces such as GUI, cloud sync, source connectors, vector retrieval, Obsidian helpers, and cross-platform support stay on the roadmap until they can preserve those guarantees.
+OKF Harness keeps the workflow local, inspectable, and easy to debug from normal terminal commands. Agent answers are built from synthesized `wiki/` content plus bounded reads, while broader product surfaces such as GUI, cloud sync, source connectors, vector retrieval, and Obsidian helpers stay on the roadmap until they can preserve those guarantees.
 
 ## CLI reference
 
@@ -524,18 +528,20 @@ npx --package @okf-harness/cli okfh doctor --json
 
 Requirements:
 
-- macOS
+- macOS, Windows, or Linux
 - Node.js 22 or newer
 - git
 - pnpm for repository development
 
 #### Workspace Rules
 
-Use one workspace per knowledge domain, research area, or privacy boundary. The recommended parent folder is:
+Use one workspace per knowledge domain, research area, or privacy boundary. The recommended parent folder is only a documentation convention. OKF Harness does not resolve a hidden global workspace from it.
 
-```text
-~/Documents/OKF Harness/
-```
+| Environment | Recommended parent folder |
+|---|---|
+| macOS or Linux shell | `$HOME/Documents/OKF Harness` |
+| Windows PowerShell | `$env:USERPROFILE\Documents\OKF Harness` |
+| Windows Command Prompt | `%USERPROFILE%\Documents\OKF Harness` |
 
 Most commands resolve a workspace from `--workspace <path>` or by finding the nearest `okfh.config.yaml` from the current directory. Source-changing commands require an explicit workspace path so files are not registered into the wrong folder.
 
@@ -694,6 +700,8 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --open --json
 
 The report is written under `.okfh/reports/graph.html`. The graph does not upload data.
 
+`--open` asks the operating system to open the report in the system default browser or HTML handler. On Linux environments without a GUI or opener command, OKF Harness still writes the report and returns a clear error telling you to open the HTML file manually.
+
 #### Exit Behavior
 
 Successful commands return exit code `0`. Validation, workspace, source, or lint failures return a non-zero exit code and include `ok: false` in JSON when `--json` is present.
@@ -722,7 +730,7 @@ This is the public product roadmap for OKF Harness. Roadmap items are not releas
 
 OKF Harness is an agent-native, file-contract-first, no-app-required knowledge harness.
 
-It is an independent project that builds on [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
+It is an independent project that builds on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 
 It is not affiliated with or endorsed by Andrej Karpathy or Google.
 
@@ -742,13 +750,14 @@ Goal: make OKF Harness useful from Claude Code and Codex through a local, termin
 
 Included:
 
-- macOS-first workspace initialization.
+- Local workspace initialization for macOS, Windows, and Linux.
 - Claude Code and Codex agent adapters.
 - Source registration with raw source immutability and manifest integrity.
 - Metadata-level ingest planning.
 - Deterministic wiki search and read.
 - Self-contained local graph report.
-- Terminal-native hardening and release documentation.
+- Terminal-native hardening across POSIX shells, PowerShell, and Command Prompt core commands.
+- Release documentation.
 
 Design restraint:
 
@@ -757,7 +766,7 @@ Design restraint:
 - Search returns candidate concept documents, not answer evidence.
 - Read output is bounded by default, with explicit continuation options.
 - Graph reports show concept links and evidence links; raw source files remain metadata, not graph nodes.
-- GUI, cloud sync, accounts, vector search, RAG, automatic web crawling, Obsidian runtime code, and cross-platform runtime support stay in demand buckets until they can preserve the local, inspectable workflow.
+- GUI, cloud sync, accounts, vector search, RAG, automatic web crawling, and Obsidian runtime code stay in demand buckets until they can preserve the local, inspectable workflow.
 
 #### High Demand
 
@@ -791,19 +800,6 @@ Candidates:
 - Investigation for Cursor, VS Code, Aider, Goose, Continue, and GitHub Copilot coding agent.
 
 Constraint: new adapters must preserve the same workflow contracts as Claude Code and Codex. They should not force a private runtime into the default product path.
-
-##### Cross-Platform Terminal-Native Support
-
-Goal: extend terminal-native operation beyond macOS.
-
-Questions to resolve:
-
-- Which shell is the default target: PowerShell, `cmd.exe`, Git Bash, or Windows Terminal profile detection?
-- How should generated agent guidance express commands across macOS and Windows without confusing non-technical users?
-- What path rules are needed for drive letters, backslashes, spaces, symlinks, and case-insensitive filesystems?
-- Which checks prove Claude Code and Codex can operate through `okfh --json` on Windows?
-
-Constraint: cross-platform support should arrive as explicit hardening work, not as incidental changes that complicate the current macOS-first path.
 
 #### Medium Demand
 
@@ -905,7 +901,7 @@ Source path: `packages/cli/README.md`
 
 Command-line package for OKF Harness local workspaces. It provides the `okfh` command for initializing workspaces, registering sources, linting wiki content, searching and reading pages, generating graph reports, and installing Claude Code or Codex guidance.
 
-OKF Harness is an independent open-source project built on [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
+OKF Harness is an independent open-source project built on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 
 Most users install this package once, create one local workspace per knowledge domain, then ask Claude Code or Codex to maintain the workspace through `okfh --json`.
 
@@ -934,6 +930,8 @@ okfh lint --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
+On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness` for the workspace parent folder. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.
+
 OKF Harness keeps raw sources under `raw/sources/`, synthesized knowledge under `wiki/`, source records in `.okfh/manifest.jsonl`, and generated reports under `.okfh/reports/`.
 
 For project overview, workflows, security notes, and LLM-readable context, see the [main repository README](https://github.com/pumblus/okf-harness#readme) and [llms.txt](https://github.com/pumblus/okf-harness/blob/main/llms.txt).
@@ -946,7 +944,7 @@ Source path: `packages/core/README.md`
 
 Core library for OKF Harness workspace parsing, config loading, manifest handling, path safety, linting, search, graph generation, and source registration.
 
-OKF Harness is an independent open-source project built on [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
+OKF Harness is an independent open-source project built on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 
 Most users should install the CLI instead:
 
@@ -965,7 +963,7 @@ Source path: `packages/agent-pack/README.md`
 
 Adapter renderer package for OKF Harness agent guidance. It renders shared Claude Code and Codex instructions from one source so workspace setup stays consistent across supported agents.
 
-OKF Harness is an independent open-source project built on [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
+OKF Harness is an independent open-source project built on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 
 Most users should install the CLI instead:
 

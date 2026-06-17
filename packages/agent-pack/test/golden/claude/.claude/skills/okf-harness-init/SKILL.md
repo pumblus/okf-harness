@@ -1,10 +1,10 @@
 ---
 name: okf-harness-init
-description: Initialize and organize an OKF Harness workspace on macOS, including folders, git, OKF bundle files, and Claude/Codex adapters. Use when the user asks to set up, create, initialize, organize, or install OKF Harness support. Do not use for ingesting an already-added source.
+description: Initialize and organize a local OKF Harness workspace, including folders, git, OKF bundle files, and Claude/Codex adapters. Use when the user asks to set up, create, initialize, organize, or install OKF Harness support. Do not use for ingesting an already-added source.
 license: Apache-2.0
-compatibility: Designed for Claude Code and Codex on macOS. Requires the okfh CLI and local shell command access.
+compatibility: Designed for Claude Code and Codex with local shell command access. Requires the okfh CLI.
 metadata:
-  okf-harness-version: "0.1"
+  okf-harness-version: "0.2"
   okf-harness-managed: true
 ---
 

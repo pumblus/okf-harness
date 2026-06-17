@@ -46,9 +46,9 @@ describe("@okf-harness/cli init", () => {
       ]),
     );
 
-    await expect(readFile(path.join(workspace, "okfh.config.yaml"), "utf8")).resolves.toContain(
-      "name: AI Research",
-    );
+    const config = await readFile(path.join(workspace, "okfh.config.yaml"), "utf8");
+    expect(config).toContain("name: AI Research");
+    expect(config).not.toContain("platform:");
     await expect(readFile(path.join(workspace, "wiki/index.md"), "utf8")).resolves.toContain(
       "# AI Research Wiki",
     );

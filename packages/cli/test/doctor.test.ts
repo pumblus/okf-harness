@@ -2,6 +2,7 @@ import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { type RunExecutable, runDoctor } from "../src/doctor/index.js";
 import { runCli } from "../src/index.js";
 import { runJsonCli } from "./helpers.js";
 
@@ -29,6 +30,7 @@ describe("@okf-harness/cli doctor", () => {
           },
           checks: expect.arrayContaining([
             expect.objectContaining({ id: "okfh", status: "pass" }),
+            expect.objectContaining({ id: "platform", status: "pass" }),
             expect.objectContaining({ id: "node", status: "pass" }),
             expect.objectContaining({ id: "git", status: "pass" }),
             expect.objectContaining({ id: "pnpm", status: "pass" }),
@@ -73,6 +75,41 @@ describe("@okf-harness/cli doctor", () => {
     } finally {
       process.chdir(previousCwd);
     }
+  });
+
+  it("checks Windows npm shims through a controlled shell path", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const runs: Array<{ executable: string; shell: boolean }> = [];
+    const runExecutable: RunExecutable = async (executable, _args, options) => {
+      runs.push({ executable, shell: options.shell === true });
+      if (executable === "pnpm" && options.shell !== true) {
+        throw Object.assign(new Error("spawn pnpm ENOENT"), { code: "ENOENT" });
+      }
+      return {
+        stdout: executable === "pnpm" ? "11.0.6\n" : `${executable} version\n`,
+        stderr: "",
+      };
+    };
+
+    const result = await runDoctor({
+      startDir: root,
+      runtimePlatform: "win32",
+      runExecutable,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "platform", status: "pass" }),
+        expect.objectContaining({ id: "pnpm", status: "pass" }),
+      ]),
+    );
+    expect(runs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ executable: "git", shell: false }),
+        expect.objectContaining({ executable: "pnpm", shell: true }),
+      ]),
+    );
   });
 
   it("fails when an explicit workspace is not initialized", async () => {

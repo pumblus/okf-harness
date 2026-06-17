@@ -10,10 +10,29 @@ describe("workspace config", () => {
     expect(config.version).toBe("0.1");
     expect(config.workspace).toMatchObject({
       name: "AI Research",
-      platform: "macos",
     });
+    expect(config.workspace).not.toHaveProperty("platform");
     expect(config.okf.bundle_root).toBe("wiki");
     expect(config.paths.wiki_root).toBe("wiki");
+  });
+
+  it("rejects legacy workspace platform fields", async () => {
+    const source = await readFile(`${validWorkspaceFixture}/okfh.config.yaml`, "utf8");
+    const result = parseWorkspaceConfig(
+      source.replace("workspace:\n  name:", "workspace:\n  platform: macos\n  name:"),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: "CONFIG_INVALID",
+            path: "workspace",
+          }),
+        ]),
+      );
+    }
   });
 
   it("returns CONFIG_INVALID issues for unsafe paths", async () => {

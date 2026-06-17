@@ -54,7 +54,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      placeholder: "macOS version, Node.js version, pnpm version"
+      placeholder: "operating system, terminal, Node.js version, pnpm version"
     validations:
       required: true
   - type: checkboxes

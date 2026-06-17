@@ -19,18 +19,20 @@ npx --package @okf-harness/cli okfh doctor --json
 
 Requirements:
 
-- macOS
+- macOS, Windows, or Linux
 - Node.js 22 or newer
 - git
 - pnpm for repository development
 
 ## Workspace Rules
 
-Use one workspace per knowledge domain, research area, or privacy boundary. The recommended parent folder is:
+Use one workspace per knowledge domain, research area, or privacy boundary. The recommended parent folder is only a documentation convention. OKF Harness does not resolve a hidden global workspace from it.
 
-```text
-~/Documents/OKF Harness/
-```
+| Environment | Recommended parent folder |
+|---|---|
+| macOS or Linux shell | `$HOME/Documents/OKF Harness` |
+| Windows PowerShell | `$env:USERPROFILE\Documents\OKF Harness` |
+| Windows Command Prompt | `%USERPROFILE%\Documents\OKF Harness` |
 
 Most commands resolve a workspace from `--workspace <path>` or by finding the nearest `okfh.config.yaml` from the current directory. Source-changing commands require an explicit workspace path so files are not registered into the wrong folder.
 
@@ -188,6 +190,8 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --open --json
 ```
 
 The report is written under `.okfh/reports/graph.html`. The graph does not upload data.
+
+`--open` asks the operating system to open the report in the system default browser or HTML handler. On Linux environments without a GUI or opener command, OKF Harness still writes the report and returns a clear error telling you to open the HTML file manually.
 
 ## Exit Behavior
 

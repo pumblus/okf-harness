@@ -8,7 +8,7 @@ This is the public product roadmap for OKF Harness. Roadmap items are not releas
 
 OKF Harness is an agent-native, file-contract-first, no-app-required knowledge harness.
 
-It is an independent project that builds on [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
+It is an independent project that builds on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 
 It is not affiliated with or endorsed by Andrej Karpathy or Google.
 
@@ -28,13 +28,14 @@ Goal: make OKF Harness useful from Claude Code and Codex through a local, termin
 
 Included:
 
-- macOS-first workspace initialization.
+- Local workspace initialization for macOS, Windows, and Linux.
 - Claude Code and Codex agent adapters.
 - Source registration with raw source immutability and manifest integrity.
 - Metadata-level ingest planning.
 - Deterministic wiki search and read.
 - Self-contained local graph report.
-- Terminal-native hardening and release documentation.
+- Terminal-native hardening across POSIX shells, PowerShell, and Command Prompt core commands.
+- Release documentation.
 
 Design restraint:
 
@@ -43,7 +44,7 @@ Design restraint:
 - Search returns candidate concept documents, not answer evidence.
 - Read output is bounded by default, with explicit continuation options.
 - Graph reports show concept links and evidence links; raw source files remain metadata, not graph nodes.
-- GUI, cloud sync, accounts, vector search, RAG, automatic web crawling, Obsidian runtime code, and cross-platform runtime support stay in demand buckets until they can preserve the local, inspectable workflow.
+- GUI, cloud sync, accounts, vector search, RAG, automatic web crawling, and Obsidian runtime code stay in demand buckets until they can preserve the local, inspectable workflow.
 
 ## High Demand
 
@@ -77,19 +78,6 @@ Candidates:
 - Investigation for Cursor, VS Code, Aider, Goose, Continue, and GitHub Copilot coding agent.
 
 Constraint: new adapters must preserve the same workflow contracts as Claude Code and Codex. They should not force a private runtime into the default product path.
-
-### Cross-Platform Terminal-Native Support
-
-Goal: extend terminal-native operation beyond macOS.
-
-Questions to resolve:
-
-- Which shell is the default target: PowerShell, `cmd.exe`, Git Bash, or Windows Terminal profile detection?
-- How should generated agent guidance express commands across macOS and Windows without confusing non-technical users?
-- What path rules are needed for drive letters, backslashes, spaces, symlinks, and case-insensitive filesystems?
-- Which checks prove Claude Code and Codex can operate through `okfh --json` on Windows?
-
-Constraint: cross-platform support should arrive as explicit hardening work, not as incidental changes that complicate the current macOS-first path.
 
 ## Medium Demand
 

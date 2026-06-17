@@ -25,7 +25,6 @@ Please open an issue or discussion before starting work on:
 - cloud sync, accounts, or background daemons
 - vector search, embeddings, or RAG
 - web fetching, source connectors, or crawling
-- Windows or Linux support
 
 Direct PRs that bypass roadmap discussion for cloud accounts, background crawling, automatic raw source edits, alternate default tool channels, or non-JSON agent contracts will be closed or redirected.
 
@@ -33,7 +32,7 @@ Direct PRs that bypass roadmap discussion for cloud accounts, background crawlin
 
 Requirements:
 
-- macOS
+- macOS, Windows, or Linux
 - Node.js 22 or newer
 - pnpm 11
 

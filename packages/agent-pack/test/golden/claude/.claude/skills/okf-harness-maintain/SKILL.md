@@ -2,9 +2,9 @@
 name: okf-harness-maintain
 description: Maintain an OKF Harness wiki by running lint, repairing broken links or missing metadata, updating index/log files, checking source hashes, and generating graph reports. Use when the user asks to check, clean up, repair, validate, lint, or visualize the knowledge base. Do not use for first-time initialization.
 license: Apache-2.0
-compatibility: Designed for Claude Code and Codex on macOS. Requires the okfh CLI and local shell command access.
+compatibility: Designed for Claude Code and Codex with local shell command access. Requires the okfh CLI.
 metadata:
-  okf-harness-version: "0.1"
+  okf-harness-version: "0.2"
   okf-harness-managed: true
 ---
 

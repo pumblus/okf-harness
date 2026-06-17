@@ -2,9 +2,9 @@
 name: okf-harness-query
 description: Answer questions using the local OKF Harness wiki by searching concepts, reading full pages, following citations, and citing concept paths. Use when the user asks what their knowledge base says, asks a research question, or requests synthesis from existing wiki knowledge. Do not use to ingest new source material.
 license: Apache-2.0
-compatibility: Designed for Claude Code and Codex on macOS. Requires the okfh CLI and local shell command access.
+compatibility: Designed for Claude Code and Codex with local shell command access. Requires the okfh CLI.
 metadata:
-  okf-harness-version: "0.1"
+  okf-harness-version: "0.2"
   okf-harness-managed: true
 ---
 

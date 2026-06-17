@@ -2,7 +2,6 @@ version: 0.1
 workspace:
   name: AI Research
   created_at: "2026-06-15T12:00:00-07:00"
-  platform: macos
 okf:
   bundle_root: wiki
   profile: okf-harness-default

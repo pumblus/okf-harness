@@ -301,7 +301,6 @@ function createWorkspaceConfig(name: string, createdAt: string): WorkspaceConfig
     workspace: {
       name,
       created_at: createdAt,
-      platform: "macos",
     },
     okf: {
       bundle_root: "wiki",

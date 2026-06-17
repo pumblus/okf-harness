@@ -70,7 +70,7 @@ type SkillTemplate = {
   };
 };
 
-const defaultVersion = "0.1";
+const defaultVersion = "0.2";
 const managedBlockStart = "<!-- OKF Harness: start -->";
 const managedBlockEnd = "<!-- OKF Harness: end -->";
 
@@ -79,7 +79,7 @@ const skillTemplates: SkillTemplate[] = [
     name: "okf-harness-init",
     title: "OKF Harness Init",
     description:
-      "Initialize and organize an OKF Harness workspace on macOS, including folders, git, OKF bundle files, and Claude/Codex adapters. Use when the user asks to set up, create, initialize, organize, or install OKF Harness support. Do not use for ingesting an already-added source.",
+      "Initialize and organize a local OKF Harness workspace, including folders, git, OKF bundle files, and Claude/Codex adapters. Use when the user asks to set up, create, initialize, organize, or install OKF Harness support. Do not use for ingesting an already-added source.",
     summary: "Use this skill to create a workspace or repair Claude/Codex adapter support.",
     requiredBehavior: [
       "Locate or choose the workspace path with the user.",
@@ -552,7 +552,7 @@ function renderSkill(skill: SkillTemplate, version: string): string {
 name: ${skill.name}
 description: ${skill.description}
 license: Apache-2.0
-compatibility: Designed for Claude Code and Codex on macOS. Requires the okfh CLI and local shell command access.
+compatibility: Designed for Claude Code and Codex with local shell command access. Requires the okfh CLI.
 metadata:
   okf-harness-version: "${version}"
   okf-harness-managed: true

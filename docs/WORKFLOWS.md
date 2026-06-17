@@ -4,7 +4,7 @@ English | [中文](zh-CN/WORKFLOWS.md)
 
 OKF Harness is built for people who operate through Claude Code or Codex. The CLI is still visible, but normal work should start with natural language.
 
-The workflow follows [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and uses Google's [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) as the bundle format.
+The workflow follows Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and uses Google's [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) as the bundle format.
 
 OKF Harness is independent and is not affiliated with or endorsed by Andrej Karpathy or Google.
 
@@ -16,11 +16,13 @@ Create one workspace per knowledge domain, research area, or privacy boundary. G
 - `~/Documents/OKF Harness/company-strategy`
 - `~/Documents/OKF Harness/personal-health-reading`
 
+On Windows, use the same convention under `%USERPROFILE%\Documents\OKF Harness\...`.
+
 Avoid one hidden global knowledge base. Separate workspaces make agent prompts clearer, keep private material apart, and make lint/search output easier to trust.
 
 ## First Setup
 
-Run this once on a Mac:
+Run this once in your local terminal:
 
 ```bash
 npm install -g @okf-harness/cli
@@ -119,7 +121,7 @@ The agent should call:
 okfh graph --json
 ```
 
-Use `--open` only when you want macOS to open the HTML report.
+Use `--open` only when you want the operating system to open the HTML report in the system default browser. In a Linux environment without a GUI or opener command, open the generated HTML file manually.
 
 ## Repair Agent Support
 
@@ -151,4 +153,4 @@ CLAUDE.md         Claude Code workspace guidance
 
 ## Design Restraint
 
-OKF Harness keeps the workflow local, inspectable, and easy to debug from normal terminal commands. Agent answers are built from synthesized `wiki/` content plus bounded reads, while broader product surfaces such as GUI, cloud sync, source connectors, vector retrieval, Obsidian helpers, and cross-platform support stay on the roadmap until they can preserve those guarantees.
+OKF Harness keeps the workflow local, inspectable, and easy to debug from normal terminal commands. Agent answers are built from synthesized `wiki/` content plus bounded reads, while broader product surfaces such as GUI, cloud sync, source connectors, vector retrieval, and Obsidian helpers stay on the roadmap until they can preserve those guarantees.

@@ -19,7 +19,6 @@ export const workspaceConfigSchema = z
       .object({
         name: z.string().min(1),
         created_at: z.string().min(1),
-        platform: z.literal("macos"),
       })
       .strict(),
     okf: z

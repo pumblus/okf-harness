@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import path from "node:path";
 import { type InstallAgentAdaptersResult, installAgentAdapters } from "@okf-harness/agent-pack";
 import {
@@ -19,6 +18,7 @@ import {
 import { Command } from "commander";
 import { runDoctor } from "./doctor/index.js";
 import { handleCliError, writeCliError, writeValidationError } from "./errors/index.js";
+import { GraphOpenError, openGraphReport } from "./graph-open.js";
 import {
   commandFromArgv,
   type InitAgentTarget,
@@ -333,7 +333,7 @@ export async function runCli(
     .description("Generate OKF backlinks data and a self-contained graph report.")
     .storeOptionsAsProperties(false)
     .option("--workspace <path>", "workspace path")
-    .option("--open", "open the generated graph report in the default macOS browser")
+    .option("--open", "open the generated graph report in the system default browser")
     .option("--json", "write machine-readable JSON")
     .action(async (command: Command) => {
       const options = command.opts() as { workspace?: string; open?: boolean; json?: boolean };
@@ -360,7 +360,12 @@ export async function runCli(
           command: "graph",
           error,
           workspace: workspaceRoot,
-          next: ["Check write permissions under .okfh and rerun okfh graph --json."],
+          next:
+            error instanceof GraphOpenError
+              ? [
+                  "Open the generated graph HTML report manually, or rerun okfh graph --json without --open.",
+                ]
+              : ["Check write permissions under .okfh and rerun okfh graph --json."],
           json: options.json === true,
         });
         if (handled) {
@@ -654,18 +659,6 @@ export async function runCli(
   } finally {
     restoreConsoleError();
   }
-}
-
-async function openGraphReport(htmlPath: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    execFile("open", [htmlPath], (error) => {
-      if (error !== null) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
 }
 
 function captureCommanderConsoleError(capturedErrors: string[]): () => void {

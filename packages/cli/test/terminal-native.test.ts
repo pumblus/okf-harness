@@ -6,9 +6,9 @@ import { runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli terminal-native smoke", () => {
   it("runs init, source add, ingest plan, lint, and graph through okfh --json", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const root = await mkdtemp(path.join(tmpdir(), "okfh cli-"));
     const workspace = path.join(root, "ai-research");
-    const sourcePath = path.join(root, "llm-wiki.md");
+    const sourcePath = path.join(root, "OKF Harness test source.md");
     await writeFile(sourcePath, "# LLM Wiki\n\nTerminal-native source.\n", "utf8");
 
     const init = await runJsonCli([

@@ -19,18 +19,20 @@ npx --package @okf-harness/cli okfh doctor --json
 
 环境要求：
 
-- macOS
+- macOS、Windows 或 Linux
 - Node.js 22 或更高版本
 - git
 - 参与仓库开发需要 pnpm
 
 ## Workspace 规则
 
-按知识领域、研究方向或隐私边界各建一个 workspace。推荐放在：
+按知识领域、研究方向或隐私边界各建一个 workspace。推荐父目录只是文档约定，OKF Harness 不会从这里解析隐藏的全局 workspace。
 
-```text
-~/Documents/OKF Harness/
-```
+| 环境 | 推荐父目录 |
+|---|---|
+| macOS 或 Linux shell | `$HOME/Documents/OKF Harness` |
+| Windows PowerShell | `$env:USERPROFILE\Documents\OKF Harness` |
+| Windows Command Prompt | `%USERPROFILE%\Documents\OKF Harness` |
 
 大多数命令通过 `--workspace <path>` 或从当前目录向上查找最近的 `okfh.config.yaml` 来定位 workspace。涉及修改资料来源的命令需要明确指定 workspace 路径，避免把文件注册到错误的文件夹。
 
@@ -188,6 +190,8 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --open --json
 ```
 
 报告写入 `.okfh/reports/graph.html`。图谱不会上传任何数据。
+
+`--open` 会请求操作系统用默认浏览器或 HTML 处理程序打开报告。如果 Linux 环境没有 GUI 或 opener 命令，OKF Harness 仍会写入报告，并返回清楚的错误，提示你手动打开 HTML 文件。
 
 ## 退出行为
 

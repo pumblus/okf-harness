@@ -17,7 +17,7 @@ Security reports should focus on the current runtime surfaces:
 - local file write boundaries
 - package contents for `@okf-harness/core`, `@okf-harness/cli`, and `@okf-harness/agent-pack`
 
-Reports about Obsidian, GUI, cloud sync, web crawling, accounts, or cross-platform behavior should start as roadmap or design discussions unless they affect the runtime surfaces above.
+Reports about Obsidian, GUI, cloud sync, web crawling, or accounts should start as roadmap or design discussions unless they affect the runtime surfaces above.
 
 ## Local Data Boundaries
 
@@ -91,6 +91,6 @@ These are usually regular bugs, not security vulnerabilities:
 - confusing CLI output
 - missing docs
 - lint warnings
-- unsupported Windows or Linux behavior
+- unsupported operating system or terminal combinations
 - missing Obsidian behavior
 - search ranking quality

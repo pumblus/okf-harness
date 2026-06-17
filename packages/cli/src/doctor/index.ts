@@ -33,7 +33,15 @@ export type DoctorResult = {
 export type RunDoctorOptions = {
   workspaceRoot?: string | undefined;
   startDir?: string | undefined;
+  runtimePlatform?: NodeJS.Platform | string | undefined;
+  runExecutable?: RunExecutable | undefined;
 };
+
+export type RunExecutable = (
+  executable: string,
+  args: string[],
+  options: { shell?: boolean | undefined },
+) => Promise<{ stdout: string; stderr: string }>;
 
 const execFileAsync = promisify(execFile);
 const requiredSkills = [
@@ -44,19 +52,26 @@ const requiredSkills = [
 ] as const;
 
 export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorResult> {
+  const runtimePlatform = options.runtimePlatform ?? process.platform;
+  const runExecutable = options.runExecutable ?? runExecutableDefault;
   const checks: DoctorCheck[] = [
     checkOkfh(),
+    checkPlatform(runtimePlatform),
     checkNode(),
     await checkExecutable("git", ["--version"], {
       id: "git",
       label: "git",
       missingMessage: "git executable was not found.",
+      runtimePlatform,
+      runExecutable,
     }),
     await checkExecutable("pnpm", ["--version"], {
       id: "pnpm",
       label: "pnpm",
       missingMessage: "pnpm executable was not found.",
       outputPrefix: "pnpm ",
+      runtimePlatform,
+      runExecutable,
     }),
   ];
 
@@ -93,6 +108,37 @@ function checkOkfh(): DoctorCheck {
   };
 }
 
+function checkPlatform(runtimePlatform: NodeJS.Platform | string): DoctorCheck {
+  const platformLabel = platformLabelFor(runtimePlatform);
+  const supported = platformLabel !== null;
+  return {
+    id: "platform",
+    label: "Runtime platform",
+    status: supported ? "pass" : "fail",
+    message: supported
+      ? `${platformLabel} is supported by OKF Harness.`
+      : `Node platform ${runtimePlatform} is not supported by OKF Harness.`,
+    details: {
+      nodePlatform: runtimePlatform,
+      okfHarnessPlatform: platformLabel,
+      supported,
+    },
+  };
+}
+
+function platformLabelFor(runtimePlatform: NodeJS.Platform | string): string | null {
+  switch (runtimePlatform) {
+    case "darwin":
+      return "macOS";
+    case "win32":
+      return "Windows";
+    case "linux":
+      return "Linux";
+    default:
+      return null;
+  }
+}
+
 function checkNode(): DoctorCheck {
   const version = process.versions.node;
   const major = Number.parseInt(version.split(".")[0] ?? "", 10);
@@ -123,10 +169,14 @@ async function checkExecutable(
     label: string;
     missingMessage: string;
     outputPrefix?: string | undefined;
+    runtimePlatform: NodeJS.Platform | string;
+    runExecutable: RunExecutable;
   },
 ): Promise<DoctorCheck> {
   try {
-    const { stdout, stderr } = await execFileAsync(executable, args);
+    const { stdout, stderr } = await options.runExecutable(executable, args, {
+      shell: shouldUseWindowsShell(options.runtimePlatform, executable),
+    });
     const output = `${stdout}${stderr}`.trim();
     return {
       id: options.id,
@@ -151,6 +201,25 @@ async function checkExecutable(
       },
     };
   }
+}
+
+async function runExecutableDefault(
+  executable: string,
+  args: string[],
+  options: { shell?: boolean | undefined },
+): Promise<{ stdout: string; stderr: string }> {
+  const { stdout, stderr } = await execFileAsync(executable, args, {
+    shell: options.shell === true,
+    windowsHide: true,
+  });
+  return { stdout: String(stdout), stderr: String(stderr) };
+}
+
+function shouldUseWindowsShell(
+  runtimePlatform: NodeJS.Platform | string,
+  executable: string,
+): boolean {
+  return runtimePlatform === "win32" && ["npm", "pnpm"].includes(executable);
 }
 
 async function resolveDoctorWorkspace(

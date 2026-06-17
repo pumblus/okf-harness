@@ -1,6 +1,6 @@
 # OKF Harness
 
-> OKF Harness is a macOS-first, agent-first, local-first CLI and agent guidance package for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
+> OKF Harness is an agent-first, local-first, terminal-native CLI and agent guidance package for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
 
 OKF Harness helps a person keep source material, synthesized markdown knowledge, citations, lint checks, search, bounded reads, and graph reports in one local workspace.
 

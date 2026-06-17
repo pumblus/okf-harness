@@ -52,6 +52,8 @@ describe("@okf-harness/agent-pack", () => {
     expect(claudeIngest).not.toContain("allowed-tools");
     expect(claudeIngest).not.toContain("disable-model-invocation");
     expect(codexIngest).toBe(claudeIngest);
+    expect(claude.files.map((file) => file.contents).join("\n")).not.toContain("on macOS");
+    expect(codex.files.map((file) => file.contents).join("\n")).not.toContain("on macOS");
 
     expect(fileContents(claude.files, "CLAUDE.md")).toContain("/okf-harness-init");
     expect(fileContents(codex.files, "AGENTS.md")).toContain("$okf-harness-init");

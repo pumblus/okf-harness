@@ -5,7 +5,7 @@ OKF Harness is the product context for an agent-first, local-first, terminal-nat
 ## Language
 
 **OKF Harness**:
-A local harness for maintaining OKF bundles through Claude Code, Codex, and future coding agents. It builds on [Andrej Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing). It is an independent project around the format, not the OKF specification itself, an official implementation, a standalone knowledge-base application, or an Obsidian plugin.
+A local harness for maintaining OKF bundles through Claude Code, Codex, and future coding agents. It builds on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing). It is an independent project around the format, not the OKF specification itself, an official implementation, a standalone knowledge-base application, or an Obsidian plugin.
 _Avoid_: OKF app, Obsidian plugin, private agent runtime
 
 **Harness**:

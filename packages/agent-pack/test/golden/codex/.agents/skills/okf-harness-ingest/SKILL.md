@@ -2,9 +2,9 @@
 name: okf-harness-ingest
 description: Add source material and compile it into an OKF-compatible LLM Wiki by creating reference pages, updating topic/entity/project pages, citations, index, and log. Use when the user asks to add, ingest, absorb, summarize into the wiki, or organize a new source. Do not use for general question answering without new sources.
 license: Apache-2.0
-compatibility: Designed for Claude Code and Codex on macOS. Requires the okfh CLI and local shell command access.
+compatibility: Designed for Claude Code and Codex with local shell command access. Requires the okfh CLI.
 metadata:
-  okf-harness-version: "0.1"
+  okf-harness-version: "0.2"
   okf-harness-managed: true
 ---
 

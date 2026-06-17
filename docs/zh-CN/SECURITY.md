@@ -17,7 +17,7 @@ OKF Harness 是本地优先的。当前运行面是本地 CLI 和它写入的 wo
 - 本地文件写入边界
 - `@okf-harness/core`、`@okf-harness/cli` 和 `@okf-harness/agent-pack` 的包内容
 
-涉及 Obsidian、GUI、云端同步、网页抓取、账户或跨平台行为的问题，除非影响上面列出的运行面，否则应先作为路线图或设计讨论处理。
+涉及 Obsidian、GUI、云端同步、网页抓取或账户的问题，除非影响上面列出的运行面，否则应先作为路线图或设计讨论处理。
 
 ## 本地数据边界
 
@@ -91,6 +91,6 @@ wiki/
 - CLI 输出令人困惑
 - 文档缺失
 - lint 警告
-- 不支持的 Windows 或 Linux 行为
+- 未支持的操作系统或终端组合
 - 缺失的 Obsidian 行为
 - 搜索排序质量

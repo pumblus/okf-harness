@@ -12,10 +12,10 @@
 
 ## Project Boundaries
 
-- OKF Harness is macOS-first, agent-first, local-first, and open source.
+- OKF Harness is agent-first, local-first, terminal-native, and open source.
 - Runtime target: Node.js 22+, TypeScript, ESM, pnpm.
 - Current public scope supports Claude Code and Codex first. Pi and OpenCode are roadmap work.
-- Out of scope for the current public scope: Obsidian runtime code, GUI, cloud sync, accounts, team permissions, vector databases, background daemons, Windows/Linux support, automatic web crawling, silent bulk wiki rewrites, and private agent runtime.
+- Out of scope for the current public scope: Obsidian runtime code, GUI, cloud sync, accounts, team permissions, vector databases, background daemons, automatic web crawling, silent bulk wiki rewrites, and private agent runtime.
 - The core package must not depend on CLI, Agent, or other higher-level packages.
 - The agent-pack package renders shared templates for Claude and Codex adapters; do not maintain divergent manual skill copies.
 - The cli package connects core and agent-pack behavior through `okfh --json`.

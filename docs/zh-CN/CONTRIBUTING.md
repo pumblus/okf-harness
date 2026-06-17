@@ -25,7 +25,6 @@
 - 云端同步、账户或后台守护进程
 - 向量搜索、embedding 或 RAG
 - 网页抓取、来源连接器或自动爬取
-- Windows 或 Linux 支持
 
 绕过路线图讨论、直接提交云端账户、后台爬取、自动修改原始资料、替代默认工具通道或非 JSON agent 契约的 PR，将被关闭或引导调整方向。
 
@@ -35,7 +34,7 @@
 
 环境要求：
 
-- macOS
+- macOS、Windows 或 Linux
 - Node.js 22 或更高版本
 - pnpm 11
 
