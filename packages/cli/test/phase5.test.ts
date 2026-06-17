@@ -12,7 +12,7 @@ describe("@okf-harness/cli query workflow", () => {
     await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {
       recursive: true,
     });
-    const resolvedWorkspace = await realpath(workspace);
+    const expectedWorkspaceRealPath = await realpath(workspace);
     const previousCwd = process.cwd();
     process.chdir(path.join(workspace, "wiki/topics"));
     try {
@@ -23,7 +23,6 @@ describe("@okf-harness/cli query workflow", () => {
         result: {
           ok: true,
           command: "status",
-          workspace: resolvedWorkspace,
           data: {
             capabilities: {
               search: "available",
@@ -34,6 +33,8 @@ describe("@okf-harness/cli query workflow", () => {
           },
         },
       });
+      const resolvedWorkspace = String(status.result.workspace);
+      await expect(realpath(resolvedWorkspace)).resolves.toBe(expectedWorkspaceRealPath);
 
       const search = await runJsonCli(["node", "okfh", "search", "LLM Wiki", "--json"]);
       expect(search).toMatchObject({
