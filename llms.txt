@@ -1,0 +1,41 @@
+# OKF Harness
+
+> OKF Harness is a macOS-first, agent-first, local-first CLI and agent guidance package for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
+
+OKF Harness helps a person keep source material, synthesized markdown knowledge, citations, lint checks, search, bounded reads, and graph reports in one local workspace.
+
+Install the CLI:
+
+```bash
+npm install -g @okf-harness/cli
+okfh doctor --json
+```
+
+OKF Harness is independent. It builds on Andrej Karpathy's LLM Wiki pattern and Google's Open Knowledge Format, but it is not affiliated with or endorsed by Andrej Karpathy or Google. It is not an official OKF implementation, standalone knowledge-base app, Obsidian plugin, cloud sync service, vector database, or private agent runtime.
+
+## Core Context
+
+- [Full LLM context](https://raw.githubusercontent.com/pumblus/okf-harness/main/llms-full.txt): generated context bundle from the public README, terminology, workflows, CLI reference, roadmap, and package READMEs.
+- [Project README](https://raw.githubusercontent.com/pumblus/okf-harness/main/README.md): product overview, quick start, workflow sketch, docs, development commands, and acknowledgements.
+- [Product terminology](https://raw.githubusercontent.com/pumblus/okf-harness/main/CONTEXT.md): glossary for OKF Harness, workspaces, source material, ingest, query, search, read, graph, and agent guidance.
+- [User workflows](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/WORKFLOWS.md): natural-language Claude Code and Codex workflows for setup, source registration, ingest, query, lint, graph, and adapter repair.
+- [CLI reference](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/CLI.md): `okfh` command contract, JSON envelope, workspace rules, and command options.
+
+## Packages
+
+- [@okf-harness/cli](https://www.npmjs.com/package/@okf-harness/cli): user-facing CLI package that installs `okfh` and `okf-harness`.
+- [@okf-harness/core](https://www.npmjs.com/package/@okf-harness/core): OKF parsing, config, manifest, path safety, lint, search, graph, and source handling.
+- [@okf-harness/agent-pack](https://www.npmjs.com/package/@okf-harness/agent-pack): Claude Code and Codex adapter renderers and shared skill templates.
+
+## Project Docs
+
+- [Public roadmap](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/ROADMAP.md): current scope, demand-ranked ideas, and constraints for future product surfaces.
+- [Example workspace](https://github.com/pumblus/okf-harness/tree/main/examples/ai-research-workspace): small OKF Harness workspace with sample wiki content.
+- [Contributing](https://raw.githubusercontent.com/pumblus/okf-harness/main/CONTRIBUTING.md): contribution boundaries, development setup, and verification commands.
+- [Security](https://raw.githubusercontent.com/pumblus/okf-harness/main/SECURITY.md): local data boundaries, out-of-scope surfaces, and reporting contact.
+
+## Optional
+
+- [Chinese README](https://raw.githubusercontent.com/pumblus/okf-harness/main/README.zh-CN.md): Chinese project overview and quick start.
+- [Chinese workflows](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/zh-CN/WORKFLOWS.md): Chinese workflow guide.
+- [Chinese CLI reference](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/zh-CN/CLI.md): Chinese command reference.

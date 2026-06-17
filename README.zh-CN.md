@@ -121,6 +121,8 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 - [工作流](docs/zh-CN/WORKFLOWS.md)：面向用户的 Claude Code 和 Codex 操作流程
 - [CLI 参考](docs/zh-CN/CLI.md)：命令、选项和 JSON 行为说明
 - [路线图](docs/zh-CN/ROADMAP.md)：当前重点和按需求排序的候选想法
+- [LLM 上下文](llms.txt)：给 AI 工具看的公开项目文档索引
+- [完整 LLM 上下文](llms-full.txt)：聚合公开概览、术语、工作流、CLI 参考、路线图和包 README
 - [示例 workspace](examples/ai-research-workspace/README.md)：一个可通过 lint 检查的小型 workspace
 - [参与贡献](docs/zh-CN/CONTRIBUTING.md)：项目范围和验证方式
 - [安全策略](docs/zh-CN/SECURITY.md)：本地数据边界和漏洞报告
@@ -129,6 +131,7 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 ```bash
 pnpm install
+pnpm docs:llms
 pnpm test
 pnpm typecheck
 pnpm build

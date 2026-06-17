@@ -121,6 +121,8 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 - [Workflows](docs/WORKFLOWS.md) explains the user-facing Claude Code and Codex flows.
 - [CLI reference](docs/CLI.md) lists commands, options, and JSON behavior.
 - [Roadmap](docs/ROADMAP.md) shows the current focus and demand-ranked ideas.
+- [LLM context](llms.txt) gives AI tools a concise map of the public project docs.
+- [Full LLM context](llms-full.txt) combines the public overview, terminology, workflows, CLI reference, roadmap, and package READMEs.
 - [Example workspace](examples/ai-research-workspace/README.md) gives a small lintable workspace.
 - [Contributing](CONTRIBUTING.md) explains project scope and verification.
 - [Security](SECURITY.md) explains local data boundaries and reporting.
@@ -129,6 +131,7 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 ```bash
 pnpm install
+pnpm docs:llms
 pnpm test
 pnpm typecheck
 pnpm build
