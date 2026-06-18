@@ -2,7 +2,7 @@
 
 English | [中文](zh-CN/WORKFLOWS.md)
 
-OKF Harness is built for people who operate through Claude Code or Codex. The CLI is still visible, but normal work should start with natural language.
+OKF Harness is built for people who operate through Claude Code or Codex. The CLI is still visible, but normal work starts with the agent.
 
 The workflow follows Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and uses Google's [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) as the bundle format.
 
@@ -18,9 +18,9 @@ Create one workspace per knowledge domain, research area, or privacy boundary. G
 
 On Windows, use the same convention under `%USERPROFILE%\Documents\OKF Harness\...`.
 
-Avoid one hidden global knowledge base. Separate workspaces make agent prompts clearer, keep private material apart, and make lint/search output easier to trust.
+Avoid one hidden global knowledge base. Separate workspaces make agent prompts clearer, keep private material apart, and make check/search output easier to trust.
 
-## First Setup
+## Before You Start
 
 Run this once in your local terminal:
 
@@ -30,35 +30,42 @@ okfh doctor --json
 mkdir -p "$HOME/Documents/OKF Harness"
 ```
 
-Then create a workspace:
+You can also ask your agent to check whether `okfh` is installed. The agent must ask for explicit approval before installing a global npm package.
 
-```bash
-okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents all --git --json
-```
+## Start With Your Agent
 
-Open the workspace folder in Claude Code or Codex. The generated adapter files teach the agent how to use `okfh --json`.
+Use the current agent's OKF Harness prefix.
 
-## Ask An Agent To Set Up A Workspace
+No workspace yet:
 
-You can also ask the agent:
+Codex:
 
 ```text
-Set up an OKF Harness workspace for my AI research notes under ~/Documents/OKF Harness. Use the default structure, install Claude and Codex support, initialize git, and tell me how to add my first source.
+$okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
 ```
 
-The agent should call:
+Claude Code:
 
-```bash
-okfh init <workspace> --name <name> --agents all --git --json
-okfh status --workspace <workspace> --json
+```text
+/okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
 ```
+
+The agent should call `okfh init` with the adapter for the current agent: `--agents codex` for Codex or `--agents claude` for Claude Code. Use `--agents all` only when you explicitly ask to prepare both supported agents.
+
+After setup, the agent should run `okfh status --workspace <workspace> --json` and tell you to start a fresh Codex thread or Claude Code session so the client can load the new guidance.
 
 ## Add A Source
 
-Ask:
+Codex:
 
 ```text
-Add ~/Downloads/llm-wiki-note.md to this OKF Harness workspace, create an ingest plan, and update only the relevant wiki pages with citations.
+$okf-harness Add ~/Downloads/llm-wiki-note.md to this workspace, update the wiki with citations, then check the workspace again.
+```
+
+Claude Code:
+
+```text
+/okf-harness Add ~/Downloads/llm-wiki-note.md to this workspace, update the wiki with citations, then check the workspace again.
 ```
 
 The agent should call:
@@ -68,76 +75,99 @@ okfh source add <path-or-url> --workspace <workspace> --json
 okfh ingest plan <source-id-or-path> --workspace <workspace> --json
 ```
 
-Then the agent reads the registered raw source, writes or updates reference and topic pages, updates indexes and the log, and runs lint.
+Then the agent reads the registered raw source, writes or updates reference and topic pages, updates indexes and the log, and runs check.
 
 Raw sources should not be edited in place. If a source needs correction, register a new source.
 
 ## Ask A Question
 
-Ask:
+Codex:
 
 ```text
-What does my AI Research wiki say about the LLM Wiki structure? Search and read the wiki before answering, and cite the concept paths you used.
+$okf-harness What does my workspace say about LLM Wiki structure?
+```
+
+Claude Code:
+
+```text
+/okf-harness What does my workspace say about LLM Wiki structure?
 ```
 
 The agent should call:
 
 ```bash
-okfh status --json
-okfh read index --json
-okfh search "<question>" --json
-okfh read <concept-id-or-path> --json
+okfh status --workspace <workspace> --json
+okfh read index --workspace <workspace> --json
+okfh search "<question>" --workspace <workspace> --json
+okfh read <concept-id-or-path> --workspace <workspace> --json
 ```
 
 There is no `okfh query` command in the current CLI. The agent composes answers from search candidate cards plus bounded reads. It should say when evidence came only from synthesized wiki pages and not raw source bodies.
 
 ## Maintain A Workspace
 
-Ask:
+Codex:
 
 ```text
-Check this OKF Harness workspace for broken links, missing citations, source hash drift, and manifest problems. Fix small wiki issues if they are clear.
+$okf-harness Check this workspace and tell me whether it is ready.
+```
+
+Claude Code:
+
+```text
+/okf-harness Check this workspace and tell me whether it is ready.
 ```
 
 The agent should call:
 
 ```bash
-okfh lint --json
+okfh check --workspace <workspace> --json
 ```
 
-After any wiki edit, it should run lint again and show the changed files.
+`check` reports `ready`, `needs_attention`, or `blocked`. It keeps OKF conformance separate from Harness lint, so broken links or missing citations do not become OKF specification failures. After any wiki edit, the agent should run check again and show the changed files.
 
 ## Generate A Graph
 
-Ask:
+Codex:
 
 ```text
-Generate the local graph report for this workspace and tell me where the HTML file is.
+$okf-harness Generate the local graph report for this workspace and tell me where the HTML file is.
+```
+
+Claude Code:
+
+```text
+/okf-harness Generate the local graph report for this workspace and tell me where the HTML file is.
 ```
 
 The agent should call:
 
 ```bash
-okfh graph --json
+okfh graph --workspace <workspace> --json
 ```
 
 Use `--open` only when you want the operating system to open the HTML report in the system default browser. In a Linux environment without a GUI or opener command, open the generated HTML file manually.
 
 ## Repair Agent Support
 
-If a workspace exists but Claude Code or Codex does not discover the OKF Harness guidance, ask:
+If a workspace exists but the current agent does not discover OKF Harness guidance, ask through the same prefix:
 
 ```text
-Repair Claude Code and Codex support for this OKF Harness workspace.
+$okf-harness Repair this workspace's OKF Harness support for Codex.
 ```
 
-The agent should call:
+```text
+/okf-harness Repair this workspace's OKF Harness support for Claude Code.
+```
+
+The agent should call the current adapter by default:
 
 ```bash
-okfh agent install all --workspace <workspace> --json
+okfh agent install codex --workspace <workspace> --json
+okfh agent install claude --workspace <workspace> --json
 ```
 
-Use `--force` only after reviewing conflicts.
+Use the command that matches the current agent. Use `all` only when you explicitly ask for both adapters. Use `--force` only after reviewing conflicts.
 
 ## What Goes Where
 

@@ -20,6 +20,42 @@ _Avoid_: user interface, primary workflow, app
 The default way an agent client operates OKF Harness by running explicit local shell commands, especially `okfh --json`, through the user's local terminal environment. This means local, observable, and debuggable command execution across supported operating systems; it does not require the user to learn CLI language.
 _Avoid_: alternate default tool channel, OS-specific command channel, user-facing CLI workflow
 
+**Prompt-first workflow**:
+The normal user experience where a person asks Claude Code, Codex, or another agent client to maintain an OKF Harness workspace with an agent-facing prompt rather than CLI commands. The prompt may use a stable workflow prefix such as `$okf-harness` or `/okf-harness`, but the person should not need to learn `okfh` command names for ordinary setup, ingest, check, query, or maintenance work.
+_Avoid_: CLI-first workflow, command tutorial, hidden app UI
+
+**Explicit workflow invocation**:
+The recommended README entry style where a person uses the current agent client's OKF Harness prefix followed by ordinary language, such as `$okf-harness Add this PDF to my workspace...` in Codex or `/okf-harness Add this PDF to my workspace...` in Claude Code. It makes routing predictable without exposing CLI commands.
+_Avoid_: CLI command, hidden automatic routing, adapter jargon
+
+**Unified agent entrypoint**:
+The single OKF Harness workflow entrypoint exposed to an agent client, named `okf-harness`. It lets a person use one stable prefix while the guidance routes setup, check, ingest, answer, and graph intents internally.
+_Avoid_: multiple user-facing workflow skills, command menu, CLI alias
+
+**Internal workflow**:
+An agent-guidance route behind the unified `okf-harness` entrypoint, such as setup, check, ingest, answer, or graph. Internal workflows keep guidance organized, but they are not separate user-facing skill names.
+_Avoid_: user-facing skill, CLI command, separate product entrypoint
+
+**Answer workflow**:
+The internal agent workflow for answering a person's question from synthesized OKF bundle content by using deterministic search, bounded reads, and citations. It is named for the agent's job and should not imply an `okfh query` command or a black-box answer engine.
+_Avoid_: query command, answer engine, raw-source search
+
+**Natural-language routing**:
+The agent guidance quality that helps ordinary user requests enter the correct OKF Harness workflow even when the person omits explicit workflow prefixes. It is useful to improve over time, but README should not rely on it as the stable default path because final routing is the agent client's semantic judgment.
+_Avoid_: guaranteed routing, CLI command, release blocker
+
+**Workspace-native prompt**:
+A natural-language request made inside an agent context where OKF Harness is already implied by the selected skill, current folder, or workspace guidance. It should say "this workspace" or "my workspace" rather than repeatedly naming "OKF Harness workspace."
+_Avoid_: command-shaped prompt, product-name repetition, adapter jargon
+
+**Current-agent setup**:
+The setup experience where OKF Harness prepares guidance for the agent client the person is already using. The person should not need to choose adapter names during normal setup; after current-agent setup, the agent may report other detected supported agent clients and ask whether to prepare workspace guidance for them too.
+_Avoid_: adapter selection, install all adapters by default, user-facing runtime setup, enablement toggle
+
+**Agent context refresh**:
+The handoff after setup or guidance changes where a person starts a fresh conversation in the current agent client so the client can load the new workspace guidance. The wording should match the agent client, such as a Claude Code session or a Codex thread.
+_Avoid_: app restart, cache clear, manual reload ritual
+
 **OKF**:
 The external [Open Knowledge Format specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): a minimal, human- and agent-friendly format for representing knowledge as markdown files with YAML frontmatter. OKF is a format, not this product.
 _Avoid_: OKF Harness, Google wiki, knowledge app
@@ -27,6 +63,14 @@ _Avoid_: OKF Harness, Google wiki, knowledge app
 **OKF bundle**:
 A portable directory of OKF concept documents. It is the knowledge content that agents read and maintain, separate from product-specific workspace files.
 _Avoid_: workspace, vault, repository
+
+**OKF conformance**:
+The minimum compatibility check that an OKF bundle follows the external OKF specification closely enough for tolerant OKF consumers to read it. It must describe standard-level requirements separately from OKF Harness quality preferences.
+_Avoid_: Harness lint, product quality score, strict style check
+
+**OKF version**:
+The external OKF specification version used for a conformance check, such as `0.1`. Workspace check output should show it plainly so people know which standard version the result refers to.
+_Avoid_: hidden default, product version, CLI version
 
 **Concept document**:
 A markdown file in an OKF bundle that represents one readable and linkable knowledge unit, such as a topic, entity, project, decision, question, or reference.
@@ -37,7 +81,7 @@ A concept document that records the origin, summary, key evidence, and citation 
 _Avoid_: source copy, source summary, attachment
 
 **OKF Harness workspace**:
-The operating-system-independent local directory managed by OKF Harness around one OKF bundle, its source material, agent guidance, and harness state. People may have multiple workspaces on one machine, usually one per knowledge domain, research area, or privacy boundary; this is product-specific and should not be confused with the OKF bundle itself.
+The operating-system-independent local directory managed by OKF Harness around one OKF bundle, its source material, agent guidance, and harness state. People may have multiple workspaces on one machine, usually one per knowledge domain, research area, or privacy boundary; this is product-specific and should not be confused with the OKF bundle itself. In prompt-first contexts where OKF Harness is already established, "workspace" can be used as the natural shorthand.
 _Avoid_: OKF workspace, Obsidian vault, project repo, global knowledge base
 
 **Workspace collection**:
@@ -80,6 +124,22 @@ _Avoid_: absolute file path, audit log, file metadata dump
 The append-friendly evidence register for raw sources in an OKF Harness workspace. It must be trustworthy as a whole; invalid entries are evidence integrity problems, not rows to silently ignore.
 _Avoid_: cache, index, source list output
 
+**Harness lint**:
+The OKF Harness quality check for provenance, citations, manifest integrity, source drift, index coverage, and maintainability signals around an OKF bundle. It can be stricter than OKF conformance, but it must not claim product preferences are OKF specification failures.
+_Avoid_: OKF conformance, standard compliance, formatter
+
+**Workspace check**:
+The user-facing validation workflow that tells a person and their agent whether an OKF Harness workspace is standards-readable and maintainable. It reports OKF conformance and Harness lint together without making people choose between validation modes.
+_Avoid_: lint command, formatter, developer-only validation
+
+**Check status**:
+The plain-language outcome of a workspace check: Ready, Needs attention, or Blocked. Blocked is reserved for OKF conformance hard failures; serious Harness lint findings should be surfaced as Needs attention unless they also make the OKF bundle non-conformant.
+_Avoid_: exit code, lint severity, raw issue list
+
+**Harness priority**:
+The priority assigned to Harness lint findings inside a workspace check. High priority covers evidence integrity problems such as source drift, missing registered sources, or reference documents that cannot be tied to source records; medium priority covers maintenance gaps such as ordinary missing citations or missing index entries; low priority covers tolerated navigation or cleanup issues such as broken links.
+_Avoid_: check status, OKF conformance severity, raw issue code
+
 **Source status**:
 A coarse label for where a raw source stands in the knowledge workflow. It describes evidence handling and must not imply that concept documents have already been updated.
 _Avoid_: task status, progress tracker, ingest plan status
@@ -95,6 +155,10 @@ _Avoid_: search result, summary, source digest, auto-ingest output
 **Query**:
 The workflow of answering from an OKF bundle by finding and reading relevant concept documents, then following cited reference documents when factual precision matters. Query is not a raw-source discovery pass; registered source material that has not been synthesized into concept documents remains outside normal answers.
 _Avoid_: raw source search, RAG, auto-ingest
+
+**Evidence plan**:
+A bounded evidence package prepared for an agent before it answers a question from an OKF bundle. It gathers relevant concept documents, citation pointers, evidence limits, and continuation cues; it is not the answer itself, a semantic summary, or raw-source-wide discovery.
+_Avoid_: answer, query engine, source search, RAG response
 
 **Search result**:
 A candidate concept list that helps an agent decide which full concept documents to read. It may describe matched fields and hit counts, but it is not final evidence for an answer and should not be treated as a snippet-based search engine page.
@@ -145,7 +209,7 @@ The rendered set of agent guidance files for a specific agent client, such as Cl
 _Avoid_: agent client, plugin, integration
 
 **Agent skill**:
-A discoverable workflow instruction inside an agent adapter that tells an agent when and how to perform one OKF Harness workflow, such as init, ingest, query, or maintain.
+A discoverable workflow instruction inside an agent adapter. The current user-facing skill is the unified `okf-harness` entrypoint, while setup, check, ingest, answer, and graph remain internal workflows.
 _Avoid_: command, script, template
 
 **Layered agent guidance**:

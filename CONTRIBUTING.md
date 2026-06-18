@@ -73,7 +73,7 @@ pnpm build
 For workspace or wiki changes, also run:
 
 ```bash
-node packages/cli/dist/main.js lint --workspace <workspace> --json
+node packages/cli/dist/main.js check --workspace <workspace> --json
 ```
 
 CI also runs `pnpm lint`.

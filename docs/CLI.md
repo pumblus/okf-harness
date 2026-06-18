@@ -71,31 +71,34 @@ okfh doctor --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 Creates a workspace and optionally renders Claude Code and Codex adapter files.
 
 ```bash
-okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents all --git --json
+okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --git --json
+okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents claude --git --json
 ```
 
 Options:
 
 - `--name <name>` is required.
-- `--agents all|claude|codex|none|claude,codex` controls adapter rendering.
+- `--agents codex|claude|all|none|claude,codex` is required and controls adapter rendering.
 - `--git` initializes a git repository without committing.
 - `--dry-run` returns the planned writes without creating files.
+
+Use the adapter for the agent you are currently setting up: `codex` for Codex or `claude` for Claude Code. Use `all` only when you explicitly want both supported adapters. Use `none` only for advanced or developer setup.
 
 ### agent install
 
 Installs or repairs Claude Code and Codex adapter files in an existing workspace.
 
 ```bash
-okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --json
-okfh agent install claude --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh agent install codex --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh agent install claude --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-Use `--dry-run` to inspect planned writes. Use `--force` only after reviewing conflicts.
+Use the current agent adapter by default. Use `all` only when you explicitly want both supported adapters. Use `--dry-run` to inspect planned writes. Use `--force` only after reviewing conflicts.
 
 ### status
 
-Reports workspace initialization, wiki file count, concept count, lint state, and available capabilities.
+Reports workspace initialization, wiki file count, concept count, concise check state, and available capabilities.
 
 ```bash
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -103,15 +106,33 @@ okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 In the current CLI, `search`, `read`, and `graph` are available. There is no `okfh query` command.
 
+### check
+
+Checks OKF conformance and OKF Harness maintainability.
+
+```bash
+okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+`check` returns one of three statuses under `data.status`:
+
+- `ready`: OKF conformance passes and Harness lint has no findings.
+- `needs_attention`: OKF conformance passes, but Harness lint found maintainability or evidence-integrity issues.
+- `blocked`: OKF conformance fails and the workspace is not OKF-readable.
+
+The JSON response reports the OKF version as `data.okfVersion`, currently `0.1`. It keeps OKF conformance in `data.okfConformance` and Harness lint in `data.harnessLint`.
+
+`ready` and `needs_attention` return top-level `ok: true` and exit `0`. `blocked` returns top-level `ok: false` and exits non-zero.
+
 ### lint
 
-Checks OKF frontmatter, reserved files, log headings, broken links, missing index entries, missing citation sections, manifest rows, source hash drift, missing sources, and unregistered raw source files.
+`lint` is retired as the normal validation command. It points callers to `check`.
 
 ```bash
 okfh lint --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-`lint` reports warnings and errors. Errors make `ok` false.
+Use `okfh check --workspace <path> --json` instead.
 
 ### source add
 
@@ -195,7 +216,7 @@ The report is written under `.okfh/reports/graph.html`. The graph does not uploa
 
 ## Exit Behavior
 
-Successful commands return exit code `0`. Validation, workspace, source, or lint failures return a non-zero exit code and include `ok: false` in JSON when `--json` is present.
+Successful commands return exit code `0`. Validation, workspace, or source command failures return a non-zero exit code and include `ok: false` in JSON when `--json` is present. For `check`, `ready` and `needs_attention` exit `0`; `blocked` exits non-zero.
 
 ## Developer Install From Source
 

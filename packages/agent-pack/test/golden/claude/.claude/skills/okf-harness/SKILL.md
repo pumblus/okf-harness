@@ -1,6 +1,6 @@
 ---
 name: okf-harness
-description: Route OKF Harness workspace workflows for setup, check, ingest, answer, and graph from one agent entrypoint. Use when the user asks to set up, check, ingest, answer from, maintain, or visualize an OKF Harness workspace. Do not use workflow-specific skill names or run an `okfh query` command.
+description: One Door entrypoint for OKF Harness workspaces. Use when the user asks to set up a workspace, check or maintain it, ingest source material, answer from it, or generate its graph. Do not use old workflow-specific skill names or an `okfh query` command.
 license: Apache-2.0
 compatibility: Designed for Claude Code and Codex with local shell command access. Requires the okfh CLI.
 metadata:
@@ -10,24 +10,23 @@ metadata:
 
 # OKF Harness
 
-Use this skill as the single OKF Harness entrypoint. Route the user's intent internally, then load only the relevant reference file.
+Route the request to the matching internal workflow, load only the needed reference, and finish on that reference's completion check.
 
 ## Required Behavior
 
-1. Identify the user intent as setup, check, ingest, answer, or graph.
-2. Locate the workspace by finding `okfh.config.yaml` unless the user is setting up a new workspace.
-3. Use the local shell to run `okfh --json` commands for deterministic harness operations.
-4. Load only the reference file for the selected internal workflow.
-5. After wiki edits, run `okfh check --workspace <workspace> --json` and report the check status before broader cleanup advice.
-6. Report changed files and run `git diff` before final response when file changes were made.
+1. Classify the request into setup, check, ingest, answer, graph, or a user-ordered combination of those workflows.
+2. Resolve the workspace by finding `okfh.config.yaml`, except during first-time setup where the workspace path is being created.
+3. Run harness operations through local-shell `okfh --json` commands and read their JSON before deciding the next step.
+4. Load only the reference needed for the current workflow; for combined requests, load the next reference only when that workflow starts.
+5. After any wiki edit, run `okfh check --workspace <workspace> --json` and report the check status before broader cleanup advice.
+6. If files changed, run `git diff` and name the changed files before the final response.
 
 ## Hard Rules
 
-- Do not expose workflow-specific skill names to users.
-- Do not create a parallel workspace skeleton by hand.
-- Never edit `raw/sources/`.
-- Never invent source IDs, citations, dates, or claims.
-- Do not run or hallucinate an `okfh query` command.
+- Do not expose old workflow-specific skill names to users.
+- Do not create a workspace skeleton by hand; use `okfh init`.
+- Never edit `raw/sources/`; register corrected material as a new source.
+- Never invent source IDs, citations, dates, claims, or command output.
 - Do not add plugin, hook, Pi, OpenCode, Obsidian, GUI, MCP, or vector-search setup.
 
 ## Internal Workflows

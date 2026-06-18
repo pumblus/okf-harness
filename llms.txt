@@ -2,7 +2,7 @@
 
 > OKF Harness is an agent-first, local-first, terminal-native CLI and agent guidance package for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
 
-OKF Harness helps a person keep source material, synthesized markdown knowledge, citations, lint checks, search, bounded reads, and graph reports in one local workspace.
+OKF Harness helps a person keep source material, synthesized markdown knowledge, citations, workspace checks, search, bounded reads, and graph reports in one local workspace.
 
 Install the CLI:
 
@@ -18,7 +18,7 @@ OKF Harness is independent. It builds on Andrej Karpathy's LLM Wiki pattern and 
 - [Full LLM context](https://raw.githubusercontent.com/pumblus/okf-harness/main/llms-full.txt): generated context bundle from the public README, terminology, workflows, CLI reference, roadmap, and package READMEs.
 - [Project README](https://raw.githubusercontent.com/pumblus/okf-harness/main/README.md): product overview, quick start, workflow sketch, docs, development commands, and acknowledgements.
 - [Product terminology](https://raw.githubusercontent.com/pumblus/okf-harness/main/CONTEXT.md): glossary for OKF Harness, workspaces, source material, ingest, query, search, read, graph, and agent guidance.
-- [User workflows](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/WORKFLOWS.md): natural-language Claude Code and Codex workflows for setup, source registration, ingest, query, lint, graph, and adapter repair.
+- [User workflows](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/WORKFLOWS.md): prefixed Claude Code and Codex workflows for setup, source registration, ingest, answer, check, graph, and adapter repair.
 - [CLI reference](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/CLI.md): `okfh` command contract, JSON envelope, workspace rules, and command options.
 
 ## Packages

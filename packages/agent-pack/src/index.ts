@@ -80,23 +80,22 @@ const skillTemplates: SkillTemplate[] = [
     name: "okf-harness",
     title: "OKF Harness",
     description:
-      "Route OKF Harness workspace workflows for setup, check, ingest, answer, and graph from one agent entrypoint. Use when the user asks to set up, check, ingest, answer from, maintain, or visualize an OKF Harness workspace. Do not use workflow-specific skill names or run an `okfh query` command.",
+      "One Door entrypoint for OKF Harness workspaces. Use when the user asks to set up a workspace, check or maintain it, ingest source material, answer from it, or generate its graph. Do not use old workflow-specific skill names or an `okfh query` command.",
     summary:
-      "Use this skill as the single OKF Harness entrypoint. Route the user's intent internally, then load only the relevant reference file.",
+      "Route the request to the matching internal workflow, load only the needed reference, and finish on that reference's completion check.",
     requiredBehavior: [
-      "Identify the user intent as setup, check, ingest, answer, or graph.",
-      "Locate the workspace by finding `okfh.config.yaml` unless the user is setting up a new workspace.",
-      "Use the local shell to run `okfh --json` commands for deterministic harness operations.",
-      "Load only the reference file for the selected internal workflow.",
-      "After wiki edits, run `okfh check --workspace <workspace> --json` and report the check status before broader cleanup advice.",
-      "Report changed files and run `git diff` before final response when file changes were made.",
+      "Classify the request into setup, check, ingest, answer, graph, or a user-ordered combination of those workflows.",
+      "Resolve the workspace by finding `okfh.config.yaml`, except during first-time setup where the workspace path is being created.",
+      "Run harness operations through local-shell `okfh --json` commands and read their JSON before deciding the next step.",
+      "Load only the reference needed for the current workflow; for combined requests, load the next reference only when that workflow starts.",
+      "After any wiki edit, run `okfh check --workspace <workspace> --json` and report the check status before broader cleanup advice.",
+      "If files changed, run `git diff` and name the changed files before the final response.",
     ],
     hardRules: [
-      "Do not expose workflow-specific skill names to users.",
-      "Do not create a parallel workspace skeleton by hand.",
-      "Never edit `raw/sources/`.",
-      "Never invent source IDs, citations, dates, or claims.",
-      "Do not run or hallucinate an `okfh query` command.",
+      "Do not expose old workflow-specific skill names to users.",
+      "Do not create a workspace skeleton by hand; use `okfh init`.",
+      "Never edit `raw/sources/`; register corrected material as a new source.",
+      "Never invent source IDs, citations, dates, claims, or command output.",
       "Do not add plugin, hook, Pi, OpenCode, Obsidian, GUI, MCP, or vector-search setup.",
     ],
     references: [
@@ -105,15 +104,17 @@ const skillTemplates: SkillTemplate[] = [
         title: "Setup Workflow",
         body: `# Setup Workflow
 
-## First-time setup
+## First-Time Setup
 
-For Codex, run:
+Choose the command for the current agent.
+
+Codex:
 
 \`\`\`bash
 okfh init <workspace> --name <name> --agents codex --json
 \`\`\`
 
-For Claude Code, run:
+Claude Code:
 
 \`\`\`bash
 okfh init <workspace> --name <name> --agents claude --json
@@ -121,18 +122,33 @@ okfh init <workspace> --name <name> --agents claude --json
 
 Use \`--agents all\` only when the user explicitly asks to prepare both supported agents. Use \`--agents none\` only for advanced or developer setup.
 
-## Repair adapter support
+## Repair Adapter Support
 
-Repair the current agent first:
+Choose the repair command for the current agent.
+
+Codex:
 
 \`\`\`bash
 okfh agent install codex --workspace <workspace> --json
+\`\`\`
+
+Claude Code:
+
+\`\`\`bash
 okfh agent install claude --workspace <workspace> --json
 \`\`\`
 
-Choose the command that matches the current agent. If the command returns conflicts, explain the conflicting paths and ask before using \`--force\`.
+Do not install both adapters unless the user asks for both. If the command returns conflicts, explain the conflicting paths and ask before using \`--force\`.
 
-After setup or repair, run \`okfh status --workspace <workspace> --json\` and remind the user to start a fresh Codex thread or Claude Code session.
+## Completion Check
+
+After setup or repair, run:
+
+\`\`\`bash
+okfh status --workspace <workspace> --json
+\`\`\`
+
+Finish by reporting the resolved workspace path, the adapter that was installed or repaired, any conflicts, and the client-specific refresh step: a fresh Codex thread or a fresh Claude Code session.
 `,
       },
       {
@@ -153,6 +169,12 @@ Report the check status first:
 - \`blocked\`: OKF conformance fails and the workspace is not OKF-readable.
 
 Keep OKF conformance separate from Harness lint. High-priority Harness lint requires risk disclosure, but it blocks only answers that directly depend on affected source or reference records.
+
+Do not fix findings during a plain check request. If the user asked to fix findings too, make only the requested wiki edits and run check again.
+
+## Completion Check
+
+Finish with the check status, OKF version, OKF conformance result, Harness priority counts, and the first concrete next step. If the status is \`blocked\`, put OKF conformance findings before Harness lint advice.
 `,
       },
       {
@@ -169,13 +191,17 @@ okfh ingest plan <source-id-or-path> --workspace <workspace> --json
 
 The ingest plan is metadata-level guidance. It returns a recommended reference path, candidate concepts, and an agent checklist; it does not read source bodies, summarize content, extract claims, or synthesize wiki pages.
 
+After the plan, read the registered source material and update only the relevant reference, topic, index, or log files. Keep raw sources immutable.
+
 After wiki edits, run:
 
 \`\`\`bash
 okfh check --workspace <workspace> --json
 \`\`\`
 
-Show changed files, check status, and unresolved questions.
+## Completion Check
+
+Finish with the registered source ID, changed wiki paths, check status, and unresolved questions. If registration or planning fails, stop before wiki edits and report the failing command's JSON error.
 `,
       },
       {
@@ -186,17 +212,19 @@ Show changed files, check status, and unresolved questions.
 Use the CLI as the deterministic retrieval layer:
 
 \`\`\`bash
-okfh status --json
-okfh read index --json
-okfh search "<question>" --json
-okfh read <concept-id-or-path> --json
+okfh status --workspace <workspace> --json
+okfh read index --workspace <workspace> --json
+okfh search "<question>" --workspace <workspace> --json
+okfh read <concept-id-or-path> --workspace <workspace> --json
 \`\`\`
 
 There is no \`okfh query\` command in the current CLI. Do not run or hallucinate an \`okfh query\` command. Compose answers from search candidate cards plus bounded reads.
 
-Use \`okfh check --json\` when status is missing, stale, blocked, or the answer depends on high-priority Harness lint findings. Do not run a full check before every answer when current status is already trustworthy.
+Use \`okfh check --workspace <workspace> --json\` when status is missing, stale, blocked, or the answer depends on high-priority Harness lint findings. Do not run a full check before every answer when current status is already trustworthy.
 
-Answer directly first, then list supporting concept paths and available source IDs. If hits are weak, citations are missing, or only wiki synthesis was read, state the evidence limit plainly.
+## Completion Check
+
+Answer directly first. Then list supporting concept paths and available source IDs. If hits are weak, citations are missing, or only wiki synthesis was read, state the evidence limit plainly.
 `,
       },
       {
@@ -210,7 +238,11 @@ Run graph only when the user asks to visualize or generate a graph report:
 okfh graph --workspace <workspace> --json
 \`\`\`
 
-Do not hand-roll graph reports. Report the generated HTML and backlinks paths from the command output.
+Use \`--open\` only when the user asks to open the report. Do not hand-roll graph reports.
+
+## Completion Check
+
+Finish with the generated HTML path and backlinks path from the command output. If opening fails but generation succeeds, report the file path and the opener error separately.
 `,
       },
     ],

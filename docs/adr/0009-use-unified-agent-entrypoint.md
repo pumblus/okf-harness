@@ -1,0 +1,3 @@
+# Use a unified agent entrypoint
+
+OKF Harness exposes one user-facing agent workflow entrypoint, `okf-harness`, instead of asking people to choose between separate workflow skills. Explicit prefixes such as `$okf-harness` and `/okf-harness` make the prompt-first workflow predictable, while the guidance routes setup, check, ingest, answer, and graph intents internally. Repair or upgrade flows remove old OKF Harness-managed workflow-specific skill files when they are clearly marked as managed, and preserve user-authored files as conflicts. Normal setup prepares the current agent through guidance; `all` remains an explicit adapter choice rather than the implicit default.

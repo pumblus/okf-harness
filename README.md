@@ -35,35 +35,85 @@ OKF Harness builds on:
 
 This repository is not affiliated with or endorsed by Andrej Karpathy or Google.
 
-## Quick Start
+## Before You Start
 
-Install the CLI:
+Install the CLI once:
 
 ```bash
 npm install -g @okf-harness/cli
 okfh doctor --json
 ```
 
-Create your first workspace. This path is only a recommended parent folder, not a hidden CLI default:
+You can run that command yourself, or ask your agent to check whether `okfh` is installed. If an agent needs to install a global npm package, it must ask for your explicit approval first.
 
-```bash
-mkdir -p "$HOME/Documents/OKF Harness"
-okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents all --git --json
-cd "$HOME/Documents/OKF Harness/ai-research"
-```
+The recommended parent folder is only a convention, not a hidden CLI default. On macOS or Linux, use `$HOME/Documents/OKF Harness`. On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness`. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.
 
-On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness`. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.
+## Start With Your Agent
 
-Open that folder in Claude Code or Codex and say:
+Use the prefix for the agent you are already using.
+
+No workspace yet:
+
+Codex:
 
 ```text
-Use OKF Harness to add ~/Downloads/paper.pdf to this workspace, create an ingest plan, and update the wiki with citations.
+$okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+```
+
+Claude Code:
+
+```text
+/okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+```
+
+Existing workspace:
+
+Codex:
+
+```text
+$okf-harness Check this workspace and tell me whether it is ready.
+```
+
+Claude Code:
+
+```text
+/okf-harness Check this workspace and tell me whether it is ready.
 ```
 
 To try the command without a global install:
 
 ```bash
 npx --package @okf-harness/cli okfh doctor --json
+```
+
+## Common Next Steps
+
+Add a source:
+
+Codex:
+
+```text
+$okf-harness Add this PDF to my workspace, update the wiki with citations, then check the workspace again.
+```
+
+Claude Code:
+
+```text
+/okf-harness Add this PDF to my workspace, update the wiki with citations, then check the workspace again.
+```
+
+Ask a question:
+
+Codex:
+
+```text
+$okf-harness What does my workspace say about LLM Wiki structure?
+```
+
+Claude Code:
+
+```text
+/okf-harness What does my workspace say about LLM Wiki structure?
 ```
 
 ## Why
@@ -87,32 +137,23 @@ The product stays narrow on purpose: local files, terminal-native commands, boun
 - Registers files and URL pointers as raw sources.
 - Produces ingest plans so an agent can update the wiki with citations.
 - Searches and reads synthesized wiki pages with bounded output.
-- Lints links, frontmatter, citations, source hashes, and manifest rows.
+- Checks OKF conformance and Harness lint findings.
 - Generates a self-contained graph report.
 
-## Common Workflows
+## What Happens Behind The Scenes
 
-Ask your agent:
+The agent uses `okfh --json` through your local shell. For example:
 
-```text
-Set up an OKF Harness workspace for my AI research notes under ~/Documents/OKF Harness. Use the default structure and install Claude and Codex support.
-```
+- setup calls `okfh init` with the current agent adapter
+- ingest calls `okfh source add` and `okfh ingest plan`
+- answers use `okfh search` and bounded `okfh read`
+- validation uses `okfh check`
+- graph reports use `okfh graph`
 
-```text
-Add this source to my AI Research workspace, then update the relevant topic page with citations.
-```
-
-```text
-What does my AI Research wiki say about LLM Wiki structure? Use OKF Harness search and read before answering.
-```
-
-```text
-Check this workspace for broken links, missing citations, and source hash drift.
-```
-
-Developers can use the same tool directly:
+Developers can call the CLI directly when they need to script or debug a workspace:
 
 ```bash
+okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh search "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh read topics/llm-wiki --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json

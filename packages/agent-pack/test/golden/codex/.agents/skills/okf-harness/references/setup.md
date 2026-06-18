@@ -1,14 +1,16 @@
 # Setup Workflow
 
-## First-time setup
+## First-Time Setup
 
-For Codex, run:
+Choose the command for the current agent.
+
+Codex:
 
 ```bash
 okfh init <workspace> --name <name> --agents codex --json
 ```
 
-For Claude Code, run:
+Claude Code:
 
 ```bash
 okfh init <workspace> --name <name> --agents claude --json
@@ -16,15 +18,30 @@ okfh init <workspace> --name <name> --agents claude --json
 
 Use `--agents all` only when the user explicitly asks to prepare both supported agents. Use `--agents none` only for advanced or developer setup.
 
-## Repair adapter support
+## Repair Adapter Support
 
-Repair the current agent first:
+Choose the repair command for the current agent.
+
+Codex:
 
 ```bash
 okfh agent install codex --workspace <workspace> --json
+```
+
+Claude Code:
+
+```bash
 okfh agent install claude --workspace <workspace> --json
 ```
 
-Choose the command that matches the current agent. If the command returns conflicts, explain the conflicting paths and ask before using `--force`.
+Do not install both adapters unless the user asks for both. If the command returns conflicts, explain the conflicting paths and ask before using `--force`.
 
-After setup or repair, run `okfh status --workspace <workspace> --json` and remind the user to start a fresh Codex thread or Claude Code session.
+## Completion Check
+
+After setup or repair, run:
+
+```bash
+okfh status --workspace <workspace> --json
+```
+
+Finish by reporting the resolved workspace path, the adapter that was installed or repaired, any conflicts, and the client-specific refresh step: a fresh Codex thread or a fresh Claude Code session.

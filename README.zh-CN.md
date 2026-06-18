@@ -35,35 +35,85 @@ OKF Harness 建立在：
 
 本仓库与 Andrej Karpathy 或 Google 没有关联，也不代表其背书。
 
-## 快速开始
+## 开始之前
 
-安装 CLI：
+先安装一次 CLI：
 
 ```bash
 npm install -g @okf-harness/cli
 okfh doctor --json
 ```
 
-创建第一个 workspace。下面只是推荐父目录，不是 CLI 隐式默认路径：
+你可以自己运行这条命令，也可以让 agent 检查本机是否已经安装 `okfh`。如果 agent 需要安装全局 npm 包，必须先得到你的明确同意。
 
-```bash
-mkdir -p "$HOME/Documents/OKF Harness"
-okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents all --git --json
-cd "$HOME/Documents/OKF Harness/ai-research"
-```
+推荐父目录只是一个约定，不是 CLI 隐式默认路径。macOS 或 Linux 使用 `$HOME/Documents/OKF Harness`。Windows PowerShell 使用 `$env:USERPROFILE\Documents\OKF Harness`。Command Prompt 使用 `%USERPROFILE%\Documents\OKF Harness`。
 
-Windows PowerShell 使用 `$env:USERPROFILE\Documents\OKF Harness`。Command Prompt 使用 `%USERPROFILE%\Documents\OKF Harness`。
+## 从你的 agent 开始
 
-在 Claude Code 或 Codex 中打开这个文件夹，然后说：
+使用当前 agent 对应的 OKF Harness 前缀。
+
+还没有 workspace：
+
+Codex：
 
 ```text
-用 OKF Harness 把 ~/Downloads/paper.pdf 加到这个 workspace，生成 ingest plan，然后带引用更新 wiki。
+$okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+```
+
+Claude Code：
+
+```text
+/okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+```
+
+已有 workspace：
+
+Codex：
+
+```text
+$okf-harness Check this workspace and tell me whether it is ready.
+```
+
+Claude Code：
+
+```text
+/okf-harness Check this workspace and tell me whether it is ready.
 ```
 
 不想全局安装可以先试一下：
 
 ```bash
 npx --package @okf-harness/cli okfh doctor --json
+```
+
+## 常见下一步
+
+添加资料：
+
+Codex：
+
+```text
+$okf-harness Add this PDF to my workspace, update the wiki with citations, then check the workspace again.
+```
+
+Claude Code：
+
+```text
+/okf-harness Add this PDF to my workspace, update the wiki with citations, then check the workspace again.
+```
+
+提问：
+
+Codex：
+
+```text
+$okf-harness What does my workspace say about LLM Wiki structure?
+```
+
+Claude Code：
+
+```text
+/okf-harness What does my workspace say about LLM Wiki structure?
 ```
 
 ## 为什么选 OKF Harness
@@ -87,32 +137,23 @@ npx --package @okf-harness/cli okfh doctor --json
 - 将文件和 URL 指针注册为原始资料
 - 生成 ingest plan，让 agent 据此更新 wiki 并添加引用
 - 搜索和读取 wiki 页面，输出长度可控
-- 检查链接、frontmatter、引用、来源哈希和 manifest 行的完整性
+- 检查 OKF 合规状态和 Harness lint 发现
 - 生成自包含的本地图谱报告
 
-## 常用工作流
+## 背后发生什么
 
-对你的 agent 说：
+Agent 会通过本地 shell 运行 `okfh --json`。例如：
 
-```text
-在 ~/Documents/OKF Harness 下为我的 AI 研究笔记创建一个 OKF Harness workspace。使用默认结构，并安装 Claude 和 Codex 支持。
-```
-
-```text
-把这个资料加到我的 AI Research workspace，然后带引用更新相关主题页面。
-```
-
-```text
-我的 AI Research wiki 里是怎么记录 LLM Wiki 结构的？先用 OKF Harness search 和 read，再回答我。
-```
-
-```text
-检查这个 workspace 有没有断链、缺失引用和来源哈希漂移。
-```
+- setup 调用 `okfh init`，并传入当前 agent 的 adapter
+- ingest 调用 `okfh source add` 和 `okfh ingest plan`
+- 回答问题时使用 `okfh search` 和受控的 `okfh read`
+- 验证 workspace 时使用 `okfh check`
+- 图谱报告使用 `okfh graph`
 
 开发者也可以直接使用命令行：
 
 ```bash
+okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh search "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh read topics/llm-wiki --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -125,7 +166,7 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 - [路线图](docs/zh-CN/ROADMAP.md)：当前重点和按需求排序的候选想法
 - [LLM 上下文](llms.txt)：给 AI 工具看的公开项目文档索引
 - [完整 LLM 上下文](llms-full.txt)：聚合公开概览、术语、工作流、CLI 参考、路线图和包 README
-- [示例 workspace](examples/ai-research-workspace/README.md)：一个可通过 lint 检查的小型 workspace
+- [示例 workspace](examples/ai-research-workspace/README.md)：一个可通过 check 检查的小型 workspace
 - [参与贡献](docs/zh-CN/CONTRIBUTING.md)：项目范围和验证方式
 - [安全策略](docs/zh-CN/SECURITY.md)：本地数据边界和漏洞报告
 

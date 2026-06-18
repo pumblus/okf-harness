@@ -75,7 +75,7 @@ pnpm build
 涉及 workspace 或 wiki 的改动，还需运行：
 
 ```bash
-node packages/cli/dist/main.js lint --workspace <workspace> --json
+node packages/cli/dist/main.js check --workspace <workspace> --json
 ```
 
 CI 还会运行 `pnpm lint`。

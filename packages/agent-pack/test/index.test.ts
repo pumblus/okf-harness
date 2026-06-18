@@ -39,8 +39,8 @@ describe("@okf-harness/agent-pack", () => {
     const claudeSkill = fileContents(claude.files, ".claude/skills/okf-harness/SKILL.md");
     const codexSkill = fileContents(codex.files, ".agents/skills/okf-harness/SKILL.md");
     expect(claudeSkill).toContain("name: okf-harness");
-    expect(claudeSkill).toContain("Use when the user asks to set up, check, ingest, answer");
-    expect(claudeSkill).toContain("Do not expose workflow-specific skill names");
+    expect(claudeSkill).toContain("One Door entrypoint for OKF Harness workspaces");
+    expect(claudeSkill).toContain("Do not expose old workflow-specific skill names");
     expect(claudeSkill).toContain("okf-harness-managed: true");
     expect(claudeSkill).toContain("references/setup.md");
     expect(claudeSkill).toContain("references/check.md");
@@ -59,7 +59,7 @@ describe("@okf-harness/agent-pack", () => {
     expect(fileContents(codex.files, "AGENTS.md")).not.toContain("$okf-harness-init");
     expect(fileContents(codex.files, "AGENTS.md")).toContain("okfh doctor --json");
     expect(fileContents(codex.files, ".agents/skills/okf-harness/references/answer.md")).toContain(
-      "okfh read index --json",
+      "okfh read index --workspace <workspace> --json",
     );
     expect(fileContents(codex.files, ".agents/skills/okf-harness/references/answer.md")).toContain(
       "Do not run or hallucinate an `okfh query` command.",

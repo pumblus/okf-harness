@@ -71,31 +71,34 @@ okfh doctor --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 创建 workspace，可选渲染 Claude Code 和 Codex 的适配文件。
 
 ```bash
-okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents all --git --json
+okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --git --json
+okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents claude --git --json
 ```
 
 选项：
 
 - `--name <name>` 必填。
-- `--agents all|claude|codex|none|claude,codex` 控制适配文件的渲染。
+- `--agents codex|claude|all|none|claude,codex` 必填，用来控制适配文件的渲染。
 - `--git` 初始化 git 仓库但不提交。
 - `--dry-run` 返回计划的写入内容，不实际创建文件。
+
+使用当前 agent 对应的 adapter：Codex 使用 `codex`，Claude Code 使用 `claude`。只有明确需要两个受支持 adapter 时才使用 `all`。`none` 仅用于高级或开发场景。
 
 ### agent install
 
 在已有 workspace 中安装或修复 Claude Code 和 Codex 的适配文件。
 
 ```bash
-okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --json
-okfh agent install claude --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh agent install codex --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh agent install claude --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-用 `--dry-run` 查看计划写入的内容。仅在检查冲突后使用 `--force`。
+默认使用当前 agent adapter。只有明确需要两个受支持 adapter 时才使用 `all`。用 `--dry-run` 查看计划写入的内容。仅在检查冲突后使用 `--force`。
 
 ### status
 
-报告 workspace 初始化状态、wiki 文件数量、概念数量、lint 状态和可用能力。
+报告 workspace 初始化状态、wiki 文件数量、概念数量、简要 check 状态和可用能力。
 
 ```bash
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -103,15 +106,33 @@ okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 当前 CLI 可用能力包括 `search`、`read` 和 `graph`。没有 `okfh query` 命令。
 
+### check
+
+检查 OKF 合规状态和 OKF Harness 可维护性。
+
+```bash
+okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+`check` 在 `data.status` 下返回三种状态之一：
+
+- `ready`：OKF 合规通过，Harness lint 没有发现问题。
+- `needs_attention`：OKF 合规通过，但 Harness lint 发现可维护性或证据完整性问题。
+- `blocked`：OKF 合规失败，workspace 不是 OKF-readable。
+
+JSON 响应会在 `data.okfVersion` 中报告 OKF version，目前固定为 `0.1`。OKF 合规结果放在 `data.okfConformance`，Harness lint 结果放在 `data.harnessLint`。
+
+`ready` 和 `needs_attention` 的顶层 `ok` 为 `true`，退出码为 `0`。`blocked` 的顶层 `ok` 为 `false`，退出码非 `0`。
+
 ### lint
 
-检查 OKF frontmatter、保留文件、日志标题、断链、缺失的索引条目、缺失的引用段落、manifest 行、来源哈希漂移、缺失的来源和未注册的原始资料文件。
+`lint` 已不再是常规验证命令。它会提示调用方改用 `check`。
 
 ```bash
 okfh lint --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-`lint` 报告警告和错误。有错误时 `ok` 为 `false`。
+请改用 `okfh check --workspace <path> --json`。
 
 ### source add
 
@@ -195,7 +216,7 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --open --json
 
 ## 退出行为
 
-成功的命令返回退出码 `0`。验证失败、workspace 问题、来源问题或 lint 错误返回非零退出码，带 `--json` 时 JSON 中包含 `ok: false`。
+成功的命令返回退出码 `0`。验证失败、workspace 问题或来源命令失败会返回非零退出码，带 `--json` 时 JSON 中包含 `ok: false`。对于 `check`，`ready` 和 `needs_attention` 退出 `0`；`blocked` 退出非 `0`。
 
 ## 从源码安装（开发者）
 
