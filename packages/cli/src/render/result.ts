@@ -10,6 +10,38 @@ export function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): vo
 }
 
 function renderHumanResult(envelope: JsonEnvelope): string {
+  if (envelope.command === "check") {
+    const data = envelope.data as {
+      status?: string;
+      okfVersion?: string;
+      okfConformance?: { ok?: boolean; findings?: Array<{ code?: string; path?: string }> };
+      harnessLint?: {
+        ok?: boolean;
+        findings?: Record<string, Array<{ code?: string; path?: string }>>;
+      };
+    };
+    const harnessFindings = data.harnessLint?.findings ?? {};
+    const rows = [
+      `Status: ${humanCheckStatus(data.status)}`,
+      `OKF version: ${data.okfVersion ?? "unknown"}`,
+      `OKF conformance: ${data.okfConformance?.ok === false ? "fail" : "pass"}`,
+      `Harness lint: ${data.harnessLint?.ok === false ? "needs attention" : "pass"}`,
+    ];
+    for (const priority of ["high", "medium", "low"]) {
+      const findings = harnessFindings[priority] ?? [];
+      if (findings.length > 0) {
+        rows.push(`${priority}: ${findings.length}`);
+        rows.push(
+          ...findings.map((finding) => {
+            const pathValue = finding.path === undefined ? "" : ` ${finding.path}`;
+            return `- ${finding.code ?? "ISSUE"}${pathValue}`;
+          }),
+        );
+      }
+    }
+    return `${rows.join("\n")}\n`;
+  }
+
   if (envelope.command === "search") {
     const data = envelope.data as {
       results?: Array<{ title?: string; path?: string; type?: string; score?: number }>;
@@ -67,4 +99,17 @@ function renderHumanResult(envelope: JsonEnvelope): string {
   }
 
   return `${envelope.ok ? "OK" : "FAILED"} ${envelope.command}\n`;
+}
+
+function humanCheckStatus(status: string | undefined): string {
+  if (status === "ready") {
+    return "Ready";
+  }
+  if (status === "needs_attention") {
+    return "Needs attention";
+  }
+  if (status === "blocked") {
+    return "Blocked";
+  }
+  return "Unknown";
 }

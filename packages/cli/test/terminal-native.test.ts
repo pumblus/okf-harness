@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli terminal-native smoke", () => {
-  it("runs init, source add, ingest plan, lint, and graph through okfh --json", async () => {
+  it("runs init, source add, ingest plan, check, lint retirement, and graph through okfh --json", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh cli-"));
     const workspace = path.join(root, "ai-research");
     const sourcePath = path.join(root, "OKF Harness test source.md");
@@ -101,19 +101,33 @@ describe("@okf-harness/cli terminal-native smoke", () => {
           source: {
             id: added.result.data.source.id,
           },
-          checklist: expect.arrayContaining([expect.stringContaining("okfh lint")]),
+          checklist: expect.arrayContaining([expect.stringContaining("okfh check")]),
         },
+      },
+    });
+
+    const check = await runJsonCli(["node", "okfh", "check", "--workspace", workspace, "--json"]);
+    expect(check).toMatchObject({
+      exitCode: 0,
+      stderr: "",
+      result: {
+        ok: true,
+        command: "check",
+        workspace,
       },
     });
 
     const lint = await runJsonCli(["node", "okfh", "lint", "--workspace", workspace, "--json"]);
     expect(lint).toMatchObject({
-      exitCode: 0,
+      exitCode: 1,
       stderr: "",
       result: {
-        ok: true,
+        ok: false,
         command: "lint",
-        workspace,
+        data: {
+          retired: true,
+          replacement: "check",
+        },
       },
     });
 

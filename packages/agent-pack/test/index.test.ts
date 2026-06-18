@@ -19,48 +19,54 @@ describe("@okf-harness/agent-pack", () => {
 
     expect(claude.files.map((file) => file.path)).toEqual([
       "CLAUDE.md",
-      ".claude/skills/okf-harness-init/SKILL.md",
-      ".claude/skills/okf-harness-init/references/workflow.md",
-      ".claude/skills/okf-harness-ingest/SKILL.md",
-      ".claude/skills/okf-harness-ingest/references/ingest-contract.md",
-      ".claude/skills/okf-harness-query/SKILL.md",
-      ".claude/skills/okf-harness-query/references/answer-contract.md",
-      ".claude/skills/okf-harness-maintain/SKILL.md",
-      ".claude/skills/okf-harness-maintain/references/lint-contract.md",
+      ".claude/skills/okf-harness/SKILL.md",
+      ".claude/skills/okf-harness/references/setup.md",
+      ".claude/skills/okf-harness/references/check.md",
+      ".claude/skills/okf-harness/references/ingest.md",
+      ".claude/skills/okf-harness/references/answer.md",
+      ".claude/skills/okf-harness/references/graph.md",
     ]);
     expect(codex.files.map((file) => file.path)).toEqual([
       "AGENTS.md",
-      ".agents/skills/okf-harness-init/SKILL.md",
-      ".agents/skills/okf-harness-init/references/workflow.md",
-      ".agents/skills/okf-harness-ingest/SKILL.md",
-      ".agents/skills/okf-harness-ingest/references/ingest-contract.md",
-      ".agents/skills/okf-harness-query/SKILL.md",
-      ".agents/skills/okf-harness-query/references/answer-contract.md",
-      ".agents/skills/okf-harness-maintain/SKILL.md",
-      ".agents/skills/okf-harness-maintain/references/lint-contract.md",
+      ".agents/skills/okf-harness/SKILL.md",
+      ".agents/skills/okf-harness/references/setup.md",
+      ".agents/skills/okf-harness/references/check.md",
+      ".agents/skills/okf-harness/references/ingest.md",
+      ".agents/skills/okf-harness/references/answer.md",
+      ".agents/skills/okf-harness/references/graph.md",
     ]);
 
-    const claudeIngest = fileContents(claude.files, ".claude/skills/okf-harness-ingest/SKILL.md");
-    const codexIngest = fileContents(codex.files, ".agents/skills/okf-harness-ingest/SKILL.md");
-    const codexQuery = fileContents(codex.files, ".agents/skills/okf-harness-query/SKILL.md");
-    const codexMaintain = fileContents(codex.files, ".agents/skills/okf-harness-maintain/SKILL.md");
-    expect(claudeIngest).toContain("name: okf-harness-ingest");
-    expect(claudeIngest).toContain("Use when the user asks to add, ingest");
-    expect(claudeIngest).toContain("Do not use for general question answering");
-    expect(claudeIngest).toContain("okf-harness-managed: true");
-    expect(claudeIngest).toContain("See [the ingest contract](references/ingest-contract.md)");
-    expect(claudeIngest).not.toContain("allowed-tools");
-    expect(claudeIngest).not.toContain("disable-model-invocation");
-    expect(codexIngest).toBe(claudeIngest);
+    const claudeSkill = fileContents(claude.files, ".claude/skills/okf-harness/SKILL.md");
+    const codexSkill = fileContents(codex.files, ".agents/skills/okf-harness/SKILL.md");
+    expect(claudeSkill).toContain("name: okf-harness");
+    expect(claudeSkill).toContain("Use when the user asks to set up, check, ingest, answer");
+    expect(claudeSkill).toContain("Do not expose workflow-specific skill names");
+    expect(claudeSkill).toContain("okf-harness-managed: true");
+    expect(claudeSkill).toContain("references/setup.md");
+    expect(claudeSkill).toContain("references/check.md");
+    expect(claudeSkill).toContain("references/ingest.md");
+    expect(claudeSkill).toContain("references/answer.md");
+    expect(claudeSkill).toContain("references/graph.md");
+    expect(claudeSkill).not.toContain("allowed-tools");
+    expect(claudeSkill).not.toContain("disable-model-invocation");
+    expect(codexSkill).toBe(claudeSkill);
     expect(claude.files.map((file) => file.contents).join("\n")).not.toContain("on macOS");
     expect(codex.files.map((file) => file.contents).join("\n")).not.toContain("on macOS");
 
-    expect(fileContents(claude.files, "CLAUDE.md")).toContain("/okf-harness-init");
-    expect(fileContents(codex.files, "AGENTS.md")).toContain("$okf-harness-init");
+    expect(fileContents(claude.files, "CLAUDE.md")).toContain("/okf-harness");
+    expect(fileContents(codex.files, "AGENTS.md")).toContain("$okf-harness");
+    expect(fileContents(claude.files, "CLAUDE.md")).not.toContain("/okf-harness-init");
+    expect(fileContents(codex.files, "AGENTS.md")).not.toContain("$okf-harness-init");
     expect(fileContents(codex.files, "AGENTS.md")).toContain("okfh doctor --json");
-    expect(codexQuery).toContain("okfh read index --json");
-    expect(codexQuery).toContain("Do not run or hallucinate an `okfh query` command.");
-    expect(codexMaintain).toContain("Run `okfh graph --json` only when the user asks");
+    expect(fileContents(codex.files, ".agents/skills/okf-harness/references/answer.md")).toContain(
+      "okfh read index --json",
+    );
+    expect(fileContents(codex.files, ".agents/skills/okf-harness/references/answer.md")).toContain(
+      "Do not run or hallucinate an `okfh query` command.",
+    );
+    expect(fileContents(codex.files, ".agents/skills/okf-harness/references/graph.md")).toContain(
+      "Run graph only when the user asks",
+    );
   });
 
   it("installs an adapter while preserving user root guidance outside the managed block", async () => {
@@ -79,28 +85,71 @@ describe("@okf-harness/agent-pack", () => {
       conflicts: [],
       managedBlocks: [{ path: "AGENTS.md", action: "inserted" }],
     });
-    expect(result.writtenFiles).toContain(".agents/skills/okf-harness-init/SKILL.md");
+    expect(result.writtenFiles).toContain(".agents/skills/okf-harness/SKILL.md");
     const guidance = await readFile(path.join(workspace, "AGENTS.md"), "utf8");
     expect(guidance).toContain("Keep this user-authored rule.");
     expect(guidance).toContain("<!-- OKF Harness: start -->");
-    expect(guidance).toContain("$okf-harness-maintain");
-    expect(
-      (await stat(path.join(workspace, ".agents/skills/okf-harness-init/SKILL.md"))).isFile(),
-    ).toBe(true);
+    expect(guidance).toContain("$okf-harness");
+    expect((await stat(path.join(workspace, ".agents/skills/okf-harness/SKILL.md"))).isFile()).toBe(
+      true,
+    );
   });
 
-  it("refuses to overwrite a same-name non-managed skill unless forced", async () => {
+  it("removes old managed workflow skills during adapter repair", async () => {
     const workspace = await mkdtemp(path.join(tmpdir(), "okfh-agent-pack-"));
-    await writeFile(path.join(workspace, "AGENTS.md"), "# Project Rules\n", "utf8");
-    const customSkill = path.join(workspace, ".agents/skills/okf-harness-init/SKILL.md");
-    await mkdir(path.dirname(customSkill), { recursive: true });
-    await writeFile(customSkill, "---\nname: okf-harness-init\n---\n\n# Custom Skill\n", "utf8");
+    const oldSkill = path.join(workspace, ".agents/skills/okf-harness-init/SKILL.md");
+    await mkdir(path.dirname(oldSkill), { recursive: true });
+    await writeFile(
+      oldSkill,
+      "---\nname: okf-harness-init\nmetadata:\n  okf-harness-managed: true\n---\n",
+      "utf8",
+    );
+
+    const result = await installAgentAdapters({ workspaceRoot: workspace, adapter: "codex" });
+
+    expect(result).toMatchObject({
+      removedFiles: [".agents/skills/okf-harness-init/SKILL.md"],
+      conflicts: [],
+    });
+    await expect(stat(oldSkill)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(
+      stat(path.join(workspace, ".agents/skills/okf-harness/SKILL.md")),
+    ).resolves.toBeDefined();
+  });
+
+  it("preserves user-authored old workflow skills and reports a conflict", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "okfh-agent-pack-"));
+    const oldSkill = path.join(workspace, ".agents/skills/okf-harness-query/SKILL.md");
+    await mkdir(path.dirname(oldSkill), { recursive: true });
+    await writeFile(oldSkill, "---\nname: okf-harness-query\n---\n\n# Custom Query\n", "utf8");
 
     const result = await installAgentAdapters({ workspaceRoot: workspace, adapter: "codex" });
 
     expect(result.conflicts).toEqual([
       expect.objectContaining({
-        path: ".agents/skills/okf-harness-init/SKILL.md",
+        path: ".agents/skills/okf-harness-query/SKILL.md",
+      }),
+    ]);
+    await expect(readFile(oldSkill, "utf8")).resolves.toContain("# Custom Query");
+    await expect(
+      stat(path.join(workspace, ".agents/skills/okf-harness/SKILL.md")),
+    ).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("refuses to overwrite a same-name non-managed skill unless forced", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "okfh-agent-pack-"));
+    await writeFile(path.join(workspace, "AGENTS.md"), "# Project Rules\n", "utf8");
+    const customSkill = path.join(workspace, ".agents/skills/okf-harness/SKILL.md");
+    await mkdir(path.dirname(customSkill), { recursive: true });
+    await writeFile(customSkill, "---\nname: okf-harness\n---\n\n# Custom Skill\n", "utf8");
+
+    const result = await installAgentAdapters({ workspaceRoot: workspace, adapter: "codex" });
+
+    expect(result.conflicts).toEqual([
+      expect.objectContaining({
+        path: ".agents/skills/okf-harness/SKILL.md",
       }),
     ]);
     await expect(readFile(customSkill, "utf8")).resolves.toContain("# Custom Skill");
@@ -108,7 +157,7 @@ describe("@okf-harness/agent-pack", () => {
       "# Project Rules\n",
     );
     await expect(
-      stat(path.join(workspace, ".agents/skills/okf-harness-query/SKILL.md")),
+      stat(path.join(workspace, ".agents/skills/okf-harness/references/answer.md")),
     ).rejects.toMatchObject({
       code: "ENOENT",
     });
@@ -149,7 +198,7 @@ describe("@okf-harness/agent-pack", () => {
       conflicts: [],
     });
     expect(result.plannedFiles).toContain("CLAUDE.md");
-    expect(result.plannedFiles).toContain(".claude/skills/okf-harness-query/SKILL.md");
+    expect(result.plannedFiles).toContain(".claude/skills/okf-harness/SKILL.md");
     await expect(stat(path.join(workspace, "CLAUDE.md"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 

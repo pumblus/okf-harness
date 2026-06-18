@@ -10,10 +10,13 @@ describe("@okf-harness/cli source", () => {
   it("registers a local file source without leaking absolute provenance", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
     const sourcePath = path.join(root, "private-client", "llm-wiki.md");
     const sourceContents = "# LLM Wiki\n\nSource notes.\n";
     await mkdir(path.dirname(sourcePath), { recursive: true });
@@ -67,10 +70,13 @@ describe("@okf-harness/cli source", () => {
   it("reuses an existing source when another local file has identical content", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
     const firstPath = path.join(root, "first.md");
     const secondPath = path.join(root, "renamed.md");
     await writeFile(firstPath, "# Same\n\nContent.\n", "utf8");
@@ -120,10 +126,13 @@ describe("@okf-harness/cli source", () => {
   it("suffixes the raw filename when a same-name local file has different content", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
     const firstPath = path.join(root, "one", "paper.md");
     const secondPath = path.join(root, "two", "paper.md");
     await mkdir(path.dirname(firstPath), { recursive: true });
@@ -172,10 +181,13 @@ describe("@okf-harness/cli source", () => {
   it("dry-runs source add without writing raw files or manifest rows", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
     const sourcePath = path.join(root, "draft.md");
     await writeFile(sourcePath, "# Draft\n\nNot registered yet.\n", "utf8");
 
@@ -216,10 +228,13 @@ describe("@okf-harness/cli source", () => {
   it("registers URL metadata sources and reuses duplicate URLs", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
 
     const first = await runJsonCli([
       "node",
@@ -281,10 +296,13 @@ describe("@okf-harness/cli source", () => {
   it("rolls back a copied raw file when manifest registration fails", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
     const manifestPath = path.join(workspace, ".okfh/manifest.jsonl");
     await chmod(manifestPath, 0o444);
     const sourcePath = path.join(root, "rollback.md");
@@ -315,10 +333,13 @@ describe("@okf-harness/cli source", () => {
   it("lists registered sources from the manifest", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
     const sourcePath = path.join(root, "listed.md");
     await writeFile(sourcePath, "# Listed\n", "utf8");
     const added = await runJsonCli([

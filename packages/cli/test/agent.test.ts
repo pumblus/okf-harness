@@ -8,10 +8,13 @@ describe("@okf-harness/cli agent", () => {
   it("installs Codex adapter support into an existing workspace", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
     let stdout = "";
     let stderr = "";
 
@@ -42,10 +45,10 @@ describe("@okf-harness/cli agent", () => {
       warnings: [],
     });
     await expect(readFile(path.join(workspace, "AGENTS.md"), "utf8")).resolves.toContain(
-      "$okf-harness-init",
+      "$okf-harness",
     );
     await expect(
-      readFile(path.join(workspace, ".agents/skills/okf-harness-init/SKILL.md"), "utf8"),
+      readFile(path.join(workspace, ".agents/skills/okf-harness/SKILL.md"), "utf8"),
     ).resolves.toContain("okf-harness-managed: true");
   });
 

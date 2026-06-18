@@ -6,7 +6,7 @@ import { runCli } from "../src/index.js";
 import { runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli query workflow", () => {
-  it("runs status, search, read, graph, and lint from an auto-resolved workspace", async () => {
+  it("runs status, search, read, graph, and check from an auto-resolved workspace", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {
@@ -102,15 +102,15 @@ describe("@okf-harness/cli query workflow", () => {
         readFile(path.join(resolvedWorkspace, ".okfh/backlinks.json"), "utf8"),
       ).resolves.toContain("topics/llm-wiki");
 
-      const lint = await runJsonCli(["node", "okfh", "lint", "--json"]);
-      expect(lint).toMatchObject({
+      const check = await runJsonCli(["node", "okfh", "check", "--json"]);
+      expect(check).toMatchObject({
         exitCode: 0,
         stderr: "",
         result: {
           ok: true,
-          command: "lint",
+          command: "check",
           workspace: resolvedWorkspace,
-          data: { ok: true },
+          data: { status: "ready" },
         },
       });
     } finally {

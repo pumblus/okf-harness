@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export const packageInfo = {
@@ -51,6 +51,7 @@ export type InstallAgentAdaptersResult = {
   writtenFiles: string[];
   plannedFiles: string[];
   replacedFiles: string[];
+  removedFiles: string[];
   skippedFiles: string[];
   conflicts: AgentInstallConflict[];
   managedBlocks: ManagedBlockResult[];
@@ -63,11 +64,11 @@ type SkillTemplate = {
   summary: string;
   requiredBehavior: string[];
   hardRules: string[];
-  reference: {
+  references: Array<{
     path: string;
     title: string;
     body: string;
-  };
+  }>;
 };
 
 const defaultVersion = "0.2";
@@ -76,131 +77,111 @@ const managedBlockEnd = "<!-- OKF Harness: end -->";
 
 const skillTemplates: SkillTemplate[] = [
   {
-    name: "okf-harness-init",
-    title: "OKF Harness Init",
+    name: "okf-harness",
+    title: "OKF Harness",
     description:
-      "Initialize and organize a local OKF Harness workspace, including folders, git, OKF bundle files, and Claude/Codex adapters. Use when the user asks to set up, create, initialize, organize, or install OKF Harness support. Do not use for ingesting an already-added source.",
-    summary: "Use this skill to create a workspace or repair Claude/Codex adapter support.",
+      "Route OKF Harness workspace workflows for setup, check, ingest, answer, and graph from one agent entrypoint. Use when the user asks to set up, check, ingest, answer from, maintain, or visualize an OKF Harness workspace. Do not use workflow-specific skill names or run an `okfh query` command.",
+    summary:
+      "Use this skill as the single OKF Harness entrypoint. Route the user's intent internally, then load only the relevant reference file.",
     requiredBehavior: [
-      "Locate or choose the workspace path with the user.",
-      "Use the local shell to run `okfh init <workspace> --name <name> --agents all --json` for first-time setup.",
-      "Use `okfh agent install all --workspace <workspace> --json` to repair adapter files in an existing workspace.",
-      "If the CLI or local shell is unavailable, run `okfh doctor --json` when possible; otherwise stop and tell the user to install OKF Harness instead of hand-writing the workspace structure.",
-      "After initialization, run `okfh status --workspace <workspace> --json` and report the workspace path, lint status, warnings, and next step.",
+      "Identify the user intent as setup, check, ingest, answer, or graph.",
+      "Locate the workspace by finding `okfh.config.yaml` unless the user is setting up a new workspace.",
+      "Use the local shell to run `okfh --json` commands for deterministic harness operations.",
+      "Load only the reference file for the selected internal workflow.",
+      "After wiki edits, run `okfh check --workspace <workspace> --json` and report the check status before broader cleanup advice.",
+      "Report changed files and run `git diff` before final response when file changes were made.",
     ],
     hardRules: [
+      "Do not expose workflow-specific skill names to users.",
       "Do not create a parallel workspace skeleton by hand.",
-      "Do not overwrite a non-empty directory unless `okfh` returns an explicit safe plan.",
-      "Do not add plugin, hook, Pi, OpenCode, or Obsidian setup.",
-      "Use the same local shell `okfh --json` workflow in Desktop App and TUI sessions.",
-      "Run `git diff` before final response when file changes were made.",
+      "Never edit `raw/sources/`.",
+      "Never invent source IDs, citations, dates, or claims.",
+      "Do not run or hallucinate an `okfh query` command.",
+      "Do not add plugin, hook, Pi, OpenCode, Obsidian, GUI, MCP, or vector-search setup.",
     ],
-    reference: {
-      path: "workflow.md",
-      title: "Init Workflow",
-      body: `# Init Workflow
+    references: [
+      {
+        path: "setup.md",
+        title: "Setup Workflow",
+        body: `# Setup Workflow
 
 ## First-time setup
 
-Run:
+For Codex, run:
 
 \`\`\`bash
-okfh init <workspace> --name <name> --agents all --json
+okfh init <workspace> --name <name> --agents codex --json
 \`\`\`
 
-Use \`--agents claude\`, \`--agents codex\`, or \`--agents none\` only when the user explicitly asks for that narrower target.
+For Claude Code, run:
+
+\`\`\`bash
+okfh init <workspace> --name <name> --agents claude --json
+\`\`\`
+
+Use \`--agents all\` only when the user explicitly asks to prepare both supported agents. Use \`--agents none\` only for advanced or developer setup.
 
 ## Repair adapter support
 
+Repair the current agent first:
+
+\`\`\`bash
+okfh agent install codex --workspace <workspace> --json
+okfh agent install claude --workspace <workspace> --json
+\`\`\`
+
+Choose the command that matches the current agent. If the command returns conflicts, explain the conflicting paths and ask before using \`--force\`.
+
+After setup or repair, run \`okfh status --workspace <workspace> --json\` and remind the user to start a fresh Codex thread or Claude Code session.
+`,
+      },
+      {
+        path: "check.md",
+        title: "Check Workflow",
+        body: `# Check Workflow
+
 Run:
 
 \`\`\`bash
-okfh agent install all --workspace <workspace> --json
+okfh check --workspace <workspace> --json
 \`\`\`
 
-If the command returns conflicts, explain the conflicting paths and ask before using \`--force\`.
+Report the check status first:
+
+- \`ready\`: OKF conformance passes and Harness lint has no findings.
+- \`needs_attention\`: OKF conformance passes, but Harness lint has maintainability or evidence-integrity findings.
+- \`blocked\`: OKF conformance fails and the workspace is not OKF-readable.
+
+Keep OKF conformance separate from Harness lint. High-priority Harness lint requires risk disclosure, but it blocks only answers that directly depend on affected source or reference records.
 `,
-    },
-  },
-  {
-    name: "okf-harness-ingest",
-    title: "OKF Harness Ingest",
-    description:
-      "Add source material and compile it into an OKF-compatible LLM Wiki by creating reference pages, updating topic/entity/project pages, citations, index, and log. Use when the user asks to add, ingest, absorb, summarize into the wiki, or organize a new source. Do not use for general question answering without new sources.",
-    summary: "Use this skill to register source material and compile it into the local OKF wiki.",
-    requiredBehavior: [
-      "Locate the workspace by finding `okfh.config.yaml`.",
-      "Use the local shell to run `okfh --json` commands.",
-      "If the source is not registered, run `okfh source add <path-or-url> --workspace <workspace> --json`.",
-      "Run `okfh ingest plan <source-id-or-path> --workspace <workspace> --json` before editing wiki files.",
-      "Treat candidate concepts as metadata hints only; read the full source before semantic analysis.",
-      "After ingest work changes wiki files, run `okfh lint --workspace <workspace> --json`.",
-      "Show the user changed files, lint status, and unresolved questions.",
-    ],
-    hardRules: [
-      "Never edit `raw/sources/`.",
-      "Never invent source IDs, citations, dates, or claims.",
-      "Do not hand-roll a source manifest, search index, graph, or raw source management.",
-      "If more than 20 wiki files seem affected, stop after an ingest plan and ask the user to narrow scope.",
-      "Run `git diff` before final response when file changes were made.",
-    ],
-    reference: {
-      path: "ingest-contract.md",
-      title: "Ingest Contract",
-      body: `# Ingest Contract
+      },
+      {
+        path: "ingest.md",
+        title: "Ingest Workflow",
+        body: `# Ingest Workflow
 
-## Supported now
-
-Run:
+Register source material before synthesis:
 
 \`\`\`bash
 okfh source add <path-or-url> --workspace <workspace> --json
 okfh ingest plan <source-id-or-path> --workspace <workspace> --json
 \`\`\`
 
-The ingest plan is metadata-level guidance. It returns a recommended reference path, candidate concepts, and an Agent checklist; it does not read source bodies, summarize content, extract claims, or synthesize wiki pages.
+The ingest plan is metadata-level guidance. It returns a recommended reference path, candidate concepts, and an agent checklist; it does not read source bodies, summarize content, extract claims, or synthesize wiki pages.
 
-## Wiki update contract
+After wiki edits, run:
 
-- Create or update one \`wiki/references/<slug>.md\` page per source.
-- Update only affected \`wiki/topics/\`, \`wiki/entities/\`, \`wiki/projects/\`, \`wiki/decisions/\`, or \`wiki/questions/\` pages.
-- Preserve uncertainty and contradictions.
-- Add or update \`# Citations\` sections.
-- Update \`wiki/index.md\` and relevant subdirectory indexes.
-- Append \`wiki/log.md\`.
+\`\`\`bash
+okfh check --workspace <workspace> --json
+\`\`\`
+
+Show changed files, check status, and unresolved questions.
 `,
-    },
-  },
-  {
-    name: "okf-harness-query",
-    title: "OKF Harness Query",
-    description:
-      "Answer questions using the local OKF Harness wiki by searching concepts, reading full pages, following citations, and citing concept paths. Use when the user asks what their knowledge base says, asks a research question, or requests synthesis from existing wiki knowledge. Do not use to ingest new source material.",
-    summary: "Use this skill to answer from existing OKF wiki knowledge.",
-    requiredBehavior: [
-      "Locate the workspace by finding `okfh.config.yaml`.",
-      "Run `okfh status --json` and confirm `data.capabilities.search`, `read`, and `graph` are available while `queryCommand` is not available.",
-      "Run `okfh read index --json` first to inspect the wiki map.",
-      "Run `okfh search <question> --json` to get candidate concept cards.",
-      "Run `okfh read <concept-id-or-path> --json` for relevant candidates before synthesizing.",
-      "Follow useful reference citations with `okfh read <reference-concept-id-or-path> --json` when factual precision matters.",
-      "If a read is truncated, continue with `--section`, `--section-id`, `--offset/--limit`, or `--full` before relying on omitted content.",
-      "Answer directly first, then list supporting concept paths and available source IDs.",
-      "If hits are weak, citations are missing, or only wiki synthesis was read, state the evidence limit plainly.",
-    ],
-    hardRules: [
-      "Do not ingest new source material from this skill.",
-      "Do not invent citations or claim the wiki says something without reading it.",
-      "Do not run or hallucinate an `okfh query` command.",
-      "Do not build an ad hoc search index or search `raw/sources/` for normal query answers.",
-      "Do not edit `raw/sources/`.",
-    ],
-    reference: {
-      path: "answer-contract.md",
-      title: "Answer Contract",
-      body: `# Answer Contract
-
-## Query workflow
+      },
+      {
+        path: "answer.md",
+        title: "Answer Workflow",
+        body: `# Answer Workflow
 
 Use the CLI as the deterministic retrieval layer:
 
@@ -211,68 +192,28 @@ okfh search "<question>" --json
 okfh read <concept-id-or-path> --json
 \`\`\`
 
-There is no \`okfh query\` command in the current CLI. Compose answers from search candidate cards plus bounded reads.
+There is no \`okfh query\` command in the current CLI. Do not run or hallucinate an \`okfh query\` command. Compose answers from search candidate cards plus bounded reads.
 
-## Answer shape
+Use \`okfh check --json\` when status is missing, stale, blocked, or the answer depends on high-priority Harness lint findings. Do not run a full check before every answer when current status is already trustworthy.
 
-Answer with:
-
-- Direct answer.
-- Evidence from concept paths and available source IDs.
-- A note when evidence came only from wiki synthesis rather than raw source bodies.
-- Open questions or contradictions.
-- Insufficient-evidence statement when search hits are weak or citations are missing.
-- Suggested follow-up only when it naturally follows from the wiki evidence.
+Answer directly first, then list supporting concept paths and available source IDs. If hits are weak, citations are missing, or only wiki synthesis was read, state the evidence limit plainly.
 `,
-    },
-  },
-  {
-    name: "okf-harness-maintain",
-    title: "OKF Harness Maintain",
-    description:
-      "Maintain an OKF Harness wiki by running lint, repairing broken links or missing metadata, updating index/log files, checking source hashes, and generating graph reports. Use when the user asks to check, clean up, repair, validate, lint, or visualize the knowledge base. Do not use for first-time initialization.",
-    summary: "Use this skill to lint and repair an existing OKF Harness workspace.",
-    requiredBehavior: [
-      "Locate the workspace by finding `okfh.config.yaml`.",
-      "Run `okfh lint --json` before deciding what to change.",
-      "Use small patches for wiki repairs.",
-      "Run `okfh lint --json` again after wiki edits.",
-      "Run `okfh graph --json` only when the user asks for a graph, visualization, or graph report.",
-      "Report lint status, changed files, graph report paths when generated, and any remaining manual fixes.",
-      "If the user did not ask for a graph, mention graph generation only as an optional follow-up.",
-    ],
-    hardRules: [
-      "Never edit `raw/sources/`.",
-      "Do not silently rewrite large wiki sections.",
-      "Do not hand-roll graph reports or source hash checks.",
-      "Run `git diff` before final response when file changes were made.",
-    ],
-    reference: {
-      path: "lint-contract.md",
-      title: "Lint Contract",
-      body: `# Lint Contract
+      },
+      {
+        path: "graph.md",
+        title: "Graph Workflow",
+        body: `# Graph Workflow
 
-## Supported now
-
-Run:
+Run graph only when the user asks to visualize or generate a graph report:
 
 \`\`\`bash
-okfh lint --json
+okfh graph --workspace <workspace> --json
 \`\`\`
 
-Fix only issues that can be resolved from current wiki context without inventing missing source facts.
-
-## Graph reports
-
-Source hash checks are supported by \`okfh lint\`. Graph generation is supported by:
-
-\`\`\`bash
-okfh graph --json
-\`\`\`
-
-Run graph only when the user asks to visualize or generate a graph report. Maintain workflows should not generate graph reports automatically.
+Do not hand-roll graph reports. Report the generated HTML and backlinks paths from the command output.
 `,
-    },
+      },
+    ],
   },
 ];
 
@@ -318,6 +259,7 @@ function createInstallResult(
     writtenFiles: [],
     plannedFiles: [],
     replacedFiles: [],
+    removedFiles: [],
     skippedFiles: [],
     conflicts: [],
     managedBlocks: [],
@@ -330,6 +272,7 @@ async function planAgentAdapterWrites(
   context: { dryRun: boolean; force: boolean; result: InstallAgentAdaptersResult },
 ): Promise<void> {
   for (const adapter of adaptersForTarget(adapterTarget)) {
+    await planOldWorkflowSkillCleanup(workspaceRoot, adapter, context);
     for (const file of renderAgentAdapter({ adapter }).files) {
       if (isRootGuidancePath(file.path)) {
         await planRootGuidanceWrite(workspaceRoot, file, context);
@@ -337,6 +280,44 @@ async function planAgentAdapterWrites(
         await planManagedFileWrite(workspaceRoot, file, context);
       }
     }
+  }
+}
+
+const oldWorkflowSkillNames = [
+  "okf-harness-init",
+  "okf-harness-ingest",
+  "okf-harness-query",
+  "okf-harness-maintain",
+] as const;
+
+async function planOldWorkflowSkillCleanup(
+  workspaceRoot: string,
+  adapter: AgentAdapter,
+  context: { dryRun: boolean; result: InstallAgentAdaptersResult },
+): Promise<void> {
+  const skillRoot = adapter === "claude" ? ".claude/skills" : ".agents/skills";
+  for (const skillName of oldWorkflowSkillNames) {
+    const skillPath = `${skillRoot}/${skillName}/SKILL.md`;
+    const skillContents = await readOptionalTextFile(path.join(workspaceRoot, skillPath));
+    if (skillContents === undefined) {
+      continue;
+    }
+
+    if (!isHarnessManagedSkill(skillContents)) {
+      context.result.conflicts.push({
+        path: skillPath,
+        reason:
+          "Old OKF Harness workflow skill is not marked as managed. It was preserved for review.",
+      });
+      continue;
+    }
+
+    context.result.removedFiles.push(skillPath);
+    if (context.dryRun) {
+      continue;
+    }
+
+    await rm(path.join(workspaceRoot, skillRoot, skillName), { recursive: true, force: true });
   }
 }
 
@@ -357,10 +338,7 @@ This repository is an OKF Harness workspace.
 
 ${routeLabel}
 
-- \`${routePrefix}okf-harness-init\` for first-time setup and adapter repair.
-- \`${routePrefix}okf-harness-ingest\` for adding or compiling sources.
-- \`${routePrefix}okf-harness-query\` for answering from the wiki.
-- \`${routePrefix}okf-harness-maintain\` for lint, repair, and graph reports.
+- \`${routePrefix}okf-harness\` for setup, check, ingest, answer, and graph workflows.
 
 Rules:
 
@@ -369,7 +347,7 @@ Rules:
 - Use \`okfh --json\` through the local shell for deterministic harness operations.
 - Desktop App and TUI sessions use the same local shell command workflow.
 - If \`okfh\` or shell access fails, run \`okfh doctor --json\` when possible and report the failed checks.
-- Run \`okfh lint --workspace <workspace> --json\` after modifying wiki files.
+- Run \`okfh check --workspace <workspace> --json\` after modifying wiki files.
 - Run \`git diff\` before final response after any file changes.
 ${managedBlockEnd}
 `,
@@ -540,10 +518,10 @@ function renderSkillFiles(adapter: AgentAdapter, version: string): RenderedAgent
       path: `${skillRoot}/${skill.name}/SKILL.md`,
       contents: renderSkill(skill, version),
     },
-    {
-      path: `${skillRoot}/${skill.name}/references/${skill.reference.path}`,
-      contents: skill.reference.body,
-    },
+    ...skill.references.map((reference) => ({
+      path: `${skillRoot}/${skill.name}/references/${reference.path}`,
+      contents: reference.body,
+    })),
   ]);
 }
 
@@ -570,7 +548,11 @@ ${numberedList(skill.requiredBehavior)}
 
 ${bulletList(skill.hardRules)}
 
-See [the ${referenceLabel(skill.reference.title)}](references/${skill.reference.path}) for details.
+## Internal Workflows
+
+${bulletList(
+  skill.references.map((reference) => `[${reference.title}](references/${reference.path})`),
+)}
 `;
 }
 
@@ -580,8 +562,4 @@ function numberedList(items: string[]): string {
 
 function bulletList(items: string[]): string {
   return items.map((item) => `- ${item}`).join("\n");
-}
-
-function referenceLabel(title: string): string {
-  return title.toLowerCase();
 }

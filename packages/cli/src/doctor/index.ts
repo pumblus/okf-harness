@@ -44,11 +44,13 @@ export type RunExecutable = (
 ) => Promise<{ stdout: string; stderr: string }>;
 
 const execFileAsync = promisify(execFile);
-const requiredSkills = [
-  "okf-harness-init",
-  "okf-harness-ingest",
-  "okf-harness-query",
-  "okf-harness-maintain",
+const requiredSkillFiles = [
+  "okf-harness/SKILL.md",
+  "okf-harness/references/setup.md",
+  "okf-harness/references/check.md",
+  "okf-harness/references/ingest.md",
+  "okf-harness/references/answer.md",
+  "okf-harness/references/graph.md",
 ] as const;
 
 export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorResult> {
@@ -295,8 +297,8 @@ async function checkAdapter(
   if (rootContents === undefined) {
     missingFiles.push(rootGuidance);
   }
-  for (const skill of requiredSkills) {
-    const skillPath = `${skillRoot}/${skill}/SKILL.md`;
+  for (const skill of requiredSkillFiles) {
+    const skillPath = `${skillRoot}/${skill}`;
     if (!(await fileExists(path.join(workspaceRoot, skillPath)))) {
       missingFiles.push(skillPath);
     }

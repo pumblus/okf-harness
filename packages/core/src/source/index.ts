@@ -203,7 +203,7 @@ export async function createIngestPlan(
       `Create or update exactly one reference document at ${recommendedReferencePath}.`,
       "Update only affected topic, entity, project, decision, or question concept documents.",
       "Preserve uncertainty and contradictions; do not invent claims or citations.",
-      "Run okfh lint --workspace <workspace> --json after wiki edits.",
+      "Run okfh check --workspace <workspace> --json after wiki edits.",
     ],
   };
 }

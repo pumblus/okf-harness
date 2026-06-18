@@ -3,10 +3,10 @@ import { type InstallAgentAdaptersResult, installAgentAdapters } from "@okf-harn
 import {
   addSource,
   buildWorkspaceGraph,
+  checkLintResult,
   createIngestPlan,
   type InitWorkspaceResult,
   initWorkspace,
-  lintWorkspace,
   listSources,
   readWorkspaceDocument,
   readWorkspaceStatus,
@@ -58,18 +58,33 @@ export async function runCli(
     .description("Initialize an OKF Harness workspace.")
     .storeOptionsAsProperties(false)
     .requiredOption("--name <name>", "workspace display name")
-    .option("--agents <agents>", "agent adapters to install: claude, codex, all, none", "all")
+    .option("--agents <agents>", "agent adapters to install: claude, codex, all, none")
     .option("--dry-run", "return the planned writes without creating files")
     .option("--git", "initialize a git repository without committing")
     .option("--json", "write machine-readable JSON")
     .action(async (workspace: string, command: Command) => {
       const options = command.opts() as {
         name: string;
-        agents: string;
+        agents?: string;
         dryRun?: boolean;
         git?: boolean;
         json?: boolean;
       };
+      if (options.agents === undefined) {
+        writeValidationError(io, {
+          command: "init",
+          code: "AGENT_TARGET_REQUIRED",
+          message:
+            "Choose an agent adapter with --agents codex or --agents claude. Use --agents all only if you want both.",
+          workspace: path.resolve(workspace),
+          next: [
+            "Rerun okfh init with --agents codex, --agents claude, --agents all, or --agents none.",
+          ],
+          json: options.json === true,
+        });
+        exitCode = 1;
+        return;
+      }
       const agentTarget = parseInitAgentTarget(options.agents);
       if (agentTarget === undefined) {
         writeValidationError(io, {
@@ -148,7 +163,7 @@ export async function runCli(
         warnings: filterAgentPackPendingWarnings(result.warnings),
         next: [
           "Use the generated OKF Harness skills from Claude Code or Codex.",
-          "Run okfh lint --workspace <path> --json after editing wiki files.",
+          "Run okfh check --workspace <path> --json after editing wiki files.",
         ],
       };
 
@@ -166,8 +181,9 @@ export async function runCli(
       const options = command.opts() as { workspace?: string; json?: boolean };
       const workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
       const result = await readWorkspaceStatus(workspaceRoot);
+      const check = checkLintResult(result.lint);
       const envelope: JsonEnvelope = {
-        ok: result.initialized && result.lint.ok,
+        ok: result.initialized && check.status !== "blocked",
         command: "status",
         workspace: result.workspaceRoot,
         data: {
@@ -175,7 +191,10 @@ export async function runCli(
           name: result.name,
           wikiFiles: result.wikiFiles,
           concepts: result.concepts,
-          lint: result.lint,
+          check: {
+            status: check.status,
+            okfVersion: check.okfVersion,
+          },
           capabilities: {
             search: "available",
             read: "available",
@@ -194,6 +213,45 @@ export async function runCli(
     });
 
   program
+    .command("check")
+    .description("Check OKF conformance and OKF Harness maintainability.")
+    .storeOptionsAsProperties(false)
+    .option("--workspace <path>", "workspace path")
+    .option("--json", "write machine-readable JSON")
+    .action(async (command: Command) => {
+      const options = command.opts() as { workspace?: string; json?: boolean };
+      const workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+      const workspaceStatus = await readWorkspaceStatus(workspaceRoot);
+      if (!workspaceStatus.initialized) {
+        writeValidationError(io, {
+          command: "check",
+          code: "WORKSPACE_NOT_INITIALIZED",
+          message: "Workspace is not initialized. Run okfh init first.",
+          workspace: workspaceStatus.workspaceRoot,
+          next: ["Run okfh init <workspace> --name <name> --agents <agent> --json first."],
+          json: options.json === true,
+        });
+        exitCode = 1;
+        return;
+      }
+      const check = checkLintResult(workspaceStatus.lint);
+      const blocked = check.status === "blocked";
+      const envelope: JsonEnvelope = {
+        ok: !blocked,
+        command: "check",
+        workspace: workspaceRoot,
+        data: check,
+        warnings: [],
+        next: blocked
+          ? ["Fix OKF conformance findings, then rerun okfh check --workspace <path> --json."]
+          : [],
+      };
+
+      writeResult(io, envelope, options.json);
+      exitCode = blocked ? 1 : 0;
+    });
+
+  program
     .command("lint")
     .description("Lint an OKF Harness workspace.")
     .storeOptionsAsProperties(false)
@@ -202,18 +260,20 @@ export async function runCli(
     .action(async (command: Command) => {
       const options = command.opts() as { workspace?: string; json?: boolean };
       const workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
-      const lint = await lintWorkspace(workspaceRoot);
       const envelope: JsonEnvelope = {
-        ok: lint.ok,
+        ok: false,
         command: "lint",
         workspace: workspaceRoot,
-        data: lint,
+        data: {
+          retired: true,
+          replacement: "check",
+        },
         warnings: [],
-        next: lint.ok ? [] : ["Fix lint errors and rerun okfh lint --workspace <path> --json."],
+        next: ["Use okfh check --workspace <path> --json instead."],
       };
 
       writeResult(io, envelope, options.json);
-      exitCode = lint.ok ? 0 : 1;
+      exitCode = 1;
     });
 
   program

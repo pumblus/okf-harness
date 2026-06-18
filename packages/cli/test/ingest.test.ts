@@ -9,10 +9,13 @@ describe("@okf-harness/cli ingest", () => {
   it("creates a metadata-level ingest plan for a registered source", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
     await writeFile(
       path.join(workspace, "wiki/topics/llm-wiki.md"),
       "---\ntype: topic\ntitle: LLM Wiki\ntags: [llm, wiki]\n---\n# LLM Wiki\n",
@@ -64,7 +67,7 @@ describe("@okf-harness/cli ingest", () => {
           ],
           checklist: expect.arrayContaining([
             expect.stringContaining("Read the full registered source"),
-            expect.stringContaining("Run okfh lint --workspace <workspace> --json"),
+            expect.stringContaining("Run okfh check --workspace <workspace> --json"),
           ]),
         },
         warnings: [],

@@ -5,6 +5,7 @@ export const packageInfo = {
 
 export type PackageInfo = typeof packageInfo;
 
+export * from "./check/index.js";
 export * from "./config/index.js";
 export * from "./graph/index.js";
 export * from "./lint/index.js";

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
 
 describe("@okf-harness/cli init", () => {
-  it("initializes a workspace with Claude and Codex adapters by default", async () => {
+  it("requires an explicit agent adapter for direct CLI initialization", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     let stdout = "";
@@ -13,6 +13,39 @@ describe("@okf-harness/cli init", () => {
 
     const exitCode = await runCli(
       ["node", "okfh", "init", workspace, "--name", "AI Research", "--json"],
+      {
+        writeOut: (chunk) => {
+          stdout += chunk;
+        },
+        writeErr: (chunk) => {
+          stderr += chunk;
+        },
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(stdout).toBe("");
+    expect(JSON.parse(stderr)).toMatchObject({
+      ok: false,
+      command: "init",
+      workspace,
+      data: {},
+      error: {
+        code: "AGENT_TARGET_REQUIRED",
+        message:
+          "Choose an agent adapter with --agents codex or --agents claude. Use --agents all only if you want both.",
+      },
+    });
+  });
+
+  it("initializes a workspace with the requested Codex adapter", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "codex", "--json"],
       {
         writeOut: (chunk) => {
           stdout += chunk;
@@ -34,16 +67,13 @@ describe("@okf-harness/cli init", () => {
         name: "AI Research",
         lint: { ok: true },
         agents: {
-          requested: "all",
+          requested: "codex",
         },
       },
       warnings: [],
     });
     expect(result.data.agents.install.writtenFiles).toEqual(
-      expect.arrayContaining([
-        ".claude/skills/okf-harness-init/SKILL.md",
-        ".agents/skills/okf-harness-init/SKILL.md",
-      ]),
+      expect.arrayContaining([".agents/skills/okf-harness/SKILL.md"]),
     );
 
     const config = await readFile(path.join(workspace, "okfh.config.yaml"), "utf8");
@@ -52,12 +82,14 @@ describe("@okf-harness/cli init", () => {
     await expect(readFile(path.join(workspace, "wiki/index.md"), "utf8")).resolves.toContain(
       "# AI Research Wiki",
     );
-    await expect(readFile(path.join(workspace, "CLAUDE.md"), "utf8")).resolves.toContain(
-      "/okf-harness-init",
-    );
     await expect(readFile(path.join(workspace, "AGENTS.md"), "utf8")).resolves.toContain(
-      "$okf-harness-init",
+      "$okf-harness",
     );
+    await expect(
+      stat(path.join(workspace, ".claude/skills/okf-harness/SKILL.md")),
+    ).rejects.toMatchObject({
+      code: "ENOENT",
+    });
     expect((await stat(path.join(workspace, "raw/inbox/README.md"))).isFile()).toBe(true);
   });
 
@@ -68,7 +100,18 @@ describe("@okf-harness/cli init", () => {
     let stderr = "";
 
     const exitCode = await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--dry-run", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "all",
+        "--dry-run",
+        "--json",
+      ],
       {
         writeOut: (chunk) => {
           stdout += chunk;
@@ -92,8 +135,8 @@ describe("@okf-harness/cli init", () => {
           "wiki/index.md",
           "CLAUDE.md",
           "AGENTS.md",
-          ".claude/skills/okf-harness-init/SKILL.md",
-          ".agents/skills/okf-harness-init/SKILL.md",
+          ".claude/skills/okf-harness/SKILL.md",
+          ".agents/skills/okf-harness/SKILL.md",
         ]),
       },
       warnings: [],
@@ -148,7 +191,7 @@ describe("@okf-harness/cli init", () => {
     let stderr = "";
 
     const exitCode = await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--json"],
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
       {
         writeOut: (chunk) => {
           stdout += chunk;
@@ -210,7 +253,18 @@ describe("@okf-harness/cli init", () => {
     let stderr = "";
 
     const exitCode = await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--git", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "none",
+        "--git",
+        "--json",
+      ],
       {
         writeOut: (chunk) => {
           stdout += chunk;

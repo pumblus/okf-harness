@@ -10,10 +10,13 @@ describe("@okf-harness/cli doctor", () => {
   it("checks CLI dependencies and installed adapters for an initialized workspace", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(["node", "okfh", "init", workspace, "--name", "AI Research", "--json"], {
-      writeOut: () => {},
-      writeErr: () => {},
-    });
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "all", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
 
     const result = await runJsonCli(["node", "okfh", "doctor", "--workspace", workspace, "--json"]);
 
