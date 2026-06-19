@@ -45,7 +45,10 @@ async function main() {
     await mkdir(installDir, { recursive: true });
 
     console.log("building workspace");
-    await run("pnpm", ["build"], { cwd: repoRoot, stdio: "inherit" });
+    await run("pnpm", ["--recursive", "--filter", "@okf-harness/*", "build"], {
+      cwd: repoRoot,
+      stdio: "inherit",
+    });
 
     await writeFile(
       path.join(installDir, "package.json"),
@@ -201,7 +204,19 @@ async function main() {
 }
 
 function runInstalledBin(installDir, binName, args) {
-  return run("npm", ["exec", "--", binName, ...args], { cwd: installDir });
+  return installedCliBinPath(installDir, binName).then((binPath) =>
+    run(process.execPath, [binPath, ...args], { cwd: installDir }),
+  );
+}
+
+async function installedCliBinPath(installDir, binName) {
+  const packageRoot = path.join(installDir, "node_modules", "@okf-harness", "cli");
+  const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
+  const binTarget = packageJson.bin?.[binName];
+  if (binTarget !== "dist/main.js") {
+    throw new Error(`Installed CLI bin ${binName} points to ${JSON.stringify(binTarget)}`);
+  }
+  return path.join(packageRoot, binTarget);
 }
 
 function run(command, args, options) {
