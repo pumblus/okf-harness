@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -12,6 +12,7 @@ describe("@okf-harness/cli query workflow", () => {
     await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {
       recursive: true,
     });
+    await mkdir(path.join(workspace, ".git"));
     const expectedWorkspaceRealPath = await realpath(workspace);
     const previousCwd = process.cwd();
     process.chdir(path.join(workspace, "wiki/topics"));

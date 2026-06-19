@@ -44,6 +44,8 @@ npm install -g @okf-harness/cli
 okfh doctor --json
 ```
 
+Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; and the `@okf-harness/cli` package. Repository development additionally needs `pnpm`, but a normal installed `okfh doctor --json` does not check for it.
+
 You can run that command yourself, or ask your agent to check whether `okfh` is installed. If an agent needs to install a global npm package, it must ask for your explicit approval first.
 
 The recommended parent folder is only a convention, not a hidden CLI default. On macOS or Linux, use `$HOME/Documents/OKF Harness`. On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness`. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.

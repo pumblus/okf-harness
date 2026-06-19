@@ -17,12 +17,14 @@ okfh doctor --json
 npx --package @okf-harness/cli okfh doctor --json
 ```
 
-环境要求：
+普通使用环境要求：
 
 - macOS、Windows 或 Linux
 - Node.js 22 或更高版本
 - git
-- 参与仓库开发需要 pnpm
+- `@okf-harness/cli`
+
+参与仓库开发时额外需要 `pnpm`；用 `okfh doctor --dev --json` 检查开发环境。
 
 ## Workspace 规则
 
@@ -57,11 +59,12 @@ npx --package @okf-harness/cli okfh doctor --json
 
 ### doctor
 
-检查 CLI 运行环境、Node.js、git、pnpm，以及可解析到 workspace 时的 workspace 就绪状态。
+检查 CLI 运行环境、Node.js、git、运行平台，以及可解析到 workspace 时的 workspace 就绪状态。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
 
 ```bash
 okfh doctor --json
 okfh doctor --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh doctor --dev --json
 ```
 
 `doctor` 不会写入任何文件。

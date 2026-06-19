@@ -17,12 +17,14 @@ Trial run without a global install:
 npx --package @okf-harness/cli okfh doctor --json
 ```
 
-Requirements:
+Requirements for normal use:
 
 - macOS, Windows, or Linux
 - Node.js 22 or newer
 - git
-- pnpm for repository development
+- `@okf-harness/cli`
+
+Repository development additionally requires `pnpm`; check that environment with `okfh doctor --dev --json`.
 
 ## Workspace Rules
 
@@ -57,11 +59,12 @@ Failures use the same shape with `ok: false` and an `error` object. Agent guidan
 
 ### doctor
 
-Checks the running CLI, Node.js, git, pnpm, and workspace readiness when a workspace can be resolved.
+Checks the running CLI, Node.js, git, runtime platform, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
 
 ```bash
 okfh doctor --json
 okfh doctor --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh doctor --dev --json
 ```
 
 `doctor` does not write files.

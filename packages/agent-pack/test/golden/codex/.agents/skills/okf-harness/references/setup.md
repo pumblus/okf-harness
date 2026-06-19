@@ -1,16 +1,24 @@
 # Setup Workflow
 
-## First-Time Setup
+## Intent
 
-Choose the command for the current agent.
+Create an OKF Harness workspace or repair the current agent adapter's unified One Door skill.
 
-Codex:
+## Preconditions
+
+- For first-time setup, the user supplied or accepted a workspace path and name.
+- For repair, the workspace resolves to `okfh.config.yaml`.
+- Install the current agent's adapter unless the user explicitly asks for both Claude Code and Codex.
+
+## Allowed Commands
+
+First-time setup for Codex:
 
 ```bash
 okfh init <workspace> --name <name> --agents codex --json
 ```
 
-Claude Code:
+First-time setup for Claude Code:
 
 ```bash
 okfh init <workspace> --name <name> --agents claude --json
@@ -18,30 +26,31 @@ okfh init <workspace> --name <name> --agents claude --json
 
 Use `--agents all` only when the user explicitly asks to prepare both supported agents. Use `--agents none` only for advanced or developer setup.
 
-## Repair Adapter Support
-
-Choose the repair command for the current agent.
-
-Codex:
+Repair adapter support for Codex:
 
 ```bash
 okfh agent install codex --workspace <workspace> --json
 ```
 
-Claude Code:
+Repair adapter support for Claude Code:
 
 ```bash
 okfh agent install claude --workspace <workspace> --json
 ```
 
-Do not install both adapters unless the user asks for both. If the command returns conflicts, explain the conflicting paths and ask before using `--force`.
-
-## Completion Check
-
-After setup or repair, run:
+Completion check:
 
 ```bash
 okfh status --workspace <workspace> --json
 ```
+
+## Allowed Writes
+
+- `okfh init` may create the workspace skeleton, config, wiki seed files, and selected adapter files.
+- `okfh agent install` may write managed root guidance and the unified `okf-harness` skill for the selected adapter.
+- The CLI may back up old workflow skill directories under `.okfh/backups/agent-skills/`.
+- Do not install both adapters unless the user asks for both. If the command returns conflicts, explain the conflicting paths and ask before using `--force`.
+
+## Completion Condition
 
 Finish by reporting the resolved workspace path, the adapter that was installed or repaired, any conflicts, and the client-specific refresh step: a fresh Codex thread or a fresh Claude Code session.

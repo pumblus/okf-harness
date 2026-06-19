@@ -30,6 +30,8 @@ okfh doctor --json
 mkdir -p "$HOME/Documents/OKF Harness"
 ```
 
+Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; and `@okf-harness/cli`. `pnpm` is only for repository development.
+
 You can also ask your agent to check whether `okfh` is installed. The agent must ask for explicit approval before installing a global npm package.
 
 ## Start With Your Agent

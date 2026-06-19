@@ -30,6 +30,8 @@ okfh doctor --json
 mkdir -p "$HOME/Documents/OKF Harness"
 ```
 
+普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、git，以及 `@okf-harness/cli`。`pnpm` 只用于仓库开发。
+
 你也可以让 agent 检查本机是否已经安装 `okfh`。如果 agent 需要安装全局 npm 包，必须先得到你的明确同意。
 
 ## 从你的 agent 开始

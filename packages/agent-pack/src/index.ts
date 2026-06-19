@@ -1,4 +1,5 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { cp, lstat, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export const packageInfo = {
@@ -52,205 +53,24 @@ export type InstallAgentAdaptersResult = {
   plannedFiles: string[];
   replacedFiles: string[];
   removedFiles: string[];
+  backupDirectories: string[];
   skippedFiles: string[];
   conflicts: AgentInstallConflict[];
   managedBlocks: ManagedBlockResult[];
 };
 
-type SkillTemplate = {
-  name: string;
-  title: string;
-  description: string;
-  summary: string;
-  requiredBehavior: string[];
-  hardRules: string[];
-  references: Array<{
-    path: string;
-    title: string;
-    body: string;
-  }>;
-};
-
-const defaultVersion = "0.2";
+const packageVersion = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+) as { version: string };
 const managedBlockStart = "<!-- OKF Harness: start -->";
 const managedBlockEnd = "<!-- OKF Harness: end -->";
-
-const skillTemplates: SkillTemplate[] = [
-  {
-    name: "okf-harness",
-    title: "OKF Harness",
-    description:
-      "One Door entrypoint for OKF Harness workspaces. Use when the user asks to set up a workspace, check or maintain it, ingest source material, answer from it, or generate its graph. Do not use old workflow-specific skill names or an `okfh query` command.",
-    summary:
-      "Route the request to the matching internal workflow, load only the needed reference, and finish on that reference's completion check.",
-    requiredBehavior: [
-      "Classify the request into setup, check, ingest, answer, graph, or a user-ordered combination of those workflows.",
-      "Resolve the workspace by finding `okfh.config.yaml`, except during first-time setup where the workspace path is being created.",
-      "Run harness operations through local-shell `okfh --json` commands and read their JSON before deciding the next step.",
-      "Load only the reference needed for the current workflow; for combined requests, load the next reference only when that workflow starts.",
-      "After any wiki edit, run `okfh check --workspace <workspace> --json` and report the check status before broader cleanup advice.",
-      "If files changed, run `git diff` and name the changed files before the final response.",
-    ],
-    hardRules: [
-      "Do not expose old workflow-specific skill names to users.",
-      "Do not create a workspace skeleton by hand; use `okfh init`.",
-      "Never edit `raw/sources/`; register corrected material as a new source.",
-      "Never invent source IDs, citations, dates, claims, or command output.",
-      "Do not add plugin, hook, Pi, OpenCode, Obsidian, GUI, MCP, or vector-search setup.",
-    ],
-    references: [
-      {
-        path: "setup.md",
-        title: "Setup Workflow",
-        body: `# Setup Workflow
-
-## First-Time Setup
-
-Choose the command for the current agent.
-
-Codex:
-
-\`\`\`bash
-okfh init <workspace> --name <name> --agents codex --json
-\`\`\`
-
-Claude Code:
-
-\`\`\`bash
-okfh init <workspace> --name <name> --agents claude --json
-\`\`\`
-
-Use \`--agents all\` only when the user explicitly asks to prepare both supported agents. Use \`--agents none\` only for advanced or developer setup.
-
-## Repair Adapter Support
-
-Choose the repair command for the current agent.
-
-Codex:
-
-\`\`\`bash
-okfh agent install codex --workspace <workspace> --json
-\`\`\`
-
-Claude Code:
-
-\`\`\`bash
-okfh agent install claude --workspace <workspace> --json
-\`\`\`
-
-Do not install both adapters unless the user asks for both. If the command returns conflicts, explain the conflicting paths and ask before using \`--force\`.
-
-## Completion Check
-
-After setup or repair, run:
-
-\`\`\`bash
-okfh status --workspace <workspace> --json
-\`\`\`
-
-Finish by reporting the resolved workspace path, the adapter that was installed or repaired, any conflicts, and the client-specific refresh step: a fresh Codex thread or a fresh Claude Code session.
-`,
-      },
-      {
-        path: "check.md",
-        title: "Check Workflow",
-        body: `# Check Workflow
-
-Run:
-
-\`\`\`bash
-okfh check --workspace <workspace> --json
-\`\`\`
-
-Report the check status first:
-
-- \`ready\`: OKF conformance passes and Harness lint has no findings.
-- \`needs_attention\`: OKF conformance passes, but Harness lint has maintainability or evidence-integrity findings.
-- \`blocked\`: OKF conformance fails and the workspace is not OKF-readable.
-
-Keep OKF conformance separate from Harness lint. High-priority Harness lint requires risk disclosure, but it blocks only answers that directly depend on affected source or reference records.
-
-Do not fix findings during a plain check request. If the user asked to fix findings too, make only the requested wiki edits and run check again.
-
-## Completion Check
-
-Finish with the check status, OKF version, OKF conformance result, Harness priority counts, and the first concrete next step. If the status is \`blocked\`, put OKF conformance findings before Harness lint advice.
-`,
-      },
-      {
-        path: "ingest.md",
-        title: "Ingest Workflow",
-        body: `# Ingest Workflow
-
-Register source material before synthesis:
-
-\`\`\`bash
-okfh source add <path-or-url> --workspace <workspace> --json
-okfh ingest plan <source-id-or-path> --workspace <workspace> --json
-\`\`\`
-
-The ingest plan is metadata-level guidance. It returns a recommended reference path, candidate concepts, and an agent checklist; it does not read source bodies, summarize content, extract claims, or synthesize wiki pages.
-
-After the plan, read the registered source material and update only the relevant reference, topic, index, or log files. Keep raw sources immutable.
-
-After wiki edits, run:
-
-\`\`\`bash
-okfh check --workspace <workspace> --json
-\`\`\`
-
-## Completion Check
-
-Finish with the registered source ID, changed wiki paths, check status, and unresolved questions. If registration or planning fails, stop before wiki edits and report the failing command's JSON error.
-`,
-      },
-      {
-        path: "answer.md",
-        title: "Answer Workflow",
-        body: `# Answer Workflow
-
-Use the CLI as the deterministic retrieval layer:
-
-\`\`\`bash
-okfh status --workspace <workspace> --json
-okfh read index --workspace <workspace> --json
-okfh search "<question>" --workspace <workspace> --json
-okfh read <concept-id-or-path> --workspace <workspace> --json
-\`\`\`
-
-There is no \`okfh query\` command in the current CLI. Do not run or hallucinate an \`okfh query\` command. Compose answers from search candidate cards plus bounded reads.
-
-Use \`okfh check --workspace <workspace> --json\` when status is missing, stale, blocked, or the answer depends on high-priority Harness lint findings. Do not run a full check before every answer when current status is already trustworthy.
-
-## Completion Check
-
-Answer directly first. Then list supporting concept paths and available source IDs. If hits are weak, citations are missing, or only wiki synthesis was read, state the evidence limit plainly.
-`,
-      },
-      {
-        path: "graph.md",
-        title: "Graph Workflow",
-        body: `# Graph Workflow
-
-Run graph only when the user asks to visualize or generate a graph report:
-
-\`\`\`bash
-okfh graph --workspace <workspace> --json
-\`\`\`
-
-Use \`--open\` only when the user asks to open the report. Do not hand-roll graph reports.
-
-## Completion Check
-
-Finish with the generated HTML path and backlinks path from the command output. If opening fails but generation succeeds, report the file path and the opener error separately.
-`,
-      },
-    ],
-  },
-];
+const skillName = "okf-harness";
+const skillDescription =
+  "One Door workflow for OKF Harness workspaces. Use when the user asks to set up, check, ingest into, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, ordinary repository maintenance, knowledge-base tasks outside an OKF Harness workspace, repository dependency graphs, old workflow-specific skill names, or an `okfh query` command.";
+const referenceTemplatePaths = ["setup.md", "check.md", "ingest.md", "answer.md", "graph.md"];
 
 export function renderAgentAdapter(options: RenderAgentAdapterOptions): RenderedAgentAdapter {
-  const version = options.version ?? defaultVersion;
+  const version = options.version ?? packageVersion.version;
   return {
     adapter: options.adapter,
     files: [renderRootGuidance(options.adapter), ...renderSkillFiles(options.adapter, version)],
@@ -292,6 +112,7 @@ function createInstallResult(
     plannedFiles: [],
     replacedFiles: [],
     removedFiles: [],
+    backupDirectories: [],
     skippedFiles: [],
     conflicts: [],
     managedBlocks: [],
@@ -304,13 +125,16 @@ async function planAgentAdapterWrites(
   context: { dryRun: boolean; force: boolean; result: InstallAgentAdaptersResult },
 ): Promise<void> {
   for (const adapter of adaptersForTarget(adapterTarget)) {
-    await planOldWorkflowSkillCleanup(workspaceRoot, adapter, context);
+    const conflictCountBeforeAdapter = context.result.conflicts.length;
     for (const file of renderAgentAdapter({ adapter }).files) {
       if (isRootGuidancePath(file.path)) {
         await planRootGuidanceWrite(workspaceRoot, file, context);
       } else {
         await planManagedFileWrite(workspaceRoot, file, context);
       }
+    }
+    if (context.result.conflicts.length === conflictCountBeforeAdapter) {
+      await planOldWorkflowSkillCleanup(workspaceRoot, adapter, context);
     }
   }
 }
@@ -329,27 +153,21 @@ async function planOldWorkflowSkillCleanup(
 ): Promise<void> {
   const skillRoot = adapter === "claude" ? ".claude/skills" : ".agents/skills";
   for (const skillName of oldWorkflowSkillNames) {
-    const skillPath = `${skillRoot}/${skillName}/SKILL.md`;
+    const skillDirectory = `${skillRoot}/${skillName}`;
+    const skillPath = `${skillDirectory}/SKILL.md`;
+    if (!(await directoryExists(path.join(workspaceRoot, skillDirectory)))) {
+      continue;
+    }
+
     const skillContents = await readOptionalTextFile(path.join(workspaceRoot, skillPath));
-    if (skillContents === undefined) {
-      continue;
-    }
-
-    if (!isHarnessManagedSkill(skillContents)) {
-      context.result.conflicts.push({
-        path: skillPath,
-        reason:
-          "Old OKF Harness workflow skill is not marked as managed. It was preserved for review.",
-      });
-      continue;
-    }
-
-    context.result.removedFiles.push(skillPath);
+    context.result.removedFiles.push(skillContents === undefined ? skillDirectory : skillPath);
     if (context.dryRun) {
       continue;
     }
 
-    await rm(path.join(workspaceRoot, skillRoot, skillName), { recursive: true, force: true });
+    const backupDirectory = await backupOldWorkflowSkillDirectory(workspaceRoot, skillDirectory);
+    context.result.backupDirectories.push(backupDirectory);
+    await rm(path.join(workspaceRoot, skillDirectory), { recursive: true, force: true });
   }
 }
 
@@ -445,6 +263,7 @@ async function planManagedFileWrite(
   if (
     existing !== undefined &&
     !isHarnessManagedSkill(existing) &&
+    !(await hasManagedSiblingSkill(workspaceRoot, file.path)) &&
     !isBaseWorkspacePlaceholder(existing) &&
     !context.force
   ) {
@@ -512,8 +331,106 @@ function extractManagedBlock(contents: string): string {
   return contents.slice(start, end + managedBlockEnd.length);
 }
 
+async function backupOldWorkflowSkillDirectory(
+  workspaceRoot: string,
+  skillDirectory: string,
+): Promise<string> {
+  const backupRoot = path.join(
+    workspaceRoot,
+    ".okfh/backups/agent-skills",
+    backupTimestamp(new Date()),
+  );
+  const source = path.join(workspaceRoot, skillDirectory);
+  const destination = path.join(backupRoot, skillDirectory);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await cp(source, destination, { recursive: true });
+  return toPosixRelativePath(workspaceRoot, destination);
+}
+
+function backupTimestamp(date: Date): string {
+  return date
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z")
+    .replaceAll(":", "");
+}
+
 function isHarnessManagedSkill(contents: string): boolean {
-  return contents.includes("okf-harness-managed: true");
+  const frontmatter = frontmatterBlock(contents);
+  if (frontmatter === undefined) {
+    return false;
+  }
+
+  return frontmatterMetadataValue(frontmatter, "okf-harness-managed") === "true";
+}
+
+async function hasManagedSiblingSkill(workspaceRoot: string, filePath: string): Promise<boolean> {
+  const siblingSkillPath = siblingSkillPathForReference(filePath);
+  if (siblingSkillPath === undefined) {
+    return false;
+  }
+
+  const contents = await readOptionalTextFile(path.join(workspaceRoot, siblingSkillPath));
+  return contents !== undefined && isHarnessManagedSkill(contents);
+}
+
+function siblingSkillPathForReference(filePath: string): string | undefined {
+  const segments = filePath.split("/");
+  const skillsIndex = segments.indexOf("skills");
+  if (
+    skillsIndex === -1 ||
+    segments[skillsIndex + 1] === undefined ||
+    segments[skillsIndex + 2] !== "references"
+  ) {
+    return undefined;
+  }
+
+  return [...segments.slice(0, skillsIndex + 2), "SKILL.md"].join("/");
+}
+
+function frontmatterBlock(contents: string): string | undefined {
+  if (!contents.startsWith("---\n")) {
+    return undefined;
+  }
+  const end = contents.indexOf("\n---", "---\n".length);
+  return end === -1 ? undefined : contents.slice("---\n".length, end);
+}
+
+function frontmatterMetadataValue(frontmatter: string, key: string): string | undefined {
+  let inMetadata = false;
+  for (const line of frontmatter.split(/\r?\n/)) {
+    if (/^\S/.test(line)) {
+      inMetadata = line.trim() === "metadata:";
+      continue;
+    }
+    if (!inMetadata) {
+      continue;
+    }
+
+    const match = new RegExp(`^\\s{2}${escapeRegExp(key)}:\\s*(.+?)\\s*$`).exec(line);
+    if (match?.[1] !== undefined) {
+      return parseFrontmatterScalar(match[1]);
+    }
+  }
+  return undefined;
+}
+
+function parseFrontmatterScalar(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function toPosixRelativePath(from: string, to: string): string {
+  return path.relative(from, to).split(path.sep).join(path.posix.sep);
 }
 
 function isBaseWorkspacePlaceholder(contents: string): boolean {
@@ -534,6 +451,17 @@ async function readOptionalTextFile(filePath: string): Promise<string | undefine
   }
 }
 
+async function directoryExists(filePath: string): Promise<boolean> {
+  try {
+    return (await lstat(filePath)).isDirectory();
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function writeRenderedFile(filePath: string, contents: string): Promise<void> {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, contents, "utf8");
@@ -545,53 +473,32 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 
 function renderSkillFiles(adapter: AgentAdapter, version: string): RenderedAgentFile[] {
   const skillRoot = adapter === "claude" ? ".claude/skills" : ".agents/skills";
-  return skillTemplates.flatMap((skill) => [
+  return [
     {
-      path: `${skillRoot}/${skill.name}/SKILL.md`,
-      contents: renderSkill(skill, version),
+      path: `${skillRoot}/${skillName}/SKILL.md`,
+      contents: renderSkill(version),
     },
-    ...skill.references.map((reference) => ({
-      path: `${skillRoot}/${skill.name}/references/${reference.path}`,
-      contents: reference.body,
+    ...referenceTemplatePaths.map((templatePath) => ({
+      path: `${skillRoot}/${skillName}/references/${templatePath}`,
+      contents: readTemplate(`references/${templatePath}`),
     })),
-  ]);
+  ];
 }
 
-function renderSkill(skill: SkillTemplate, version: string): string {
+function renderSkill(version: string): string {
   return `---
-name: ${skill.name}
-description: ${skill.description}
+name: ${skillName}
+description: ${skillDescription}
 license: Apache-2.0
 compatibility: Designed for Claude Code and Codex with local shell command access. Requires the okfh CLI.
 metadata:
   okf-harness-version: "${version}"
-  okf-harness-managed: true
+  okf-harness-managed: "true"
 ---
 
-# ${skill.title}
-
-${skill.summary}
-
-## Required Behavior
-
-${numberedList(skill.requiredBehavior)}
-
-## Hard Rules
-
-${bulletList(skill.hardRules)}
-
-## Internal Workflows
-
-${bulletList(
-  skill.references.map((reference) => `[${reference.title}](references/${reference.path})`),
-)}
-`;
+${readTemplate("SKILL.md")}`;
 }
 
-function numberedList(items: string[]): string {
-  return items.map((item, index) => `${index + 1}. ${item}`).join("\n");
-}
-
-function bulletList(items: string[]): string {
-  return items.map((item) => `- ${item}`).join("\n");
+function readTemplate(relativePath: string): string {
+  return readFileSync(new URL(`../templates/okf-harness/${relativePath}`, import.meta.url), "utf8");
 }

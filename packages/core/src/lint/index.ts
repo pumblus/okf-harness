@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { CONFIG_INVALID, readWorkspaceConfig } from "../config/index.js";
+import { CONFIG_INVALID, readWorkspaceConfig, type WorkspaceConfig } from "../config/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
 import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
 import { readSourceManifest, type SourceManifestEntry } from "../source/index.js";
@@ -35,6 +35,7 @@ export const REFERENCE_SOURCE_MISSING = "REFERENCE_SOURCE_MISSING" as const;
 export const BROKEN_LINK = "BROKEN_LINK" as const;
 export const MISSING_INDEX_ENTRY = "MISSING_INDEX_ENTRY" as const;
 export const MISSING_CITATIONS_SECTION = "MISSING_CITATIONS_SECTION" as const;
+export const GIT_CHECKPOINT_POLICY_NOT_ENFORCED = "GIT_CHECKPOINT_POLICY_NOT_ENFORCED" as const;
 
 export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> {
   const configResult = await readWorkspaceConfig(workspaceRoot);
@@ -68,6 +69,7 @@ export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> 
     const issues = [
       ...scanResult.files.flatMap((file) => lintMarkdownFile(file)),
       ...lintWikiWarnings(scanResult.files),
+      ...(await lintSafetyWarnings(workspaceRoot, configResult.config)),
       ...sourceManifest.issues.map(
         (issue) =>
           ({
@@ -97,6 +99,28 @@ export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> 
       ],
     };
   }
+}
+
+async function lintSafetyWarnings(
+  workspaceRoot: string,
+  config: WorkspaceConfig,
+): Promise<LintIssue[]> {
+  if (
+    !config.safety.require_git_checkpoint_before_agent_write ||
+    (await isInsideGitWorkTree(workspaceRoot))
+  ) {
+    return [];
+  }
+
+  return [
+    {
+      code: GIT_CHECKPOINT_POLICY_NOT_ENFORCED,
+      severity: "warning",
+      path: "okfh.config.yaml",
+      message:
+        "Safety policy requires a Git checkpoint before agent writes, but this workspace is not inside a Git work tree. OKF Harness does not enforce automatic checkpoints in v0.3.1.",
+    },
+  ];
 }
 
 function lintReferenceSourceIds(
@@ -239,7 +263,7 @@ async function lintRegisteredSources(
 function lintMarkdownFile(file: OkfMarkdownFile): LintIssue[] {
   const issues: LintIssue[] = [];
 
-  if (file.frontmatter.ok && file.isReserved && hasFrontmatterData(file)) {
+  if (file.frontmatter.ok && file.isReserved && hasConceptFrontmatter(file.frontmatter.data)) {
     issues.push({
       code: RESERVED_FILE_HAS_CONCEPT_FRONTMATTER,
       severity: "error",
@@ -405,8 +429,8 @@ function lintLogDateHeadings(file: OkfMarkdownFile): LintIssue[] {
   });
 }
 
-function hasFrontmatterData(file: OkfMarkdownFile): boolean {
-  return file.frontmatter.ok && Object.keys(file.frontmatter.data).length > 0;
+function hasConceptFrontmatter(frontmatter: Record<string, unknown>): boolean {
+  return hasNonEmptyType(frontmatter.type);
 }
 
 function hasNonEmptyType(value: unknown): boolean {
@@ -433,4 +457,24 @@ function errorCode(error: unknown): string | undefined {
 
   const code = (error as { code?: unknown }).code;
   return typeof code === "string" ? code : undefined;
+}
+
+async function isInsideGitWorkTree(workspaceRoot: string): Promise<boolean> {
+  let current = path.resolve(workspaceRoot);
+  while (true) {
+    try {
+      await lstat(path.join(current, ".git"));
+      return true;
+    } catch (error) {
+      if (errorCode(error) !== "ENOENT") {
+        return false;
+      }
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return false;
+    }
+    current = parent;
+  }
 }

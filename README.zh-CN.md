@@ -44,6 +44,8 @@ npm install -g @okf-harness/cli
 okfh doctor --json
 ```
 
+普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、git，以及 `@okf-harness/cli` 包。只有参与仓库开发时才额外需要 `pnpm`；普通安装后的 `okfh doctor --json` 不会检查 `pnpm`。
+
 你可以自己运行这条命令，也可以让 agent 检查本机是否已经安装 `okfh`。如果 agent 需要安装全局 npm 包，必须先得到你的明确同意。
 
 推荐父目录只是一个约定，不是 CLI 隐式默认路径。macOS 或 Linux 使用 `$HOME/Documents/OKF Harness`。Windows PowerShell 使用 `$env:USERPROFILE\Documents\OKF Harness`。Command Prompt 使用 `%USERPROFILE%\Documents\OKF Harness`。

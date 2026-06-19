@@ -441,10 +441,14 @@ export async function runCli(
     .description("Check okfh, local shell dependencies, and workspace readiness.")
     .storeOptionsAsProperties(false)
     .option("--workspace <path>", "workspace path")
+    .option("--dev", "include repository-development requirements")
     .option("--json", "write machine-readable JSON")
     .action(async (command: Command) => {
-      const options = command.opts() as { workspace?: string; json?: boolean };
-      const result = await runDoctor({ workspaceRoot: options.workspace });
+      const options = command.opts() as { workspace?: string; dev?: boolean; json?: boolean };
+      const result = await runDoctor({
+        workspaceRoot: options.workspace,
+        dev: options.dev === true,
+      });
       const envelope: JsonEnvelope = {
         ok: result.ok,
         command: "doctor",

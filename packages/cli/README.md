@@ -19,6 +19,8 @@ Try without a global install:
 npx --package @okf-harness/cli okfh doctor --json
 ```
 
+Runtime requirements are macOS, Windows, or Linux; Node.js 22 or newer; git; and this package. Repository development additionally requires `pnpm` and can be checked with `okfh doctor --dev --json`.
+
 Common commands:
 
 ```bash

@@ -1,6 +1,6 @@
 {
   "name": "@okf-harness/agent-pack",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Claude and Codex adapter renderers and shared skill templates.",
   "license": "Apache-2.0",
   "type": "module",
@@ -37,7 +37,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "templates"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",

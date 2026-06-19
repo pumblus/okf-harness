@@ -11,7 +11,18 @@ describe("@okf-harness/cli doctor", () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "all", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "all",
+        "--git",
+        "--json",
+      ],
       {
         writeOut: () => {},
         writeErr: () => {},
@@ -36,7 +47,6 @@ describe("@okf-harness/cli doctor", () => {
             expect.objectContaining({ id: "platform", status: "pass" }),
             expect.objectContaining({ id: "node", status: "pass" }),
             expect.objectContaining({ id: "git", status: "pass" }),
-            expect.objectContaining({ id: "pnpm", status: "pass" }),
             expect.objectContaining({ id: "workspace-status", status: "pass" }),
             expect.objectContaining({ id: "claude-adapter", status: "pass" }),
             expect.objectContaining({ id: "codex-adapter", status: "pass" }),
@@ -80,6 +90,103 @@ describe("@okf-harness/cli doctor", () => {
     }
   });
 
+  it("does not require pnpm in default runtime doctor mode", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const runExecutable: RunExecutable = async (executable) => {
+      if (executable === "pnpm") {
+        throw Object.assign(new Error("spawn pnpm ENOENT"), { code: "ENOENT" });
+      }
+      return { stdout: `${executable} version\n`, stderr: "" };
+    };
+
+    const result = await runDoctor({
+      startDir: root,
+      runExecutable,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.checks).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "pnpm", status: "fail" })]),
+    );
+  });
+
+  it("requires pnpm in dev doctor mode", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const runExecutable: RunExecutable = async (executable) => {
+      if (executable === "pnpm") {
+        throw Object.assign(new Error("spawn pnpm ENOENT"), { code: "ENOENT" });
+      }
+      return { stdout: `${executable} version\n`, stderr: "" };
+    };
+
+    const result = await runDoctor({
+      startDir: root,
+      dev: true,
+      runExecutable,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "pnpm", status: "fail" })]),
+    );
+  });
+
+  it("exposes pnpm as a dev-mode doctor check", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const previousCwd = process.cwd();
+    process.chdir(root);
+    try {
+      const result = await runJsonCli(["node", "okfh", "doctor", "--dev", "--json"]);
+
+      expect(result).toMatchObject({
+        exitCode: 0,
+        stderr: "",
+        result: {
+          ok: true,
+          command: "doctor",
+          data: {
+            checks: expect.arrayContaining([
+              expect.objectContaining({ id: "pnpm", status: "pass" }),
+            ]),
+          },
+        },
+      });
+    } finally {
+      process.chdir(previousCwd);
+    }
+  });
+
+  it("warns when checkpoint policy is enabled outside a Git work tree", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
+
+    const result = await runJsonCli(["node", "okfh", "doctor", "--workspace", workspace, "--json"]);
+
+    expect(result).toMatchObject({
+      exitCode: 0,
+      result: {
+        ok: true,
+        data: {
+          checks: expect.arrayContaining([
+            expect.objectContaining({ id: "safety-policy", status: "warn" }),
+          ]),
+        },
+        warnings: expect.arrayContaining([
+          expect.objectContaining({
+            code: "SAFETY_POLICY",
+          }),
+        ]),
+      },
+    });
+  });
+
   it("checks Windows npm shims through a controlled shell path", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const runs: Array<{ executable: string; shell: boolean }> = [];
@@ -96,6 +203,7 @@ describe("@okf-harness/cli doctor", () => {
 
     const result = await runDoctor({
       startDir: root,
+      dev: true,
       runtimePlatform: "win32",
       runExecutable,
     });

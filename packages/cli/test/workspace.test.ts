@@ -9,7 +9,18 @@ describe("@okf-harness/cli workspace", () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "none",
+        "--git",
+        "--json",
+      ],
       {
         writeOut: () => {},
         writeErr: () => {},
@@ -52,7 +63,18 @@ describe("@okf-harness/cli workspace", () => {
     const sourcePath = path.join(root, "paper.md");
     await writeFile(sourcePath, "# Paper\n\nOriginal.\n", "utf8");
     await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "none",
+        "--git",
+        "--json",
+      ],
       {
         writeOut: () => {},
         writeErr: () => {},
@@ -103,7 +125,18 @@ describe("@okf-harness/cli workspace", () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "none",
+        "--git",
+        "--json",
+      ],
       {
         writeOut: () => {},
         writeErr: () => {},
@@ -151,7 +184,18 @@ describe("@okf-harness/cli workspace", () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "none",
+        "--git",
+        "--json",
+      ],
       {
         writeOut: () => {},
         writeErr: () => {},
@@ -183,7 +227,18 @@ describe("@okf-harness/cli workspace", () => {
     const sourcePath = path.join(root, "paper.md");
     await writeFile(sourcePath, "# Paper\n\nOriginal.\n", "utf8");
     await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "none",
+        "--git",
+        "--json",
+      ],
       {
         writeOut: () => {},
         writeErr: () => {},
@@ -233,7 +288,18 @@ describe("@okf-harness/cli workspace", () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "none",
+        "--git",
+        "--json",
+      ],
       {
         writeOut: () => {},
         writeErr: () => {},
@@ -271,7 +337,18 @@ describe("@okf-harness/cli workspace", () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "none",
+        "--git",
+        "--json",
+      ],
       {
         writeOut: () => {},
         writeErr: () => {},

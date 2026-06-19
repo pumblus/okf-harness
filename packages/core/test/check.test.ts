@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { checkWorkspace } from "../src/check/index.js";
 import { addSource } from "../src/source/index.js";
@@ -58,6 +58,25 @@ describe("OKF workspace check", () => {
     });
   });
 
+  it("keeps root index bundle metadata out of OKF conformance findings", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await writeFile(
+      `${workspaceRoot}/wiki/index.md`,
+      '---\nokf_version: "0.1"\ncustom_bundle_field: local\n---\n# AI Research Wiki\n\n- [LLM Wiki](topics/llm-wiki.md)\n- [Karpathy LLM Wiki gist](references/karpathy-llm-wiki.md)\n',
+      "utf8",
+    );
+
+    const result = await checkWorkspace(workspaceRoot);
+
+    expect(result).toMatchObject({
+      status: "ready",
+      okfConformance: {
+        ok: true,
+        findings: [],
+      },
+    });
+  });
+
   it("reports source drift as high-priority Harness lint without blocking OKF conformance", async () => {
     const workspaceRoot = await copyValidWorkspace();
     const inputPath = `${workspaceRoot}/paper.md`;
@@ -83,6 +102,34 @@ describe("OKF workspace check", () => {
             }),
           ],
           medium: [],
+          low: [],
+        },
+      },
+    });
+  });
+
+  it("reports unenforced checkpoint policy as Harness lint without blocking OKF conformance", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await rm(`${workspaceRoot}/.git`, { recursive: true });
+
+    const result = await checkWorkspace(workspaceRoot);
+
+    expect(result).toMatchObject({
+      status: "needs_attention",
+      okfConformance: {
+        ok: true,
+        findings: [],
+      },
+      harnessLint: {
+        ok: false,
+        findings: {
+          high: [],
+          medium: [
+            expect.objectContaining({
+              code: "GIT_CHECKPOINT_POLICY_NOT_ENFORCED",
+              path: "okfh.config.yaml",
+            }),
+          ],
           low: [],
         },
       },

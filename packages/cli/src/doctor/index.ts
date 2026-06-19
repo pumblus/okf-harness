@@ -3,6 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import {
+  GIT_CHECKPOINT_POLICY_NOT_ENFORCED,
   readWorkspaceStatus,
   resolveWorkspaceRoot,
   WorkspaceResolutionError,
@@ -33,6 +34,7 @@ export type DoctorResult = {
 export type RunDoctorOptions = {
   workspaceRoot?: string | undefined;
   startDir?: string | undefined;
+  dev?: boolean | undefined;
   runtimePlatform?: NodeJS.Platform | string | undefined;
   runExecutable?: RunExecutable | undefined;
 };
@@ -67,15 +69,19 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
       runtimePlatform,
       runExecutable,
     }),
-    await checkExecutable("pnpm", ["--version"], {
-      id: "pnpm",
-      label: "pnpm",
-      missingMessage: "pnpm executable was not found.",
-      outputPrefix: "pnpm ",
-      runtimePlatform,
-      runExecutable,
-    }),
   ];
+  if (options.dev === true) {
+    checks.push(
+      await checkExecutable("pnpm", ["--version"], {
+        id: "pnpm",
+        label: "pnpm",
+        missingMessage: "pnpm executable was not found.",
+        outputPrefix: "pnpm ",
+        runtimePlatform,
+        runExecutable,
+      }),
+    );
+  }
 
   const workspaceRoot = await resolveDoctorWorkspace(options, checks);
   if (workspaceRoot === null) {
@@ -84,6 +90,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     checks.push(skipCheck("codex-adapter", "Codex adapter", "No workspace was resolved."));
   } else {
     checks.push(await checkWorkspaceStatus(workspaceRoot));
+    checks.push(...(await checkSafetyPolicy(workspaceRoot)));
     checks.push(await checkAdapter(workspaceRoot, "claude"));
     checks.push(await checkAdapter(workspaceRoot, "codex"));
   }
@@ -282,6 +289,30 @@ async function checkWorkspaceStatus(workspaceRoot: string): Promise<DoctorCheck>
       lintIssues: status.lint.issues.length,
     },
   };
+}
+
+async function checkSafetyPolicy(workspaceRoot: string): Promise<DoctorCheck[]> {
+  const status = await readWorkspaceStatus(workspaceRoot);
+  const checkpointWarning = status.lint.issues.find(
+    (issue) => issue.code === GIT_CHECKPOINT_POLICY_NOT_ENFORCED,
+  );
+  if (checkpointWarning === undefined) {
+    return [];
+  }
+
+  return [
+    {
+      id: "safety-policy",
+      label: "Safety policy",
+      status: "warn",
+      message: checkpointWarning.message,
+      details: {
+        workspace: status.workspaceRoot,
+        issueCode: checkpointWarning.code,
+        path: checkpointWarning.path ?? null,
+      },
+    },
+  ];
 }
 
 async function checkAdapter(

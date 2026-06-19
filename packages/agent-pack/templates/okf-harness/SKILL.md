@@ -1,13 +1,3 @@
----
-name: okf-harness
-description: One Door workflow for OKF Harness workspaces. Use when the user asks to set up, check, ingest into, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, ordinary repository maintenance, knowledge-base tasks outside an OKF Harness workspace, repository dependency graphs, old workflow-specific skill names, or an `okfh query` command.
-license: Apache-2.0
-compatibility: Designed for Claude Code and Codex with local shell command access. Requires the okfh CLI.
-metadata:
-  okf-harness-version: "0.3.1"
-  okf-harness-managed: "true"
----
-
 # OKF Harness
 
 One Door routes OKF Harness workspace requests to exactly one internal workflow at a time.

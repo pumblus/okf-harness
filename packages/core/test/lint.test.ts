@@ -64,6 +64,20 @@ describe("OKF hard linter", () => {
     );
   });
 
+  it("allows bundle metadata on the root index", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await writeFile(
+      `${workspaceRoot}/wiki/index.md`,
+      '---\nokf_version: "0.1"\ncustom_bundle_field: local\n---\n# AI Research Wiki\n\n- [LLM Wiki](topics/llm-wiki.md)\n- [Karpathy LLM Wiki gist](references/karpathy-llm-wiki.md)\n',
+      "utf8",
+    );
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual([]);
+  });
+
   it("reports invalid log date headings", async () => {
     const workspaceRoot = await copyValidWorkspace();
     await writeFile(`${workspaceRoot}/wiki/log.md`, "# Log\n\n## June 15\n");
@@ -186,6 +200,22 @@ describe("OKF hard linter", () => {
         code: "UNREGISTERED_RAW_SOURCE",
         severity: "warning",
         path: "raw/sources/2026/06/unregistered.md",
+      }),
+    ]);
+  });
+
+  it("warns when checkpoint policy is enabled outside a Git work tree", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await rm(`${workspaceRoot}/.git`, { recursive: true });
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "GIT_CHECKPOINT_POLICY_NOT_ENFORCED",
+        severity: "warning",
+        path: "okfh.config.yaml",
       }),
     ]);
   });

@@ -72,6 +72,10 @@ _Avoid_: Harness lint, product quality score, strict style check
 The external OKF specification version used for a conformance check, such as `0.1`. Workspace check output should show it plainly so people know which standard version the result refers to.
 _Avoid_: hidden default, product version, CLI version
 
+**Bundle metadata**:
+Non-concept frontmatter that describes an OKF bundle itself, such as `okf_version` on the bundle root `index.md`. It is not concept frontmatter and should not turn a reserved document into a concept document.
+_Avoid_: concept metadata, Harness package metadata, wiki page metadata
+
 **Concept document**:
 A markdown file in an OKF bundle that represents one readable and linkable knowledge unit, such as a topic, entity, project, decision, question, or reference.
 _Avoid_: note, wiki page, knowledge content
@@ -156,7 +160,7 @@ _Avoid_: search result, summary, source digest, auto-ingest output
 The workflow of answering from an OKF bundle by finding and reading relevant concept documents, then following cited reference documents when factual precision matters. Query is not a raw-source discovery pass; registered source material that has not been synthesized into concept documents remains outside normal answers.
 _Avoid_: raw source search, RAG, auto-ingest
 
-**Evidence plan**:
+**Bounded evidence package**:
 A bounded evidence package prepared for an agent before it answers a question from an OKF bundle. It gathers relevant concept documents, citation pointers, evidence limits, and continuation cues; it is not the answer itself, a semantic summary, or raw-source-wide discovery.
 _Avoid_: answer, query engine, source search, RAG response
 
@@ -211,6 +215,10 @@ _Avoid_: agent client, plugin, integration
 **Agent skill**:
 A discoverable workflow instruction inside an agent adapter. The current user-facing skill is the unified `okf-harness` entrypoint, while setup, check, ingest, answer, and graph remain internal workflows.
 _Avoid_: command, script, template
+
+**Agent skill migration backup**:
+A preserved copy of an old workflow skill directory, managed, user-authored, or malformed, moved out of the agent client's discoverable skill path during migration to the unified `okf-harness` entrypoint. It protects user content without keeping retired workflow skills active.
+_Avoid_: active legacy skill, conflict, managed cleanup
 
 **Layered agent guidance**:
 The OKF Harness guidance style where durable rules, workflow instructions, and detailed reference contracts are separated so an agent loads only the level of detail needed for the task. It is a progressive-disclosure structure for agent guidance, not runtime prompt injection.

@@ -71,9 +71,9 @@ Use a single-context domain documentation layout. See `docs/agents/domain.md`.
 - GitHub Release: use `vX.Y.Z` tags, attach no extra release assets, create no public `RELEASE.md`, and include only the shortest install entry: `npm install -g @okf-harness/cli` followed by `okfh doctor --json`.
 - npm scope and auth gates: verify `npm whoami`, `npm org ls okf-harness --json`, and `npm access list packages @okf-harness --json` before publishing; use `npm view @okf-harness/core version`, `npm view @okf-harness/agent-pack version`, and `npm view @okf-harness/cli version` to distinguish unpublished packages from permission errors.
 - npm publish scope: publish only `@okf-harness/core`, `@okf-harness/agent-pack`, and `@okf-harness/cli`; never publish the root package or private workspace packages.
-- npm manifest rules: no `workspace:` protocol entries in publishable manifests; internal package dependencies must point at the exact same public package version; `pnpm-workspace.yaml` must link matching workspace packages locally; publishable packages must declare `engines.node >=22.0.0`, run `pnpm run build` from `prepublishOnly`, and keep `files` allowlists to `dist`, package metadata, and package-local README files only.
+- npm manifest rules: no `workspace:` protocol entries in publishable manifests; internal package dependencies must point at the exact same public package version; `pnpm-workspace.yaml` must link matching workspace packages locally; publishable packages must declare `engines.node >=22.0.0`, run `pnpm run build` from `prepublishOnly`, and keep `files` allowlists to `dist`, package metadata, package-local README files, and runtime assets explicitly required by the package such as `packages/agent-pack/templates`.
 - npm publish flow: publish from each package directory with `npm publish --access public` in dependency order: core, agent-pack, then cli; use the `latest` dist-tag; do not enable npm provenance for the initial manual publish flow.
-- npm preflight: inspect package contents with the three `pnpm --filter <package> pack --dry-run --json` commands, then run `pnpm smoke:tarball` to install locally packed core, agent-pack, and cli tarballs into a fresh temp project and verify both `okfh doctor --json` and `okf-harness doctor --json`. Keep this smoke test as a local release gate, not a default GitHub Actions CI step.
+- npm preflight: inspect package contents with the three `pnpm --filter <package> pack --dry-run --json` commands, then run `pnpm smoke:tarball` to install locally packed core, agent-pack, and cli tarballs into a fresh temp project and verify both `okfh doctor --json` and `okf-harness doctor --json`. Packaged smoke is also a required GitHub Actions CI gate on Linux, macOS, and Windows.
 - npm post-publish proof: verify registry versions with the three `npm view <package> version` commands, then verify install from the registry with `npx --package @okf-harness/cli okfh doctor --json`.
 
 ## Verification
@@ -90,7 +90,7 @@ pnpm build
 - After workspace/wiki edits, run:
 
 ```bash
-okfh lint --workspace <workspace> --json
+okfh check --workspace <workspace> --json
 ```
 
 - After file changes, inspect:

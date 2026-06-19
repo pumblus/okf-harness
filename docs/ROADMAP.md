@@ -49,81 +49,35 @@ Design restraint:
 
 ## High Demand
 
-### OKF Conformance And Harness Lint Layering
+### v0.3.1 Trust Fix
 
-Goal: prove that a workspace contains a standards-readable OKF bundle before recommending OKF Harness-specific quality improvements.
+Goal: make the v0.3 promises true without adding new product surface.
 
-Release direction: this should be the next release's main product theme once the user story, safety boundary, and verification path are ready.
+Patch scope:
 
-Release theme: OKF Harness gives agents one clear entrypoint and checks whether a workspace is OKF-readable before asking them to maintain it.
-
-Next-release scope should stay focused on `check`, a unified `okf-harness` agent entrypoint, current-agent setup, explicit workflow invocation, layered fixtures, regression tests, and documentation or agent-guidance updates. Bounded evidence planning should remain a separate roadmap item rather than sharing the same release theme.
-
-Candidate scope:
-
-- Separate OKF conformance results from Harness lint results in user-facing validation output.
-- Keep one normal validation workflow for agents and people, with layered results inside the output.
-- Prefer a user-facing `check` workflow over keeping `lint` as a parallel command surface.
-- Make check report-only by default; workspace edits should require an explicit user request such as "check and fix".
-- When the user explicitly asks to fix check findings, keep automatic fixes narrow: only clear low-risk structural issues such as missing index entries or obvious broken internal links should be changed automatically; evidence, source, citation, or large rewrite issues should be reported with suggested next steps.
-- If an old `lint` command is retired, return a clear "Use check instead" message instead of maintaining duplicate behavior.
-- Report plain-language check status as `Ready`, `Needs attention`, or `Blocked` before detailed issue codes, with `Blocked` reserved for OKF conformance hard failures.
-- Show the OKF version used for conformance, such as `0.1`, in check output.
-- For the first `check` release, report `OKF version: 0.1` without adding a user-selectable target flag.
-- Keep Harness package version available in JSON or troubleshooting output, but do not emphasize it in the first user-facing check summary.
-- Keep human-readable check output concise with status, OKF version, conformance result, lint summary, and grouped priorities; keep full detail in JSON for agents.
-- Keep `check --json` on the existing CLI envelope shape and put status, OKF version, OKF conformance, and Harness lint details under `data`.
-- In `check --json`, keep top-level `ok: true` for both `Ready` and `Needs attention`; use `ok: false` for `Blocked` or command-level failures.
-- Align check exit codes with top-level `ok`: exit 0 for `Ready` and `Needs attention`, non-zero for `Blocked` or command-level failures; do not add a strict mode in this release.
-- Keep top-level status simple, but assign Harness lint findings priorities such as high, medium, and low.
-- Teach agents that high-priority Harness lint findings require risk disclosure, and should block only answers that directly depend on the affected source or reference.
-- Treat ordinary missing citations as medium-priority Harness lint in this release; more semantic upgrades, such as high priority for fact-dense pages without citations, can wait.
-- Make clear which findings are OKF specification requirements and which are OKF Harness provenance, citation, or maintainability checks.
-- Keep tolerant-consumer behavior visible: broken links and missing citation coverage should not be mislabeled as hard OKF specification failures.
-- Keep OKF conformance hard failures minimal: only mark cases as hard failures when the OKF specification clearly disallows them.
-- Do not treat broken links, missing citations, missing index entries, unknown frontmatter keys, unknown type values, or source hash drift as OKF conformance hard failures.
-- Add scenario-named fixture workspaces that a maintainer can understand without reading implementation code, including `ready-workspace`, `blocked-missing-frontmatter`, `blocked-bad-log-heading`, `needs-attention-source-drift`, `needs-attention-missing-citations`, `needs-attention-broken-link`, and `large-page-bounded-read`.
-- Update agent guidance so Claude Code and Codex report conformance status before suggesting broader cleanup, but only when the `check` workflow is implemented.
-- Make setup current-agent first: users should not need to choose Claude Code or Codex adapter names in the normal prompt-first flow.
-- Let agent guidance determine the current agent client when possible; the CLI should accept explicit agent input rather than guessing the calling client from the shell environment.
-- Keep the existing `--agents` CLI shape for now, but have agent guidance pass the current agent explicitly instead of defaulting normal setup to `all`.
-- For direct CLI use, do not default initialization to `--agents all`; require an explicit adapter choice such as `codex`, `claude`, or `all` with a deterministic error instead of an interactive prompt.
-- Apply the same current-agent-first rule to adapter repair or install flows: `all` remains available only as an explicit choice, not the recommended default.
-- Keep `--agents none` for advanced or developer use, but do not expose it in the README entry path or use it from normal agent guidance.
-- After current-agent setup, detect other supported local agent clients when possible and ask before preparing workspace guidance for them.
-- Keep other-agent detection conservative in this release because only Claude Code and Codex are supported; rely on obvious workspace guidance files or low-risk PATH checks, never broad filesystem scans or private app directories.
-- If no other supported agent clients are detected, do not mention cross-agent setup.
-- After setup or guidance changes, remind the user to start a fresh agent conversation using the current client's own term, such as a Claude Code session or Codex thread.
-- Keep the README setup prompt natural; agent guidance should provide the fresh-session or fresh-thread reminder after setup completes.
-- Restructure the README entry path around a short `Before you start` prerequisite section followed by `Start with your agent` workflow-invocation prompts, with CLI reference moved later.
-- Let users either run the npm install command themselves or ask an agent to check installation, but require explicit user approval before an agent performs a global install.
-- Group README entry prompts by user state: no workspace yet, existing workspace, then a separate common next step for adding a source.
-- Use explicit workflow prefixes such as `$okf-harness` for Codex and `/okf-harness` for Claude Code in README entry examples so routing is predictable.
-- Show Codex and Claude Code prompts separately instead of using a generic `<prefix>` template.
-- Replace multiple user-facing workflow skill names with one `okf-harness` agent entrypoint that routes setup, check, ingest, answer, and graph intents internally.
-- Keep the unified skill layered: the main `SKILL.md` should route intent and hold hard rules, while setup, check, ingest, answer, and graph details live in reference files.
-- Use a clean break for old workflow-specific skill names: new workspaces should generate only `okf-harness`, and repair or upgrade flows should remove old OKF Harness-managed workflow skills while preserving user-authored files.
-- Clean-break removal must only delete files marked as OKF Harness-managed; user-authored or malformed files should be preserved and reported as conflicts.
-- After the explicit workflow prefix establishes OKF Harness context, example prompts should use natural shorthand such as `workspace` instead of repeating product terminology in every sentence.
-- Keep README prompts natural and concise; do not make users restate behaviors that OKF Harness guidance should already enforce, such as reading wiki pages or citing evidence.
-- The answer workflow should be check-aware without running a full workspace check before every answer; it should use recent status when trustworthy and run check only when state is missing, stale, or risky.
-- Do not add a complex check-status cache in this release; the answer workflow can inspect `status` first and run `check` only when needed.
-- Keep `status` as a quick overview rather than a second full check; it may expose a concise check status for answer routing, but detailed findings belong to `check`.
-- Improve natural-language routing quality in skill descriptions, but do not treat prefix-free routing as the stable README path or a release blocker.
+- Accept legal OKF bundle metadata on the bundle root `index.md`.
+- Keep generated Claude Code and Codex skills strict, version-correct, and authored from Markdown templates.
+- Split `doctor` into normal runtime checks and `doctor --dev` repository-development checks.
+- Back up old workflow-specific skill directories before removing them from discoverable skill paths.
+- Surface safety policy gaps without claiming automatic Git checkpointing is enforced.
+- Verify release behavior from packaged npm tarballs, not only monorepo source.
+- Keep `check` as the normal validation workflow; `lint` remains retired.
 
 Constraints:
 
+- Do not add evidence planning, GUI, new adapters, cloud sync, vector search, or automatic checkpointing in this patch.
 - Do not present OKF Harness preferences as OKF specification rules.
-- Do not make conformance depend on Obsidian, a GUI, embeddings, cloud services, or source connectors.
 - Preserve JSON output that agents can inspect deterministically.
 
 ### Bounded Evidence Planning
 
 Goal: make agent answers reliable without overflowing context.
 
+Release direction: after the v0.3.1 trust-fix patch, v0.4 should focus on bounded evidence planning rather than more skill-architecture churn.
+
 Candidate scope:
 
-- `okfh evidence plan <question> --json` or an equivalent evidence-pack command.
+- A future command or workflow that prepares a bounded evidence package before an agent answers.
 - Deterministic retrieval budget that caps index, candidate pages, citations, and response headroom.
 - Explicit `truncated`, `contentLength`, and continuation metadata.
 - Agent guidance that teaches Claude Code and Codex how to answer from bounded evidence.
