@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -30,22 +30,6 @@ export function shouldRunWithShell(command, runtimePlatform = process.platform) 
   }
   const executable = path.basename(command).toLowerCase();
   return executable === "npm" || executable === "pnpm";
-}
-
-export function resolveSpawn(command, args, runtimePlatform = process.platform) {
-  if (runtimePlatform === "win32" && path.basename(command).toLowerCase().endsWith(".cmd")) {
-    return {
-      command: "cmd.exe",
-      args: ["/d", "/s", "/c", [quoteForCmd(command), ...args.map(quoteForCmd)].join(" ")],
-      shell: false,
-    };
-  }
-
-  return {
-    command,
-    args,
-    shell: shouldRunWithShell(command, runtimePlatform),
-  };
 }
 
 async function main() {
@@ -92,7 +76,8 @@ async function main() {
 
     for (const binName of ["okfh", "okf-harness"]) {
       const binPath = resolveLocalBinPath(installDir, binName);
-      const result = await run(binPath, ["doctor", "--json"], { cwd: installDir });
+      await access(binPath);
+      const result = await runInstalledBin(installDir, binName, ["doctor", "--json"]);
       const envelope = JSON.parse(result.stdout);
       if (envelope.ok !== true || envelope.data?.summary?.fail !== 0) {
         throw new Error(`${binName} doctor smoke failed: ${result.stdout}`);
@@ -104,19 +89,23 @@ async function main() {
       );
     }
 
-    const okfh = resolveLocalBinPath(installDir, "okfh");
     const devDoctor = JSON.parse(
-      (await run(okfh, ["doctor", "--dev", "--json"], { cwd: installDir })).stdout,
+      (await runInstalledBin(installDir, "okfh", ["doctor", "--dev", "--json"])).stdout,
     );
     assertCheckStatus(devDoctor, "pnpm", "pass", "okfh doctor --dev");
     console.log("okfh doctor --dev passed");
 
     const workspace = path.join(tempRoot, "workspace");
-    await run(
-      okfh,
-      ["init", workspace, "--name", "Smoke Workspace", "--agents", "codex", "--git", "--json"],
-      { cwd: installDir },
-    );
+    await runInstalledBin(installDir, "okfh", [
+      "init",
+      workspace,
+      "--name",
+      "Smoke Workspace",
+      "--agents",
+      "codex",
+      "--git",
+      "--json",
+    ]);
     const agentPackVersion = await installedPackageVersion(installDir, "@okf-harness/agent-pack");
     await assertGeneratedSkill(
       path.join(workspace, ".agents/skills/okf-harness/SKILL.md"),
@@ -124,9 +113,14 @@ async function main() {
     );
     console.log("codex init generated a strict skill");
 
-    await run(okfh, ["agent", "install", "claude", "--workspace", workspace, "--json"], {
-      cwd: installDir,
-    });
+    await runInstalledBin(installDir, "okfh", [
+      "agent",
+      "install",
+      "claude",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
     await assertGeneratedSkill(
       path.join(workspace, ".claude/skills/okf-harness/SKILL.md"),
       agentPackVersion,
@@ -139,7 +133,8 @@ async function main() {
       "utf8",
     );
     const check = JSON.parse(
-      (await run(okfh, ["check", "--workspace", workspace, "--json"], { cwd: installDir })).stdout,
+      (await runInstalledBin(installDir, "okfh", ["check", "--workspace", workspace, "--json"]))
+        .stdout,
     );
     if (check.ok !== true || check.data?.status === "blocked") {
       throw new Error(`root index okf_version check failed: ${JSON.stringify(check)}`);
@@ -162,9 +157,14 @@ async function main() {
       "utf8",
     );
     await writeFile(path.join(oldManagedSkill, "extra.md"), "keep me\n", "utf8");
-    await run(okfh, ["agent", "install", "all", "--workspace", workspace, "--json"], {
-      cwd: installDir,
-    });
+    await runInstalledBin(installDir, "okfh", [
+      "agent",
+      "install",
+      "all",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
     const backupFiles = await listFiles(path.join(workspace, ".okfh/backups/agent-skills"));
     assertIncludesMatching(
       backupFiles,
@@ -202,13 +202,16 @@ async function main() {
   }
 }
 
+function runInstalledBin(installDir, binName, args) {
+  return run("npm", ["exec", "--", binName, ...args], { cwd: installDir });
+}
+
 function run(command, args, options) {
   return new Promise((resolve, reject) => {
-    const spawnInfo = resolveSpawn(command, args);
-    const child = spawn(spawnInfo.command, spawnInfo.args, {
+    const child = spawn(command, args, {
       cwd: options.cwd,
       env: process.env,
-      shell: spawnInfo.shell,
+      shell: shouldRunWithShell(command),
       stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
     });
 
@@ -240,10 +243,6 @@ function run(command, args, options) {
       );
     });
   });
-}
-
-function quoteForCmd(value) {
-  return `"${String(value).replaceAll('"', '""')}"`;
 }
 
 async function installedPackageVersion(installDir, packageName) {
