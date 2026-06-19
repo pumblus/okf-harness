@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -75,8 +75,6 @@ async function main() {
     });
 
     for (const binName of ["okfh", "okf-harness"]) {
-      const binPath = resolveLocalBinPath(installDir, binName);
-      await access(binPath);
       const result = await runInstalledBin(installDir, binName, ["doctor", "--json"]);
       const envelope = JSON.parse(result.stdout);
       if (envelope.ok !== true || envelope.data?.summary?.fail !== 0) {
