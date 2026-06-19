@@ -20,7 +20,8 @@ if (isDirectRun(import.meta.url, process.argv[1])) {
 
 export function resolveLocalBinPath(installDir, binName, runtimePlatform = process.platform) {
   const shimName = runtimePlatform === "win32" ? `${binName}.cmd` : binName;
-  return path.join(installDir, "node_modules", ".bin", shimName);
+  const pathModule = runtimePlatform === "win32" ? path.win32 : path;
+  return pathModule.join(installDir, "node_modules", ".bin", shimName);
 }
 
 export function shouldRunWithShell(command, runtimePlatform = process.platform) {
@@ -28,7 +29,23 @@ export function shouldRunWithShell(command, runtimePlatform = process.platform) 
     return false;
   }
   const executable = path.basename(command).toLowerCase();
-  return executable === "npm" || executable === "pnpm" || executable.endsWith(".cmd");
+  return executable === "npm" || executable === "pnpm";
+}
+
+export function resolveSpawn(command, args, runtimePlatform = process.platform) {
+  if (runtimePlatform === "win32" && path.basename(command).toLowerCase().endsWith(".cmd")) {
+    return {
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", [quoteForCmd(command), ...args.map(quoteForCmd)].join(" ")],
+      shell: false,
+    };
+  }
+
+  return {
+    command,
+    args,
+    shell: shouldRunWithShell(command, runtimePlatform),
+  };
 }
 
 async function main() {
@@ -187,10 +204,11 @@ async function main() {
 
 function run(command, args, options) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const spawnInfo = resolveSpawn(command, args);
+    const child = spawn(spawnInfo.command, spawnInfo.args, {
       cwd: options.cwd,
       env: process.env,
-      shell: shouldRunWithShell(command),
+      shell: spawnInfo.shell,
       stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
     });
 
@@ -222,6 +240,10 @@ function run(command, args, options) {
       );
     });
   });
+}
+
+function quoteForCmd(value) {
+  return `"${String(value).replaceAll('"', '""')}"`;
 }
 
 async function installedPackageVersion(installDir, packageName) {
