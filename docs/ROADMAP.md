@@ -22,22 +22,7 @@ This means OKF Harness should compete on:
 - Local-first, auditable operation through `okfh --json`.
 - Optional integrations that never replace the default terminal-native workflow.
 
-## Current Focus
-
-Goal: make OKF Harness useful from Claude Code and Codex through a local, terminal-native workflow.
-
-Included:
-
-- Local workspace initialization for macOS, Windows, and Linux.
-- Claude Code and Codex agent adapters.
-- Source registration with raw source immutability and manifest integrity.
-- Metadata-level ingest planning.
-- Deterministic wiki search and read.
-- Self-contained local graph report.
-- Terminal-native hardening across POSIX shells, PowerShell, and Command Prompt core commands.
-- Release documentation.
-
-Design restraint:
+## Roadmap Restraints
 
 - User-facing docs should lead with natural-language prompts to agents, not command tutorials.
 - Answers are based on synthesized `wiki/` content, not raw-source-wide discovery.
@@ -49,31 +34,11 @@ Design restraint:
 
 ## High Demand
 
-### v0.3.1 Trust Fix
-
-Goal: make the v0.3 promises true without adding new product surface.
-
-Patch scope:
-
-- Accept legal OKF bundle metadata on the bundle root `index.md`.
-- Keep generated Claude Code and Codex skills strict, version-correct, and authored from Markdown templates.
-- Split `doctor` into normal runtime checks and `doctor --dev` repository-development checks.
-- Back up old workflow-specific skill directories before removing them from discoverable skill paths.
-- Surface safety policy gaps without claiming automatic Git checkpointing is enforced.
-- Verify release behavior from packaged npm tarballs, not only monorepo source.
-- Keep `check` as the normal validation workflow; `lint` remains retired.
-
-Constraints:
-
-- Do not add evidence planning, GUI, new adapters, cloud sync, vector search, or automatic checkpointing in this patch.
-- Do not present OKF Harness preferences as OKF specification rules.
-- Preserve JSON output that agents can inspect deterministically.
-
 ### Bounded Evidence Planning
 
 Goal: make agent answers reliable without overflowing context.
 
-Release direction: after the v0.3.1 trust-fix patch, v0.4 should focus on bounded evidence planning rather than more skill-architecture churn.
+Release direction: v0.4 should focus on bounded evidence planning rather than more skill-architecture churn.
 
 Candidate scope:
 

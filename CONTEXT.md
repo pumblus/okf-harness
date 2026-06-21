@@ -157,8 +157,8 @@ A deterministic work plan that tells an agent how a raw source may relate to exi
 _Avoid_: search result, summary, source digest, auto-ingest output
 
 **Query**:
-The workflow of answering from an OKF bundle by finding and reading relevant concept documents, then following cited reference documents when factual precision matters. Query is not a raw-source discovery pass; registered source material that has not been synthesized into concept documents remains outside normal answers.
-_Avoid_: raw source search, RAG, auto-ingest
+A user intent to get an answer from an OKF bundle by finding and reading relevant concept documents, then following cited reference documents when factual precision matters. Query is not an OKF Harness command or internal workflow, and it is not a raw-source discovery pass; registered source material that has not been synthesized into concept documents remains outside normal answers.
+_Avoid_: query command, agent workflow, raw-source search, RAG, auto-ingest
 
 **Bounded evidence package**:
 A bounded evidence package prepared for an agent before it answers a question from an OKF bundle. It gathers relevant concept documents, citation pointers, evidence limits, and continuation cues; it is not the answer itself, a semantic summary, or raw-source-wide discovery.

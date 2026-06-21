@@ -8,7 +8,7 @@
 - Product terminology: `CONTEXT.md`.
 - Architecture decisions: `docs/adr/`.
 - Public roadmap: `docs/ROADMAP.md` and `docs/zh-CN/ROADMAP.md`.
-- Current public scope: CLI init/status/lint/source/ingest/search/read/graph/doctor, Claude/Codex adapter rendering, docs, npm metadata, and an example workspace.
+- Current public scope: CLI init/status/check/source/ingest/search/read/graph/doctor, retired lint compatibility, Claude/Codex adapter rendering, docs, npm metadata, and an example workspace.
 
 ## Project Boundaries
 
@@ -43,7 +43,7 @@ Engineering workflow skills share repo-local setup through `docs/agents/` so iss
 
 ### Issue tracker
 
-Use local markdown under `.scratch/` for issues and PRDs while the project remains local. Switch this config to GitHub Issues after the repo is pushed and GitHub becomes the tracker. See `docs/agents/issue-tracker.md`.
+Use GitHub Issues for issues and PRDs. External PRs are not a triage request surface. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -66,13 +66,13 @@ Use a single-context domain documentation layout. See `docs/agents/domain.md`.
 ## Release Rules
 
 - A complete public release requires GitHub repository, GitHub Release, and npm registry state to be verified together. Do not claim shipped while README install commands can still fail.
-- GitHub setup: verify GitHub auth, target repository state, git remote, current branch, and `HEAD`; enable Issues and GitHub Actions CI; create canonical labels from `docs/agents/triage-labels.md`; use squash merge only; enable automatic deletion of merged head branches; keep Projects, Discussions, Wiki, and Dependabot disabled for the initial public release.
+- GitHub repository settings: verify GitHub auth, target repository state, git remote, current branch, and `HEAD`; keep Issues and GitHub Actions CI enabled; maintain canonical labels from `docs/agents/triage-labels.md`; use squash merge only; enable automatic deletion of merged head branches; keep Projects, Discussions, Wiki, and Dependabot disabled unless intentionally adopted.
 - Public leak gates: confirm `git ls-files docs/implementation.md docs/okf-harness-intro.html docs/okf-harness-intro.pdf` has no output, then scan tracked files for private paths, local URLs, ignored override files, and internal document references.
 - GitHub Release: use `vX.Y.Z` tags, attach no extra release assets, create no public `RELEASE.md`, and include only the shortest install entry: `npm install -g @okf-harness/cli` followed by `okfh doctor --json`.
 - npm scope and auth gates: verify `npm whoami`, `npm org ls okf-harness --json`, and `npm access list packages @okf-harness --json` before publishing; use `npm view @okf-harness/core version`, `npm view @okf-harness/agent-pack version`, and `npm view @okf-harness/cli version` to distinguish unpublished packages from permission errors.
 - npm publish scope: publish only `@okf-harness/core`, `@okf-harness/agent-pack`, and `@okf-harness/cli`; never publish the root package or private workspace packages.
 - npm manifest rules: no `workspace:` protocol entries in publishable manifests; internal package dependencies must point at the exact same public package version; `pnpm-workspace.yaml` must link matching workspace packages locally; publishable packages must declare `engines.node >=22.0.0`, run `pnpm run build` from `prepublishOnly`, and keep `files` allowlists to `dist`, package metadata, package-local README files, and runtime assets explicitly required by the package such as `packages/agent-pack/templates`.
-- npm publish flow: publish from each package directory with `npm publish --access public` in dependency order: core, agent-pack, then cli; use the `latest` dist-tag; do not enable npm provenance for the initial manual publish flow.
+- npm publish flow: publish from each package directory with `npm publish --access public` in dependency order: core, agent-pack, then cli; use the `latest` dist-tag; do not enable npm provenance unless the release workflow explicitly adopts and verifies it.
 - npm preflight: inspect package contents with the three `pnpm --filter <package> pack --dry-run --json` commands, then run `pnpm smoke:tarball` to install locally packed core, agent-pack, and cli tarballs into a fresh temp project and verify both `okfh doctor --json` and `okf-harness doctor --json`. Packaged smoke is also a required GitHub Actions CI gate on Linux, macOS, and Windows.
 - npm post-publish proof: verify registry versions with the three `npm view <package> version` commands, then verify install from the registry with `npx --package @okf-harness/cli okfh doctor --json`.
 
