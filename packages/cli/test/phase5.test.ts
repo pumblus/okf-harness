@@ -58,6 +58,40 @@ describe("@okf-harness/cli query workflow", () => {
         },
       });
 
+      const evidence = await runJsonCli([
+        "node",
+        "okfh",
+        "evidence",
+        "zqxjv noremote",
+        "--workspace",
+        resolvedWorkspace,
+        "--json",
+      ]);
+      expect(evidence).toMatchObject({
+        exitCode: 0,
+        stderr: "",
+        result: {
+          ok: true,
+          command: "evidence",
+          workspace: resolvedWorkspace,
+          data: {
+            question: "zqxjv noremote",
+            evidence: [],
+            candidates: [],
+            limits: [
+              {
+                code: "NO_MATCHES",
+              },
+            ],
+            guidance: expect.any(Array),
+          },
+          warnings: [],
+        },
+      });
+      expect(JSON.stringify(evidence.result)).not.toMatch(
+        /\b(score|confidence|relevance|ranking)\b/i,
+      );
+
       const read = await runJsonCli(["node", "okfh", "read", "topics/llm-wiki", "--json"]);
       expect(read).toMatchObject({
         exitCode: 0,

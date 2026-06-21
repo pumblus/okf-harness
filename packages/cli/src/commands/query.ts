@@ -1,5 +1,6 @@
 import {
   buildWorkspaceGraph,
+  planEvidenceBrief,
   readWorkspaceDocument,
   resolveWorkspaceRoot,
   searchWorkspace,
@@ -56,6 +57,50 @@ export function registerQueryCommands(
           error,
           workspace: workspaceRoot,
           next: ["Check the workspace path and rerun okfh search --json."],
+          json: options.json === true,
+        });
+        if (handled) {
+          setExitCode(1);
+          return;
+        }
+        throw error;
+      }
+    });
+
+  program
+    .command("evidence <question>")
+    .description("Prepare a bounded OKF evidence brief.")
+    .storeOptionsAsProperties(false)
+    .option("--workspace <path>", "workspace path")
+    .option("--json", "write machine-readable JSON")
+    .action(async (question: string, command: Command) => {
+      const options = command.opts() as { workspace?: string; json?: boolean };
+      let workspaceRoot: string | null = null;
+      try {
+        workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+        const result = await planEvidenceBrief({
+          workspaceRoot,
+          question,
+        });
+        const { workspaceRoot: _workspaceRoot, warnings, ...data } = result;
+        const envelope: JsonEnvelope = {
+          ok: true,
+          command: "evidence",
+          workspace: result.workspaceRoot,
+          data,
+          warnings,
+          next: result.limits.some((limit) => limit.code === "NO_MATCHES")
+            ? ["Try broader keywords only if the user asks to broaden the evidence search."]
+            : ["Run okfh read <concept-id> --json only for a bounded follow-up."],
+        };
+        writeResult(io, envelope, options.json);
+        setExitCode(0);
+      } catch (error) {
+        const handled = writeCliError(io, {
+          command: "evidence",
+          error,
+          workspace: workspaceRoot,
+          next: ["Check the workspace path and rerun okfh evidence --json."],
           json: options.json === true,
         });
         if (handled) {
