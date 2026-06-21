@@ -26,12 +26,46 @@ describe("OKF evidence brief planning", () => {
     expect(JSON.stringify(result)).not.toContain("Fixture raw source for the LLM Wiki pattern.");
   });
 
-  it("keeps matching candidates thin and score-free", async () => {
+  it("returns section-first evidence items for matching wiki questions", async () => {
     const result = await planEvidenceBrief({
       workspaceRoot: validWorkspaceFixture,
       question: "LLM Wiki",
     });
 
+    expect(result.evidence[0]).toMatchObject({
+      item: 1,
+      conceptId: "topics/llm-wiki",
+      path: "wiki/topics/llm-wiki.md",
+      title: "LLM Wiki",
+      type: "Topic",
+      section: {
+        sectionId: "overview",
+        heading: "Overview",
+        headingPath: ["Overview"],
+        level: 1,
+      },
+      range: {
+        mode: "section",
+        startOffset: expect.any(Number),
+        endOffset: expect.any(Number),
+        contentLength: expect.any(Number),
+        returnedChars: expect.any(Number),
+        truncated: false,
+      },
+      excerpt: expect.stringContaining("An LLM Wiki keeps raw sources separate"),
+      matchedFields: expect.arrayContaining(["title"]),
+      matchReasons: expect.arrayContaining(["title phrase match", "section body match: Overview"]),
+      provenance: {
+        citations: expect.arrayContaining([
+          expect.objectContaining({
+            kind: "reference",
+            target: "/references/karpathy-llm-wiki.md",
+            exists: true,
+          }),
+        ]),
+        citationIssues: [],
+      },
+    });
     expect(result.candidates[0]).toEqual(
       expect.objectContaining({
         item: 1,
@@ -41,7 +75,24 @@ describe("OKF evidence brief planning", () => {
         matchReasons: expect.arrayContaining(["title phrase match"]),
       }),
     );
+    expect(result.candidates[0]).not.toHaveProperty("excerpt");
     expect(JSON.stringify(result)).not.toMatch(/\b(score|confidence|relevance|ranking)\b/i);
     expect(JSON.stringify(result)).not.toContain("Fixture raw source for the LLM Wiki pattern.");
+  });
+
+  it("does not report navigation or unhit sections as match reasons", async () => {
+    const result = await planEvidenceBrief({
+      workspaceRoot: validWorkspaceFixture,
+      question: "Local markdown bundle maintained by an agent",
+    });
+
+    expect(result.evidence[0]).toMatchObject({
+      conceptId: "topics/llm-wiki",
+      matchedFields: ["description"],
+      matchReasons: expect.arrayContaining(["description phrase match"]),
+    });
+    expect(result.evidence[0]?.matchReasons).not.toContain("index link match");
+    expect(result.evidence[0]?.matchReasons).not.toContain("section body match: Overview");
+    expect(result.candidates[0]?.matchReasons).not.toContain("index link match");
   });
 });

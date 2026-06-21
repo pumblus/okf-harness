@@ -92,6 +92,49 @@ describe("@okf-harness/cli query workflow", () => {
         /\b(score|confidence|relevance|ranking)\b/i,
       );
 
+      const matchingEvidence = await runJsonCli([
+        "node",
+        "okfh",
+        "evidence",
+        "LLM Wiki",
+        "--workspace",
+        resolvedWorkspace,
+        "--json",
+      ]);
+      expect(matchingEvidence).toMatchObject({
+        exitCode: 0,
+        stderr: "",
+        result: {
+          ok: true,
+          command: "evidence",
+          workspace: resolvedWorkspace,
+          data: {
+            question: "LLM Wiki",
+            evidence: expect.arrayContaining([
+              expect.objectContaining({
+                item: 1,
+                conceptId: "topics/llm-wiki",
+                path: "wiki/topics/llm-wiki.md",
+                section: expect.objectContaining({
+                  sectionId: "overview",
+                  heading: "Overview",
+                }),
+                range: expect.objectContaining({
+                  mode: "section",
+                  truncated: false,
+                }),
+                excerpt: expect.stringContaining("An LLM Wiki keeps raw sources separate"),
+                matchReasons: expect.arrayContaining(["section body match: Overview"]),
+              }),
+            ]),
+          },
+          warnings: [],
+        },
+      });
+      expect(JSON.stringify(matchingEvidence.result)).not.toMatch(
+        /\b(score|confidence|relevance|ranking)\b/i,
+      );
+
       const read = await runJsonCli(["node", "okfh", "read", "topics/llm-wiki", "--json"]);
       expect(read).toMatchObject({
         exitCode: 0,
