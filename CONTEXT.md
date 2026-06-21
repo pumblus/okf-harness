@@ -105,7 +105,7 @@ Original material that a person wants to bring into the knowledge base, such as 
 _Avoid_: data, document, note
 
 **Raw source**:
-The immutable registered copy or record of source material inside an OKF Harness workspace. If the source material needs correction, a new raw source should be added rather than editing the old one.
+The immutable registered copy or record of source material inside an OKF Harness workspace. Raw sources are for ingest and source-audit workflows, not normal answer workflows; if the material needs correction, a new raw source should be added rather than editing the old one.
 _Avoid_: source material, wiki page, attachment
 
 **URL source**:
@@ -160,9 +160,29 @@ _Avoid_: search result, summary, source digest, auto-ingest output
 A user intent to get an answer from an OKF bundle by finding and reading relevant concept documents, then following cited reference documents when factual precision matters. Query is not an OKF Harness command or internal workflow, and it is not a raw-source discovery pass; registered source material that has not been synthesized into concept documents remains outside normal answers.
 _Avoid_: query command, agent workflow, raw-source search, RAG, auto-ingest
 
+**Evidence brief**:
+The user-facing name for a bounded evidence package prepared before an agent answers from an OKF bundle. It is a temporary work packet for one question, not a durable collection that tries to gather all possibly relevant knowledge.
+_Avoid_: evidence pool, answer, summary, RAG response
+
 **Bounded evidence package**:
-A bounded evidence package prepared for an agent before it answers a question from an OKF bundle. It gathers relevant concept documents, citation pointers, evidence limits, and continuation cues; it is not the answer itself, a semantic summary, or raw-source-wide discovery.
-_Avoid_: answer, query engine, source search, RAG response
+The structured evidence contract behind an evidence brief. It gathers relevant concept documents, citation pointers, evidence limits, and continuation cues; it is not the answer itself, a semantic summary, or raw-source-wide discovery.
+_Avoid_: answer, query engine, source search, evidence pool, RAG response
+
+**Continuation cue**:
+A bounded pointer that tells an agent exactly where it may continue reading after a read result or evidence brief is truncated or incomplete. It is not permission to search raw sources, browse online, or freely expand scope.
+_Avoid_: next search, auto research, unbounded follow-up
+
+**Evidence sufficiency**:
+The agent-owned judgment that an evidence brief and any bounded follow-up reads are enough to answer a person's question responsibly. OKF Harness can expose mechanical limits, but it should not claim semantic sufficiency.
+_Avoid_: CLI confidence, harness answer score, automatic truth judgment
+
+**Evidence item**:
+A selected, bounded wiki excerpt included in an evidence brief with provenance and continuation metadata. It is an inspectable input for an agent answer, not a summary, confidence claim, or final answer.
+_Avoid_: answer excerpt, confidence item, generated summary
+
+**Candidate concept**:
+A concept document surfaced as possibly relevant before its content is selected as evidence. A candidate concept can guide follow-up reads, but it is not itself evidence for an answer.
+_Avoid_: evidence item, answer excerpt, selected proof
 
 **Search result**:
 A candidate concept list that helps an agent decide which full concept documents to read. It may describe matched fields and hit counts, but it is not final evidence for an answer and should not be treated as a snippet-based search engine page.
@@ -181,7 +201,7 @@ An OKF bundle file with a special workspace role, such as `wiki/index.md` or `wi
 _Avoid_: concept document, arbitrary workspace file, wiki page
 
 **Index document**:
-The reserved wiki document that acts as the OKF bundle's human-maintained homepage and orientation map. It can help an agent discover linked concept documents, but a homepage link is not by itself an importance ranking.
+The reserved wiki document that acts as the OKF bundle's human-maintained navigation surface and orientation map. It should be read first to discover likely concept documents, but a homepage link is not by itself evidence or an importance ranking.
 _Avoid_: ranking source, concept document, search result
 
 **Graph report**:
@@ -227,7 +247,3 @@ _Avoid_: prompt injection, hidden prompt, monolithic instructions
 **Harness-managed guidance block**:
 A clearly marked section inside a generated OKF Harness workspace's agent guidance file that OKF Harness may insert, replace, or remove without owning the rest of the file. It lets agent adapters update their own instructions while preserving user-written project guidance.
 _Avoid_: full-file ownership, silent overwrite, prompt injection
-
-**Product roadmap**:
-The public-facing direction of OKF Harness across releases, including accepted themes and candidate ideas. It communicates demand level, constraints, and candidate work without promising a specific release version.
-_Avoid_: implementation checklist, issue tracker, release promise

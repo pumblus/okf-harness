@@ -34,26 +34,6 @@ This means OKF Harness should compete on:
 
 ## High Demand
 
-### Bounded Evidence Planning
-
-Goal: make agent answers reliable without overflowing context.
-
-Release direction: v0.4 should focus on bounded evidence planning rather than more skill-architecture churn.
-
-Candidate scope:
-
-- A future command or workflow that prepares a bounded evidence package before an agent answers.
-- Deterministic retrieval budget that caps index, candidate pages, citations, and response headroom.
-- Explicit `truncated`, `contentLength`, and continuation metadata.
-- Agent guidance that teaches Claude Code and Codex how to answer from bounded evidence.
-- Tests that prove large wiki pages do not produce unbounded JSON or context payloads.
-
-Constraints:
-
-- No semantic embedding index by default.
-- No hidden summarization that claims to understand the wiki.
-- No raw-source-wide search unless the user explicitly enters an ingest or source-audit workflow.
-
 ### Agent Adapter Expansion
 
 Goal: support more agent clients without weakening the default local-shell model.
