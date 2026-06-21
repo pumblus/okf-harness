@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { loadWorkspaceConfig } from "../config/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import { okfDocumentView } from "../okf/document.js";
 import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
 
 export const GRAPH_WRITE_FAILED = "GRAPH_WRITE_FAILED" as const;
@@ -130,14 +131,13 @@ export async function buildWorkspaceGraph(
 }
 
 function graphNodeFromFile(file: OkfMarkdownFile): GraphNode {
+  const document = okfDocumentView(file);
   return {
     id: file.conceptId,
     path: file.workspacePath,
-    title: file.frontmatter.ok
-      ? (stringValue(file.frontmatter.data.title) ?? firstHeading(file.markdown) ?? file.conceptId)
-      : (firstHeading(file.markdown) ?? file.conceptId),
-    type: file.frontmatter.ok ? (stringValue(file.frontmatter.data.type) ?? "Unknown") : "Unknown",
-    tags: file.frontmatter.ok ? stringArrayValue(file.frontmatter.data.tags) : [],
+    title: document.title,
+    type: document.type ?? "Unknown",
+    tags: document.tags,
   };
 }
 
@@ -150,7 +150,7 @@ function graphEdgesFromFiles(
   const issues: GraphIssue[] = [];
 
   for (const file of files) {
-    const body = file.frontmatter.ok ? file.frontmatter.body : stripFrontmatterFence(file.markdown);
+    const body = okfDocumentView(file).body;
     const targets = [
       ...parseMarkdownLinks(body).map((link) => ({ target: link.target, kind: "link" as const })),
       ...bareReferenceTargets(body).map((target) => ({ target, kind: "citation" as const })),
@@ -346,26 +346,4 @@ render();
 </body>
 </html>
 `;
-}
-
-function firstHeading(markdown: string): string | undefined {
-  return /^#\s+(.+?)\s*$/m.exec(markdown)?.[1];
-}
-
-function stripFrontmatterFence(markdown: string): string {
-  if (!markdown.startsWith("---")) {
-    return markdown;
-  }
-  const end = markdown.indexOf("\n---", 3);
-  return end === -1 ? markdown : markdown.slice(end + "\n---".length);
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
-}
-
-function stringArrayValue(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
 }

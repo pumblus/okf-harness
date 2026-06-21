@@ -52,7 +52,6 @@ describe("@okf-harness/cli source", () => {
           original: "llm-wiki.md",
           path: expect.stringMatching(/^raw\/sources\/\d{4}\/\d{2}\/llm-wiki\.md$/),
           sha256,
-          status: "registered",
         },
       },
       warnings: [],

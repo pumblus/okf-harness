@@ -3,6 +3,7 @@ import path from "node:path";
 import { TextDecoder } from "node:util";
 import { loadWorkspaceConfig } from "../config/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import { type OkfDocumentView, okfDocumentView } from "../okf/document.js";
 import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
 import { readSourceManifest, type SourceManifestEntry } from "../source/index.js";
 
@@ -153,7 +154,8 @@ export async function readWorkspaceDocument(
   const conceptIds = new Set(
     scanResult.files.filter((item) => !item.isReserved).map((item) => item.conceptId),
   );
-  const body = markdownBody(file);
+  const document = okfDocumentView(file);
+  const body = document.body;
   const sections = parseSections(body);
   const citationRange = findCitationsRange(sections, body);
   const links = parseBodyLinks(file, body, conceptIds, citationRange);
@@ -178,7 +180,7 @@ export async function readWorkspaceDocument(
       reserved: file.isReserved,
     },
     frontmatter: renderFrontmatter(file),
-    metadata: renderMetadata(file),
+    metadata: renderMetadata(document),
     outline: sections,
     availableSections: sections,
     links,
@@ -373,7 +375,7 @@ function contentForRange(
 }
 
 function parseSections(body: string): ReadSection[] {
-  const headings: Array<ReadSection & { line: number }> = [];
+  const headings: ReadSection[] = [];
   const slugCounts = new Map<string, number>();
   const stack: Array<{ level: number; heading: string }> = [];
   const headingPattern = /^(#{1,6})\s+(.+?)\s*$/gm;
@@ -400,7 +402,6 @@ function parseSections(body: string): ReadSection[] {
       level,
       startOffset: match.index,
       endOffset: body.length,
-      line: lineNumberAtOffset(body, match.index),
     });
     match = headingPattern.exec(body);
   }
@@ -434,12 +435,10 @@ function parseBodyLinks(
       const readLink: ReadLink = {
         text: link.text,
         target: link.target,
+        conceptId,
         exists: conceptIds.has(conceptId),
         line: link.line,
       };
-      if (conceptId !== undefined) {
-        readLink.conceptId = conceptId;
-      }
       return [readLink];
     });
 }
@@ -616,27 +615,17 @@ function renderFrontmatter(file: OkfMarkdownFile): ReadFrontmatter {
   };
 }
 
-function renderMetadata(file: OkfMarkdownFile): ReadMetadata {
-  const title = file.frontmatter.ok
-    ? (stringValue(file.frontmatter.data.title) ?? firstHeading(file.markdown) ?? file.conceptId)
-    : (firstHeading(file.markdown) ?? file.conceptId);
-  const type = file.frontmatter.ok
-    ? (stringValue(file.frontmatter.data.type) ?? "Reserved")
-    : "Unknown";
+function renderMetadata(document: OkfDocumentView): ReadMetadata {
   const metadata: ReadMetadata = {
-    title,
-    type,
-    tags: file.frontmatter.ok ? stringArrayValue(file.frontmatter.data.tags) : [],
+    title: document.title,
+    type: document.frontmatterOk ? (document.type ?? "Reserved") : "Unknown",
+    tags: document.tags,
   };
-  if (file.frontmatter.ok) {
-    const description = stringValue(file.frontmatter.data.description);
-    const timestamp = stringValue(file.frontmatter.data.timestamp);
-    if (description !== undefined) {
-      metadata.description = description;
-    }
-    if (timestamp !== undefined) {
-      metadata.timestamp = timestamp;
-    }
+  if (document.description !== undefined) {
+    metadata.description = document.description;
+  }
+  if (document.timestamp !== undefined) {
+    metadata.timestamp = document.timestamp;
   }
   return metadata;
 }
@@ -657,25 +646,6 @@ function isReferenceDocument(file: OkfMarkdownFile): boolean {
   return file.workspacePath.startsWith("wiki/references/");
 }
 
-function markdownBody(file: OkfMarkdownFile): string {
-  if (file.frontmatter.ok) {
-    return file.frontmatter.body;
-  }
-  return stripFrontmatterFence(file.markdown);
-}
-
-function stripFrontmatterFence(markdown: string): string {
-  if (!markdown.startsWith("---")) {
-    return markdown;
-  }
-  const end = markdown.indexOf("\n---", 3);
-  return end === -1 ? markdown : markdown.slice(end + "\n---".length);
-}
-
-function firstHeading(markdown: string): string | undefined {
-  return /^#\s+(.+?)\s*$/m.exec(markdown)?.[1];
-}
-
 function lineNumberAtOffset(input: string, offset: number): number {
   return input.slice(0, offset).split(/\r?\n/).length;
 }
@@ -687,14 +657,4 @@ function slugify(input: string): string {
     .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return slug.length > 0 ? slug : "section";
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
-}
-
-function stringArrayValue(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
 }

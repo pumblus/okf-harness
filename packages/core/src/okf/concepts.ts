@@ -7,6 +7,7 @@ import {
   toPosixRelativePath,
   type WorkspacePathResolution,
 } from "../paths/index.js";
+import { okfDocumentView } from "./document.js";
 import { type MarkdownFrontmatter, parseMarkdownFrontmatter } from "./frontmatter.js";
 
 export const RESERVED_OKF_FILENAMES = new Set(["index.md", "log.md"]);
@@ -94,8 +95,8 @@ export async function scanConcepts(
       return [];
     }
 
-    const conceptType = stringValue(file.frontmatter.data.type);
-    if (conceptType === undefined) {
+    const document = okfDocumentView(file);
+    if (document.type === undefined) {
       return [];
     }
 
@@ -104,25 +105,23 @@ export async function scanConcepts(
       absolutePath: file.absolutePath,
       workspacePath: file.workspacePath,
       bundlePath: file.bundlePath,
-      type: conceptType,
-      tags: stringArrayValue(file.frontmatter.data.tags),
+      type: document.type,
+      tags: document.tags,
       frontmatter: file.frontmatter.data,
-      body: file.frontmatter.body,
+      body: document.body,
     };
 
-    const title = stringValue(file.frontmatter.data.title);
-    if (title !== undefined) {
+    const title = file.frontmatter.data.title;
+    if (typeof title === "string" && title.trim().length > 0) {
       concept.title = title;
     }
 
-    const description = stringValue(file.frontmatter.data.description);
-    if (description !== undefined) {
-      concept.description = description;
+    if (document.description !== undefined) {
+      concept.description = document.description;
     }
 
-    const timestamp = stringValue(file.frontmatter.data.timestamp);
-    if (timestamp !== undefined) {
-      concept.timestamp = timestamp;
+    if (document.timestamp !== undefined) {
+      concept.timestamp = document.timestamp;
     }
 
     return [concept];
@@ -170,14 +169,4 @@ async function scanMarkdownFiles(root: string): Promise<string[]> {
   );
 
   return nested.flat().sort((left, right) => left.localeCompare(right));
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
-}
-
-function stringArrayValue(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
 }

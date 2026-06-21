@@ -42,7 +42,8 @@ export const workspaceConfigSchema = z
           })
           .strict(),
       })
-      .strict(),
+      .strict()
+      .optional(),
     paths: z
       .object({
         raw_inbox: configRelativePathSchema,
@@ -53,7 +54,7 @@ export const workspaceConfigSchema = z
       .strict(),
     safety: z
       .object({
-        raw_sources_immutable: z.boolean(),
+        raw_sources_immutable: z.boolean().optional(),
         require_git_checkpoint_before_agent_write: z.boolean(),
         max_files_changed_per_ingest: z.number().int().positive(),
       })

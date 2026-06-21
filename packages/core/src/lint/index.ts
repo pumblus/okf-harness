@@ -4,6 +4,7 @@ import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { CONFIG_INVALID, readWorkspaceConfig, type WorkspaceConfig } from "../config/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import { okfDocumentView } from "../okf/document.js";
 import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
 import { readSourceManifest, type SourceManifestEntry } from "../source/index.js";
 
@@ -118,7 +119,7 @@ async function lintSafetyWarnings(
       severity: "warning",
       path: "okfh.config.yaml",
       message:
-        "Safety policy requires a Git checkpoint before agent writes, but this workspace is not inside a Git work tree. OKF Harness does not enforce automatic checkpoints in v0.3.1.",
+        "Safety policy requires a Git checkpoint before agent writes, but this workspace is not inside a Git work tree. OKF Harness does not enforce automatic checkpoints in v0.3.2.",
     },
   ];
 }
@@ -262,8 +263,9 @@ async function lintRegisteredSources(
 
 function lintMarkdownFile(file: OkfMarkdownFile): LintIssue[] {
   const issues: LintIssue[] = [];
+  const document = okfDocumentView(file);
 
-  if (file.frontmatter.ok && file.isReserved && hasConceptFrontmatter(file.frontmatter.data)) {
+  if (file.isReserved && document.type !== undefined) {
     issues.push({
       code: RESERVED_FILE_HAS_CONCEPT_FRONTMATTER,
       severity: "error",
@@ -291,7 +293,7 @@ function lintMarkdownFile(file: OkfMarkdownFile): LintIssue[] {
       });
     }
 
-    if (file.frontmatter.ok && !hasNonEmptyType(file.frontmatter.data.type)) {
+    if (file.frontmatter.ok && document.type === undefined) {
       issues.push({
         code: OKF_MISSING_TYPE,
         severity: "error",
@@ -364,12 +366,13 @@ function lintMissingCitationSections(files: OkfMarkdownFile[]): LintIssue[] {
     if (file.isReserved || !file.frontmatter.ok) {
       return [];
     }
-    const type = stringValue(file.frontmatter.data.type)?.toLocaleLowerCase();
+    const document = okfDocumentView(file);
+    const type = document.type?.toLocaleLowerCase();
     if (
       type === undefined ||
       !new Set(["topic", "entity", "project", "decision"]).has(type) ||
       hasOkfhSources(file.frontmatter.data) ||
-      /^#\s+Citations\s*$/im.test(file.frontmatter.body)
+      /^#\s+Citations\s*$/im.test(document.body)
     ) {
       return [];
     }
@@ -427,18 +430,6 @@ function lintLogDateHeadings(file: OkfMarkdownFile): LintIssue[] {
       } satisfies LintIssue,
     ];
   });
-}
-
-function hasConceptFrontmatter(frontmatter: Record<string, unknown>): boolean {
-  return hasNonEmptyType(frontmatter.type);
-}
-
-function hasNonEmptyType(value: unknown): boolean {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }
 
 function hasOkfhSources(frontmatter: Record<string, unknown>): boolean {

@@ -6,7 +6,6 @@ export type MarkdownFrontmatter =
       hasFrontmatter: true;
       data: Record<string, unknown>;
       body: string;
-      raw: string;
     }
   | {
       ok: false;
@@ -38,7 +37,6 @@ export function parseMarkdownFrontmatter(markdown: string): MarkdownFrontmatter 
       hasFrontmatter: true,
       data: parsed.data as Record<string, unknown>,
       body: parsed.content,
-      raw: parsed.matter,
     };
   } catch (error) {
     return {

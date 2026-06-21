@@ -3,8 +3,8 @@ import type { Stats } from "node:fs";
 import { access, appendFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { loadWorkspaceConfig, type WorkspaceConfig } from "../config/index.js";
-import { scanConcepts } from "../okf/concepts.js";
 import { toPosixPath } from "../paths/index.js";
+import { safeSlug, titleFromFilename, titleFromUrl } from "./metadata.js";
 
 export const MANIFEST_INVALID = "MANIFEST_INVALID" as const;
 export const SOURCE_REGISTRATION_FAILED = "SOURCE_REGISTRATION_FAILED" as const;
@@ -13,7 +13,6 @@ export const SOURCE_INPUT_UNSUPPORTED = "SOURCE_INPUT_UNSUPPORTED" as const;
 export const SOURCE_NOT_REGISTERED = "SOURCE_NOT_REGISTERED" as const;
 
 export type SourceKind = "file" | "url";
-export type SourceStatus = "registered";
 
 export type SourceManifestEntry = {
   id: string;
@@ -22,7 +21,6 @@ export type SourceManifestEntry = {
   path: string;
   sha256: string;
   added_at: string;
-  status: SourceStatus;
   mime?: string;
   title?: string;
   reference_concept?: string;
@@ -63,28 +61,6 @@ export type ListSourcesOptions = {
 export type ListSourcesResult = {
   workspaceRoot: string;
   sources: SourceManifestEntry[];
-};
-
-export type CreateIngestPlanOptions = {
-  workspaceRoot: string;
-  source: string;
-};
-
-export type IngestPlanCandidateConcept = {
-  id: string;
-  path: string;
-  type: string;
-  title?: string;
-  score: number;
-  reason: string;
-};
-
-export type IngestPlanResult = {
-  workspaceRoot: string;
-  source: SourceManifestEntry;
-  recommendedReferencePath: string;
-  candidateConcepts: IngestPlanCandidateConcept[];
-  checklist: string[];
 };
 
 export class SourceManagementError extends Error {
@@ -133,78 +109,6 @@ export async function listSources(options: ListSourcesOptions): Promise<ListSour
   return {
     workspaceRoot,
     sources: manifest.entries,
-  };
-}
-
-export async function createIngestPlan(
-  options: CreateIngestPlanOptions,
-): Promise<IngestPlanResult> {
-  const workspaceRoot = path.resolve(options.workspaceRoot);
-  const config = await loadWorkspaceConfig(workspaceRoot);
-  const manifest = await readSourceManifest(workspaceRoot, config);
-  if (manifest.issues.length > 0) {
-    throw new SourceManagementError("Source manifest contains invalid rows.", MANIFEST_INVALID);
-  }
-
-  const source = findRegisteredSource(manifest.entries, options.source);
-  if (source === undefined) {
-    throw new SourceManagementError(
-      `Source is not registered: ${options.source}`,
-      SOURCE_NOT_REGISTERED,
-      workspaceRoot,
-    );
-  }
-
-  const scanResult = await scanConcepts(workspaceRoot, config);
-  const sourceTokens = tokenizeSourceMetadata(source);
-  const candidateConcepts = scanResult.concepts
-    .filter((concept) => !concept.id.startsWith("references/"))
-    .map((concept) => {
-      const conceptTokens = tokenize([
-        concept.id,
-        concept.title ?? "",
-        concept.type,
-        concept.tags.join(" "),
-      ]);
-      const matches = [...sourceTokens].filter((token) => conceptTokens.has(token));
-      return {
-        concept,
-        matches,
-      };
-    })
-    .filter((candidate) => candidate.matches.length > 0)
-    .map(({ concept, matches }) => {
-      const candidate: IngestPlanCandidateConcept = {
-        id: concept.id,
-        path: concept.workspacePath,
-        type: concept.type,
-        score: matches.length,
-        reason: `metadata token match: ${matches.sort().join(", ")}`,
-      };
-      if (concept.title !== undefined) {
-        candidate.title = concept.title;
-      }
-      return candidate;
-    })
-    .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))
-    .slice(0, 10);
-
-  const recommendedReferencePath =
-    source.reference_concept ??
-    `wiki/references/${safeSlug(referenceTitle(source)) || source.id}.md`;
-
-  return {
-    workspaceRoot,
-    source,
-    recommendedReferencePath,
-    candidateConcepts,
-    checklist: [
-      `Read the full registered source at ${source.path} before writing wiki content.`,
-      `Create or update exactly one reference document at ${recommendedReferencePath}.`,
-      "Update only affected topic, entity, project, decision, or question concept documents.",
-      "Preserve uncertainty and contradictions; do not invent claims or citations.",
-      "Run okfh check --workspace <workspace> --json after wiki edits.",
-    ],
   };
 }
 
@@ -325,7 +229,6 @@ async function addFileSource(context: {
     path: rawPath,
     sha256,
     added_at: context.now.toISOString(),
-    status: "registered",
     mime: mimeFromFilename(original),
     title: titleFromFilename(original),
   };
@@ -402,7 +305,6 @@ async function addUrlSource(context: {
     path: rawPath,
     sha256: sha256Hex(metadata),
     added_at: context.now.toISOString(),
-    status: "registered",
     mime: "text/markdown",
     title: titleFromUrl(context.url),
   };
@@ -489,7 +391,7 @@ function parseManifestEntry(
   }
 
   const row = value as Record<string, unknown>;
-  const requiredStringFields = ["id", "kind", "original", "path", "sha256", "added_at", "status"];
+  const requiredStringFields = ["id", "kind", "original", "path", "sha256", "added_at"];
   for (const field of requiredStringFields) {
     if (typeof row[field] !== "string" || row[field].trim().length === 0) {
       return { ok: false, message: `Manifest row is missing a non-empty ${field} field.` };
@@ -499,7 +401,7 @@ function parseManifestEntry(
   if (row.kind !== "file" && row.kind !== "url") {
     return { ok: false, message: "Manifest kind must be file or url." };
   }
-  if (row.status !== "registered") {
+  if (row.status !== undefined && row.status !== "registered") {
     return { ok: false, message: "Manifest status must be registered." };
   }
   if (!/^src_\d{8}_\d{4}$/.test(String(row.id))) {
@@ -519,7 +421,6 @@ function parseManifestEntry(
     path: toPosixPath(String(row.path)),
     sha256: String(row.sha256),
     added_at: String(row.added_at),
-    status: "registered",
   };
   for (const optional of ["mime", "title", "reference_concept", "notes"] as const) {
     if (typeof row[optional] === "string" && row[optional].trim().length > 0) {
@@ -551,45 +452,6 @@ function parseHttpUrl(input: string): URL | undefined {
   }
 }
 
-function findRegisteredSource(
-  entries: SourceManifestEntry[],
-  sourceInput: string,
-): SourceManifestEntry | undefined {
-  const normalizedInput = toPosixPath(sourceInput);
-  return entries.find(
-    (entry) =>
-      entry.id === sourceInput ||
-      entry.path === normalizedInput ||
-      path.posix.basename(entry.path) === normalizedInput,
-  );
-}
-
-function tokenizeSourceMetadata(source: SourceManifestEntry): Set<string> {
-  return tokenize([source.id, source.original, source.path, source.title ?? ""]);
-}
-
-function tokenize(values: string[]): Set<string> {
-  return new Set(
-    values
-      .join(" ")
-      .normalize("NFKD")
-      .toLowerCase()
-      .replace(/[\u0300-\u036f]/g, "")
-      .split(/[^\p{Letter}\p{Number}]+/u)
-      .filter((token) => token.length >= 3 && !metadataStopWords.has(token)),
-  );
-}
-
-function referenceTitle(source: SourceManifestEntry): string {
-  if (source.title !== undefined) {
-    return source.title;
-  }
-  if (source.kind === "file") {
-    return titleFromFilename(source.original);
-  }
-  return titleFromUrl(new URL(source.original));
-}
-
 function sourceDateParts(now: Date): { year: string; month: string; date: string } {
   const [date] = now.toISOString().split("T");
   if (date === undefined) {
@@ -601,18 +463,6 @@ function sourceDateParts(now: Date): { year: string; month: string; date: string
   }
   return { year, month, date: date.replace(/-/g, "") };
 }
-
-const metadataStopWords = new Set([
-  "raw",
-  "sources",
-  "source",
-  "http",
-  "https",
-  "www",
-  "com",
-  "org",
-  "net",
-]);
 
 function nextSourceId(entries: SourceManifestEntry[], now: Date): string {
   const { date } = sourceDateParts(now);
@@ -626,32 +476,9 @@ function nextSourceId(entries: SourceManifestEntry[], now: Date): string {
   return `src_${date}_${String(maxSequence + 1).padStart(4, "0")}`;
 }
 
-function safeSlug(input: string): string {
-  return input
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-")
-    .slice(0, 80)
-    .replace(/-+$/g, "");
-}
-
-function titleFromFilename(filename: string): string {
-  const extension = path.extname(filename);
-  const stem = extension.length > 0 ? filename.slice(0, -extension.length) : filename;
-  return stem.trim().length > 0 ? stem : filename;
-}
-
 function urlSlugSource(url: URL): string {
   const pathname = url.pathname.split("/").filter(Boolean).join("-");
   return pathname.length > 0 ? `${url.hostname}-${pathname}` : url.hostname;
-}
-
-function titleFromUrl(url: URL): string {
-  const pathname = url.pathname.split("/").filter(Boolean).at(-1);
-  return pathname !== undefined && pathname.length > 0 ? pathname : url.hostname;
 }
 
 function urlMetadataContents(url: string, now: Date): string {

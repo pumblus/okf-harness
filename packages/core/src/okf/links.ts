@@ -4,8 +4,6 @@ import { conceptIdFromPath } from "./concepts.js";
 export type MarkdownLink = {
   text: string;
   target: string;
-  title?: string;
-  raw: string;
   line: number;
 };
 
@@ -15,24 +13,17 @@ export function parseMarkdownLinks(markdown: string): MarkdownLink[] {
 
   lines.forEach((line, index) => {
     for (const match of line.matchAll(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g)) {
-      const raw = match[0];
       const text = match[1];
       const target = match[2];
-      if (raw === undefined || text === undefined || target === undefined) {
+      if (text === undefined || target === undefined) {
         continue;
       }
 
-      const link: MarkdownLink = {
+      links.push({
         text,
         target,
-        raw,
         line: index + 1,
-      };
-      const title = match[3];
-      if (title !== undefined) {
-        link.title = title;
-      }
-      links.push(link);
+      });
     }
   });
 

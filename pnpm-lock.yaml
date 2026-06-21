@@ -29,10 +29,10 @@ importers:
   packages/cli:
     dependencies:
       '@okf-harness/agent-pack':
-        specifier: 0.3.1
+        specifier: 0.3.2
         version: link:../agent-pack
       '@okf-harness/core':
-        specifier: 0.3.1
+        specifier: 0.3.2
         version: link:../core
       commander:
         specifier: 4.1.1
@@ -53,12 +53,6 @@ importers:
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3
-
-  packages/mcp:
-    dependencies:
-      '@okf-harness/core':
-        specifier: workspace:*
-        version: link:../core
 
 packages:
 

@@ -68,6 +68,29 @@ const skillName = "okf-harness";
 const skillDescription =
   "One Door workflow for OKF Harness workspaces. Use when the user asks to set up, check, ingest into, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, ordinary repository maintenance, knowledge-base tasks outside an OKF Harness workspace, repository dependency graphs, old workflow-specific skill names, or an `okfh query` command.";
 const referenceTemplatePaths = ["setup.md", "check.md", "ingest.md", "answer.md", "graph.md"];
+const adapterProfiles: Record<
+  AgentAdapter,
+  {
+    rootGuidancePath: string;
+    routePrefix: string;
+    routeLabel: string;
+    skillRoot: string;
+  }
+> = {
+  claude: {
+    rootGuidancePath: "CLAUDE.md",
+    routePrefix: "/",
+    routeLabel: "Use the project skills for user-facing workflows:",
+    skillRoot: ".claude/skills",
+  },
+  codex: {
+    rootGuidancePath: "AGENTS.md",
+    routePrefix: "$",
+    routeLabel: "Use repo skills for workflows:",
+    skillRoot: ".agents/skills",
+  },
+};
+const allAdapters = Object.keys(adapterProfiles) as AgentAdapter[];
 
 export function renderAgentAdapter(options: RenderAgentAdapterOptions): RenderedAgentAdapter {
   const version = options.version ?? packageVersion.version;
@@ -151,7 +174,7 @@ async function planOldWorkflowSkillCleanup(
   adapter: AgentAdapter,
   context: { dryRun: boolean; result: InstallAgentAdaptersResult },
 ): Promise<void> {
-  const skillRoot = adapter === "claude" ? ".claude/skills" : ".agents/skills";
+  const { skillRoot } = adapterProfiles[adapter];
   for (const skillName of oldWorkflowSkillNames) {
     const skillDirectory = `${skillRoot}/${skillName}`;
     const skillPath = `${skillDirectory}/SKILL.md`;
@@ -172,23 +195,18 @@ async function planOldWorkflowSkillCleanup(
 }
 
 function renderRootGuidance(adapter: AgentAdapter): RenderedAgentFile {
-  const rootPath = adapter === "claude" ? "CLAUDE.md" : "AGENTS.md";
-  const routePrefix = adapter === "claude" ? "/" : "$";
-  const routeLabel =
-    adapter === "claude"
-      ? "Use the project skills for user-facing workflows:"
-      : "Use repo skills for workflows:";
+  const profile = adapterProfiles[adapter];
 
   return {
-    path: rootPath,
+    path: profile.rootGuidancePath,
     contents: `# OKF Harness workspace
 
 ${managedBlockStart}
 This repository is an OKF Harness workspace.
 
-${routeLabel}
+${profile.routeLabel}
 
-- \`${routePrefix}okf-harness\` for setup, check, ingest, answer, and graph workflows.
+- \`${profile.routePrefix}okf-harness\` for setup, check, ingest, answer, and graph workflows.
 
 Rules:
 
@@ -205,11 +223,11 @@ ${managedBlockEnd}
 }
 
 function adaptersForTarget(target: AgentInstallTarget): AgentAdapter[] {
-  return target === "all" ? ["claude", "codex"] : [target];
+  return target === "all" ? [...allAdapters] : [target];
 }
 
 function isRootGuidancePath(filePath: string): boolean {
-  return filePath === "AGENTS.md" || filePath === "CLAUDE.md";
+  return allAdapters.some((adapter) => adapterProfiles[adapter].rootGuidancePath === filePath);
 }
 
 async function planRootGuidanceWrite(
@@ -472,7 +490,7 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 }
 
 function renderSkillFiles(adapter: AgentAdapter, version: string): RenderedAgentFile[] {
-  const skillRoot = adapter === "claude" ? ".claude/skills" : ".agents/skills";
+  const { skillRoot } = adapterProfiles[adapter];
   return [
     {
       path: `${skillRoot}/${skillName}/SKILL.md`,

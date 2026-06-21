@@ -30,7 +30,7 @@ describe("@okf-harness/core", () => {
         }),
         expect.objectContaining({ path: "wiki/index.md" }),
       ]),
-      warnings: [expect.objectContaining({ code: "AGENT_PACK_PENDING" })],
+      warnings: [],
     });
   });
 });

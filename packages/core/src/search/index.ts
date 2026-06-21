@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { loadWorkspaceConfig } from "../config/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import { type OkfDocumentView, okfDocumentView } from "../okf/document.js";
 import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
 
 export type SearchFilter = {
@@ -73,8 +74,9 @@ export async function searchWorkspace(
   const scored = scanResult.files
     .filter((file) => !file.isReserved)
     .map((file) => {
-      const card = cardFromMarkdownFile(file, indexMentioned.has(file.conceptId));
-      const body = markdownBody(file);
+      const document = okfDocumentView(file);
+      const card = cardFromMarkdownFile(file, document, indexMentioned.has(file.conceptId));
+      const body = document.body;
       if (!card.frontmatterOk) {
         warnings.push({
           code: "FRONTMATTER_DEGRADED",
@@ -108,32 +110,26 @@ export async function searchWorkspace(
   };
 }
 
-function cardFromMarkdownFile(file: OkfMarkdownFile, indexMentioned: boolean): SearchResultCard {
-  const title = file.frontmatter.ok
-    ? (stringValue(file.frontmatter.data.title) ?? firstHeading(file.markdown) ?? file.conceptId)
-    : (firstHeading(file.markdown) ?? file.conceptId);
-  const type = file.frontmatter.ok
-    ? (stringValue(file.frontmatter.data.type) ?? "Unknown")
-    : "Unknown";
-  const description = file.frontmatter.ok
-    ? stringValue(file.frontmatter.data.description)
-    : undefined;
-
+function cardFromMarkdownFile(
+  file: OkfMarkdownFile,
+  document: OkfDocumentView,
+  indexMentioned: boolean,
+): SearchResultCard {
   const card: SearchResultCard = {
     conceptId: file.conceptId,
     path: file.workspacePath,
-    title,
-    type,
-    tags: file.frontmatter.ok ? stringArrayValue(file.frontmatter.data.tags) : [],
-    frontmatterOk: file.frontmatter.ok,
+    title: document.title,
+    type: document.type ?? "Unknown",
+    tags: document.tags,
+    frontmatterOk: document.frontmatterOk,
     indexMentioned,
     score: 0,
     scoreBreakdown: [],
     matchedFields: [],
     bodyHitCount: 0,
   };
-  if (description !== undefined) {
-    card.description = description;
+  if (document.description !== undefined) {
+    card.description = document.description;
   }
   return card;
 }
@@ -304,26 +300,6 @@ function normalizePathFilter(input: string): string {
   return input.startsWith("wiki/") ? input : `wiki/${input.replace(/^\/+/, "")}`;
 }
 
-function markdownBody(file: OkfMarkdownFile): string {
-  if (file.frontmatter.ok) {
-    return file.frontmatter.body;
-  }
-  return stripFrontmatterFence(file.markdown);
-}
-
-function stripFrontmatterFence(markdown: string): string {
-  if (!markdown.startsWith("---")) {
-    return markdown;
-  }
-  const end = markdown.indexOf("\n---", 3);
-  return end === -1 ? markdown : markdown.slice(end + "\n---".length);
-}
-
-function firstHeading(markdown: string): string | undefined {
-  const heading = /^#\s+(.+?)\s*$/m.exec(markdown);
-  return heading?.[1];
-}
-
 async function readRootIndexMentions(
   workspaceRoot: string,
   wikiRoot: string,
@@ -366,16 +342,6 @@ function clampLimit(limit: number | undefined): number {
     return defaultLimit;
   }
   return Math.max(1, Math.min(maxLimit, Math.trunc(limit)));
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
-}
-
-function stringArrayValue(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
 }
 
 function errorCode(error: unknown): string | undefined {

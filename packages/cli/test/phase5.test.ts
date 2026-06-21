@@ -29,7 +29,6 @@ describe("@okf-harness/cli query workflow", () => {
               search: "available",
               read: "available",
               graph: "available",
-              queryCommand: "not_available",
             },
           },
         },

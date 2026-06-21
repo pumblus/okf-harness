@@ -188,7 +188,7 @@ export async function readWorkspaceStatus(workspaceRootInput: string): Promise<W
     wikiFiles: scanResult.files.length,
     concepts: scanResult.concepts.length,
     lint,
-    warnings: workspacePendingWarnings(),
+    warnings: [],
   };
 }
 
@@ -231,15 +231,6 @@ async function findNearestWorkspaceRoot(startDir: string): Promise<string | unde
   }
 }
 
-function workspacePendingWarnings(): WorkspaceWarning[] {
-  return [
-    {
-      code: "AGENT_PACK_PENDING",
-      message: "Claude and Codex skill rendering is not included in the base workspace plan.",
-    },
-  ];
-}
-
 export function createWorkspacePlan(options: { name: string; now?: Date }): WorkspacePlan {
   const createdAt = (options.now ?? new Date()).toISOString();
   const logDate = createdAt.slice(0, "YYYY-MM-DD".length);
@@ -250,7 +241,7 @@ export function createWorkspacePlan(options: { name: string; now?: Date }): Work
     createdAt,
     directories: workspaceDirectories(),
     files: workspaceFiles(options.name, logDate, config),
-    warnings: workspacePendingWarnings(),
+    warnings: [],
   };
 }
 
@@ -306,16 +297,6 @@ function createWorkspaceConfig(name: string, createdAt: string): WorkspaceConfig
       bundle_root: "wiki",
       profile: "okf-harness-default",
     },
-    agents: {
-      tier1: {
-        claude: true,
-        codex: true,
-      },
-      tier2: {
-        pi: false,
-        opencode: false,
-      },
-    },
     paths: {
       raw_inbox: "raw/inbox",
       raw_sources: "raw/sources",
@@ -323,7 +304,6 @@ function createWorkspaceConfig(name: string, createdAt: string): WorkspaceConfig
       manifest: ".okfh/manifest.jsonl",
     },
     safety: {
-      raw_sources_immutable: true,
       require_git_checkpoint_before_agent_write: true,
       max_files_changed_per_ingest: 20,
     },
