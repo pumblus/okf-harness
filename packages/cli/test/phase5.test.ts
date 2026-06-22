@@ -1,4 +1,4 @@
-import { cp, mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -274,6 +274,10 @@ describe("@okf-harness/cli query workflow", () => {
         argv: ["node", "okfh", "read", "topics/llm-wiki", "--workspace", workspace, "--json"],
       },
       {
+        command: "evidence",
+        argv: ["node", "okfh", "evidence", "LLM Wiki", "--workspace", workspace, "--json"],
+      },
+      {
         command: "graph",
         argv: ["node", "okfh", "graph", "--workspace", workspace, "--json"],
       },
@@ -292,6 +296,61 @@ describe("@okf-harness/cli query workflow", () => {
           code: "SCAN_FAILED",
         },
       });
+    }
+  });
+
+  it("returns a clear JSON error when evidence is blocked by OKF conformance", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(workspace, "wiki/topics/llm-wiki.md"),
+      `---
+title: LLM Wiki
+description: Local markdown bundle maintained by an agent.
+---
+
+# Overview
+
+An LLM Wiki keeps raw sources separate from synthesized concept pages.
+`,
+      "utf8",
+    );
+
+    try {
+      const result = await runJsonCli([
+        "node",
+        "okfh",
+        "evidence",
+        "LLM Wiki",
+        "--workspace",
+        workspace,
+        "--json",
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        ok: false,
+        command: "evidence",
+        workspace,
+        error: {
+          code: "EVIDENCE_WORKSPACE_BLOCKED",
+          message: "OKF conformance is blocked; evidence cannot be prepared from this wiki.",
+          details: {
+            okfConformanceFindings: [
+              expect.objectContaining({
+                code: "OKF_MISSING_TYPE",
+                path: "wiki/topics/llm-wiki.md",
+              }),
+            ],
+          },
+        },
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
     }
   });
 

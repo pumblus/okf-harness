@@ -1,4 +1,13 @@
 import path from "node:path";
+import { type CheckResult, checkWorkspace, type HarnessPriority } from "../check/index.js";
+import {
+  BROKEN_LINK,
+  type LintIssue,
+  MISSING_CITATIONS_SECTION,
+  REFERENCE_SOURCE_MISSING,
+  SOURCE_HASH_DRIFT,
+  SOURCE_MISSING,
+} from "../lint/index.js";
 import {
   type CitationIssue,
   type ReadCitation,
@@ -8,6 +17,7 @@ import {
 } from "../read/index.js";
 import type { SearchResultCard } from "../search/index.js";
 import { type SearchWorkspaceResult, searchWorkspace } from "../search/index.js";
+import type { SourceManifestEntry } from "../source/index.js";
 
 export type EvidenceCandidate = {
   item: number;
@@ -26,6 +36,29 @@ export type EvidenceContinuationCue = {
   offset: number;
   limit: number;
   command: string;
+};
+
+export type EvidenceSourcePointer = Pick<
+  SourceManifestEntry,
+  | "id"
+  | "kind"
+  | "original"
+  | "path"
+  | "sha256"
+  | "added_at"
+  | "mime"
+  | "title"
+  | "reference_concept"
+>;
+
+export type EvidenceReferencePointer = {
+  target: string;
+  exists: boolean;
+  line: number;
+  conceptId?: string;
+  sourceIds: string[];
+  sources: EvidenceSourcePointer[];
+  citationIssues: CitationIssue[];
 };
 
 export type EvidenceItem = {
@@ -55,12 +88,21 @@ export type EvidenceItem = {
   provenance: {
     citations: ReadCitation[];
     citationIssues: CitationIssue[];
+    references: EvidenceReferencePointer[];
+    sourceIds: string[];
+    sources: EvidenceSourcePointer[];
   };
 };
 
 export type EvidenceLimit = {
   code: string;
   message: string;
+};
+
+export type EvidenceWarning = SearchWorkspaceResult["warnings"][number] & {
+  line?: number;
+  severity?: LintIssue["severity"];
+  priority?: HarnessPriority;
 };
 
 export type EvidenceBriefResult = {
@@ -76,7 +118,7 @@ export type EvidenceBriefResult = {
   candidates: EvidenceCandidate[];
   limits: EvidenceLimit[];
   guidance: string[];
-  warnings: SearchWorkspaceResult["warnings"];
+  warnings: EvidenceWarning[];
 };
 
 export type PlanEvidenceBriefOptions = {
@@ -93,6 +135,7 @@ export const evidenceBudgetPresets = {
 } as const;
 
 export const INVALID_EVIDENCE_BUDGET = "INVALID_EVIDENCE_BUDGET" as const;
+export const EVIDENCE_WORKSPACE_BLOCKED = "EVIDENCE_WORKSPACE_BLOCKED" as const;
 
 export class EvidenceBudgetError extends Error {
   readonly code = INVALID_EVIDENCE_BUDGET;
@@ -106,8 +149,25 @@ export class EvidenceBudgetError extends Error {
   }
 }
 
+export class EvidenceWorkspaceBlockedError extends Error {
+  readonly code = EVIDENCE_WORKSPACE_BLOCKED;
+
+  constructor(readonly details: Record<string, unknown>) {
+    super("OKF conformance is blocked; evidence cannot be prepared from this wiki.");
+    this.name = "EvidenceWorkspaceBlockedError";
+  }
+}
+
 const maxEvidenceItems = 3;
 const defaultEvidenceBudgetPreset: EvidenceBudgetPreset = "standard";
+const evidenceRiskCodes = new Set([
+  BROKEN_LINK,
+  MISSING_CITATIONS_SECTION,
+  REFERENCE_SOURCE_MISSING,
+  SOURCE_HASH_DRIFT,
+  SOURCE_MISSING,
+  "UNREGISTERED_RAW_SOURCE",
+]);
 const stopWords = new Set([
   "a",
   "an",
@@ -128,10 +188,17 @@ export async function planEvidenceBrief(
 ): Promise<EvidenceBriefResult> {
   const workspaceRoot = path.resolve(options.workspaceRoot);
   const budget = resolveEvidenceBudget(options);
+  const check = await checkWorkspace(workspaceRoot);
+  if (check.status === "blocked") {
+    throw new EvidenceWorkspaceBlockedError({
+      okfConformanceFindings: check.okfConformance.findings,
+    });
+  }
   const search = await searchWorkspace({
     workspaceRoot,
     query: options.question,
   });
+  const riskWarnings = evidenceRiskWarnings(check);
   const evidenceResults = search.results.slice(0, maxEvidenceItems);
   const candidates = search.results.slice(maxEvidenceItems).map((result, index) => ({
     item: maxEvidenceItems + index + 1,
@@ -162,7 +229,10 @@ export async function planEvidenceBrief(
     },
     evidence,
     candidates,
-    limits: evidenceLimits(search.totalMatches, truncated),
+    limits: [
+      ...evidenceLimits(search.totalMatches, truncated),
+      ...workspaceRiskLimits(riskWarnings),
+    ],
     guidance:
       search.totalMatches === 0
         ? [
@@ -176,7 +246,7 @@ export async function planEvidenceBrief(
               ? ["Follow continuation cues with bounded okfh read calls only when needed."]
               : []),
           ],
-    warnings: search.warnings,
+    warnings: [...search.warnings, ...riskWarnings],
   };
 }
 
@@ -214,6 +284,7 @@ async function evidenceItemForResult(
     excerptLimit,
   );
   const range = rangeFromContent(selected.read.content);
+  const provenance = await evidenceProvenance(workspaceRoot, selected.read);
   const item: EvidenceItem = {
     item: index + 1,
     conceptId: result.conceptId,
@@ -230,10 +301,7 @@ async function evidenceItemForResult(
     excerpt: selected.read.content.text,
     matchedFields: result.matchedFields,
     matchReasons: evidenceMatchReasons(result, selected.matchReasons, selected.read.content.mode),
-    provenance: {
-      citations: selected.read.citations,
-      citationIssues: selected.read.citationIssues,
-    },
+    provenance,
   };
   if (selected.section !== undefined) {
     item.section = {
@@ -244,6 +312,107 @@ async function evidenceItemForResult(
     };
   }
   return item;
+}
+
+async function evidenceProvenance(
+  workspaceRoot: string,
+  read: Awaited<ReturnType<typeof readWorkspaceDocument>>,
+): Promise<EvidenceItem["provenance"]> {
+  const references = await Promise.all(
+    read.citations
+      .filter((citation): citation is Extract<ReadCitation, { kind: "reference" }> => {
+        return citation.kind === "reference";
+      })
+      .map(async (citation): Promise<EvidenceReferencePointer> => {
+        const base = {
+          target: citation.target,
+          exists: citation.exists,
+          line: citation.line,
+          ...(citation.conceptId === undefined ? {} : { conceptId: citation.conceptId }),
+        };
+        if (!citation.exists || citation.conceptId === undefined) {
+          return { ...base, sourceIds: [], sources: [], citationIssues: [] };
+        }
+
+        const reference = await readWorkspaceDocument({
+          workspaceRoot,
+          target: citation.conceptId,
+        });
+        const sources = sourcePointersFromRead(reference);
+        return {
+          ...base,
+          sourceIds: sourceIdsFromRead(reference),
+          sources,
+          citationIssues: reference.citationIssues,
+        };
+      }),
+  );
+  const sources = dedupeSources([
+    ...sourcePointersFromRead(read),
+    ...references.flatMap((reference) => reference.sources),
+  ]);
+  const sourceIds = [
+    ...new Set([
+      ...sourceIdsFromRead(read),
+      ...references.flatMap((reference) => reference.sourceIds),
+    ]),
+  ].sort();
+
+  return {
+    citations: read.citations,
+    citationIssues: read.citationIssues,
+    references,
+    sourceIds,
+    sources,
+  };
+}
+
+function sourceIdsFromRead(read: Awaited<ReturnType<typeof readWorkspaceDocument>>): string[] {
+  const sourceIds = new Set<string>();
+  if (read.source !== undefined) {
+    sourceIds.add(read.source.id);
+  }
+  for (const citation of read.citations) {
+    if (citation.kind === "source") {
+      sourceIds.add(citation.sourceId);
+    }
+  }
+  return [...sourceIds].sort();
+}
+
+function sourcePointersFromRead(
+  read: Awaited<ReturnType<typeof readWorkspaceDocument>>,
+): EvidenceSourcePointer[] {
+  return dedupeSources([
+    ...(read.source === undefined ? [] : [sourcePointer(read.source)]),
+    ...read.citations.flatMap((citation) =>
+      citation.kind === "source" && citation.source !== undefined
+        ? [sourcePointer(citation.source)]
+        : [],
+    ),
+  ]);
+}
+
+function dedupeSources(sources: EvidenceSourcePointer[]): EvidenceSourcePointer[] {
+  return [...new Map(sources.map((source) => [source.id, source])).values()].sort((left, right) =>
+    left.id.localeCompare(right.id),
+  );
+}
+
+function sourcePointer(source: SourceManifestEntry): EvidenceSourcePointer {
+  return {
+    id: source.id,
+    kind: source.kind,
+    original: source.original,
+    path: source.path,
+    sha256: source.sha256,
+    added_at: source.added_at,
+    ...(source.mime === undefined ? {} : { mime: source.mime }),
+    ...(source.title === undefined ? {} : { title: source.title }),
+    ...(source.reference_concept === undefined
+      ? {}
+      : { reference_concept: source.reference_concept }),
+  };
 }
 
 async function selectEvidenceExcerpt(
@@ -377,6 +546,37 @@ function evidenceLimits(totalMatches: number, truncated: boolean): EvidenceLimit
         },
       ]
     : [];
+}
+
+function workspaceRiskLimits(warnings: EvidenceWarning[]): EvidenceLimit[] {
+  return warnings.length === 0
+    ? []
+    : [
+        {
+          code: "WORKSPACE_RISK",
+          message:
+            "Harness lint reported citation, provenance, or source-integrity risk; evidence was still returned because the wiki is readable.",
+        },
+      ];
+}
+
+function evidenceRiskWarnings(check: CheckResult): EvidenceWarning[] {
+  return (Object.entries(check.harnessLint.findings) as Array<[HarnessPriority, LintIssue[]]>)
+    .flatMap(([priority, findings]) =>
+      findings.filter(isEvidenceRisk).map((finding) => ({
+        code: finding.code,
+        message: finding.message,
+        ...(finding.path === undefined ? {} : { path: finding.path }),
+        ...(finding.line === undefined ? {} : { line: finding.line }),
+        severity: finding.severity,
+        priority,
+      })),
+    )
+    .sort((left, right) => left.code.localeCompare(right.code));
+}
+
+function isEvidenceRisk(issue: LintIssue): boolean {
+  return issue.code.startsWith("MANIFEST_") || evidenceRiskCodes.has(issue.code);
 }
 
 function resolveEvidenceBudget(options: PlanEvidenceBriefOptions): {

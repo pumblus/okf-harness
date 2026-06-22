@@ -73,11 +73,132 @@ describe("OKF evidence brief planning", () => {
           }),
         ]),
         citationIssues: [],
+        references: [
+          expect.objectContaining({
+            target: "/references/karpathy-llm-wiki.md",
+            exists: true,
+            conceptId: "references/karpathy-llm-wiki",
+            sourceIds: ["src_20260615_0001"],
+            sources: [
+              expect.objectContaining({
+                id: "src_20260615_0001",
+                kind: "file",
+                path: "raw/sources/2026/06/karpathy-llm-wiki.md",
+                sha256: "09ff0b6de0a595bec1b6b28686f23ee399853cbe05cf46a8818d2e9b1df59626",
+              }),
+            ],
+            citationIssues: [],
+          }),
+        ],
+        sourceIds: ["src_20260615_0001"],
+        sources: [
+          expect.objectContaining({
+            id: "src_20260615_0001",
+            original: "karpathy-llm-wiki.md",
+            title: "karpathy-llm-wiki",
+          }),
+        ],
       },
     });
     expect(result.candidates).toEqual([]);
     expect(JSON.stringify(result)).not.toMatch(/\b(score|confidence|relevance|ranking)\b/i);
     expect(JSON.stringify(result)).not.toContain("Fixture raw source for the LLM Wiki pattern.");
+  });
+
+  it("surfaces citation issues without expanding raw source bodies", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(
+        path.join(workspace, "wiki/topics/llm-wiki.md"),
+        `---
+type: Topic
+title: LLM Wiki
+description: Local markdown bundle maintained by an agent.
+tags: [llm-wiki, okf]
+timestamp: "2026-06-15T12:00:00-07:00"
+---
+
+# Overview
+
+An LLM Wiki keeps raw sources separate from synthesized concept pages.
+
+# Citations
+
+- [missing reference](/references/missing.md)
+`,
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+
+      expect(result.evidence[0]?.provenance).toMatchObject({
+        citationIssues: [
+          {
+            code: "BROKEN_CITATION_REFERENCE",
+            message: "Citation reference does not resolve: /references/missing.md",
+          },
+        ],
+        references: [
+          {
+            target: "/references/missing.md",
+            exists: false,
+            sourceIds: [],
+            sources: [],
+            citationIssues: [],
+          },
+        ],
+        sourceIds: [],
+        sources: [],
+      });
+      expect(result.limits).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: "WORKSPACE_RISK" })]),
+      );
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: "BROKEN_LINK" })]),
+      );
+      expect(JSON.stringify(result)).not.toContain("Fixture raw source for the LLM Wiki pattern.");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns readable evidence with source-integrity lint risk", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(
+        path.join(workspace, "raw/sources/2026/06/karpathy-llm-wiki.md"),
+        "# Changed source\n",
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+
+      expect(result.evidence[0]?.conceptId).toBe("topics/llm-wiki");
+      expect(result.limits).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: "WORKSPACE_RISK" })]),
+      );
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: "SOURCE_HASH_DRIFT",
+            priority: "high",
+          }),
+        ]),
+      );
+      expect(JSON.stringify(result)).not.toContain("# Changed source");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("returns selected evidence plus additional thin candidates in the same brief", async () => {
@@ -272,6 +393,26 @@ space proof ${"large page ".repeat(1_000)}
       expect(item?.continuationCues[0]?.command).toBe(
         `okfh read 'topics/space proof' --workspace '${workspace}' --offset ${item?.range.endOffset} --limit 80 --json`,
       );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails clearly when the OKF wiki cannot be scanned", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    await rm(path.join(workspace, "wiki"), { recursive: true, force: true });
+    try {
+      await expect(
+        planEvidenceBrief({
+          workspaceRoot: workspace,
+          question: "LLM Wiki",
+        }),
+      ).rejects.toMatchObject({
+        code: "SCAN_FAILED",
+        message: expect.stringContaining("no such file or directory"),
+      });
     } finally {
       await rm(root, { recursive: true, force: true });
     }

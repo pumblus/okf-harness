@@ -171,12 +171,11 @@ function normalizeCliError(error: unknown): NormalizedCliError | undefined {
 }
 
 function normalizeObject(error: NormalizedCliError): NormalizedCliError {
-  return error.details === undefined
-    ? {
-        code: error.code,
-        message: error.message,
-      }
-    : error;
+  return {
+    code: error.code,
+    message: error.message,
+    ...(error.details === undefined ? {} : { details: error.details }),
+  };
 }
 
 function isCommanderError(
