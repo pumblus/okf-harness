@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -40,41 +40,66 @@ describe("@okf-harness/cli init", () => {
 
   it("initializes a workspace with the requested Codex adapter", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
-    const workspace = path.join(root, "ai-research");
+    const workspace = path.join(root, "AI Research 研究");
+    const bin = path.join(root, "bin");
+    await mkdir(bin);
+    const codex = path.join(bin, process.platform === "win32" ? "codex.CMD" : "codex");
+    await writeFile(codex, process.platform === "win32" ? "@echo off\r\n" : "#!/bin/sh\n", "utf8");
+    if (process.platform !== "win32") {
+      await chmod(codex, 0o755);
+    }
+    const originalPath = process.env.PATH;
+    process.env.PATH = bin;
     let stdout = "";
     let stderr = "";
 
-    const exitCode = await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "codex", "--json"],
-      {
-        writeOut: (chunk) => {
-          stdout += chunk;
+    try {
+      const exitCode = await runCli(
+        ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "codex", "--json"],
+        {
+          writeOut: (chunk) => {
+            stdout += chunk;
+          },
+          writeErr: (chunk) => {
+            stderr += chunk;
+          },
         },
-        writeErr: (chunk) => {
-          stderr += chunk;
-        },
-      },
-    );
+      );
 
-    expect(exitCode).toBe(0);
-    expect(stderr).toBe("");
-    const result = JSON.parse(stdout);
-    expect(result).toMatchObject({
-      ok: true,
-      command: "init",
-      workspace,
-      data: {
-        name: "AI Research",
-        lint: { ok: true },
-        agents: {
-          requested: "codex",
+      expect(exitCode).toBe(0);
+      expect(stderr).toBe("");
+      const result = JSON.parse(stdout);
+      expect(result).toMatchObject({
+        ok: true,
+        command: "init",
+        workspace,
+        data: {
+          name: "AI Research",
+          lint: { ok: true },
+          agents: {
+            requested: "codex",
+          },
+          refresh: {
+            agentClient: "codex",
+            workspacePath: workspace,
+            message: expect.stringContaining("Codex"),
+            commands: expect.any(Array),
+          },
         },
-      },
-      warnings: [],
-    });
-    expect(result.data.agents.install.writtenFiles).toEqual(
-      expect.arrayContaining([".agents/skills/okf-harness/SKILL.md"]),
-    );
+        warnings: [],
+      });
+      expect(result.data.refresh.commands).toHaveLength(2);
+      expect(result.data.refresh.commands[1]).toBe("codex");
+      expect(result.data.agents.install.writtenFiles).toEqual(
+        expect.arrayContaining([".agents/skills/okf-harness/SKILL.md"]),
+      );
+    } finally {
+      if (originalPath === undefined) {
+        delete process.env.PATH;
+      } else {
+        process.env.PATH = originalPath;
+      }
+    }
 
     const config = await readFile(path.join(workspace, "okfh.config.yaml"), "utf8");
     expect(config).toContain("name: AI Research");

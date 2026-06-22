@@ -4,6 +4,7 @@ import { type InitWorkspaceResult, initWorkspace, WorkspaceInitError } from "@ok
 import type { Command } from "commander";
 import { writeCliError, writeValidationError } from "../errors/index.js";
 import { type InitAgentTarget, parseInitAgentTarget } from "../options/index.js";
+import { createWorkspaceRefreshHint, type WorkspaceRefreshHint } from "../refresh.js";
 import { writeResult } from "../render/result.js";
 import type { CliIo, JsonEnvelope } from "../types.js";
 
@@ -105,6 +106,12 @@ export function registerInitCommand(
               ...(agentInstall?.replacedFiles ?? []),
             ],
       );
+      const refresh = renderRefreshHint({
+        agentTarget,
+        ok,
+        dryRun: result.dryRun,
+        workspaceRoot: result.workspaceRoot,
+      });
       const envelope: JsonEnvelope = {
         ok,
         command: "init",
@@ -114,6 +121,7 @@ export function registerInitCommand(
           dryRun: result.dryRun,
           git: result.git,
           agents: renderInitAgentData(agentTarget, agentInstall),
+          refresh,
           files,
           plannedFiles,
           directories: result.directories,
@@ -143,4 +151,25 @@ function renderInitAgentData(
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function renderRefreshHint(options: {
+  agentTarget: InitAgentTarget;
+  ok: boolean;
+  dryRun: boolean;
+  workspaceRoot: string;
+}): WorkspaceRefreshHint | undefined {
+  if (
+    !options.ok ||
+    options.dryRun ||
+    options.agentTarget === "all" ||
+    options.agentTarget === "none"
+  ) {
+    return undefined;
+  }
+
+  return createWorkspaceRefreshHint({
+    agentClient: options.agentTarget,
+    workspaceRoot: options.workspaceRoot,
+  });
 }
