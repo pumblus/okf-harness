@@ -15,35 +15,53 @@ describe("@okf-harness/cli agent", () => {
         writeErr: () => {},
       },
     );
+    const emptyBin = path.join(root, "empty-bin");
+    await mkdir(emptyBin);
+    const originalPath = process.env.PATH;
+    process.env.PATH = emptyBin;
     let stdout = "";
     let stderr = "";
 
-    const exitCode = await runCli(
-      ["node", "okfh", "agent", "install", "codex", "--workspace", workspace, "--json"],
-      {
-        writeOut: (chunk) => {
-          stdout += chunk;
+    try {
+      const exitCode = await runCli(
+        ["node", "okfh", "agent", "install", "codex", "--workspace", workspace, "--json"],
+        {
+          writeOut: (chunk) => {
+            stdout += chunk;
+          },
+          writeErr: (chunk) => {
+            stderr += chunk;
+          },
         },
-        writeErr: (chunk) => {
-          stderr += chunk;
-        },
-      },
-    );
+      );
 
-    expect(exitCode).toBe(0);
-    expect(stderr).toBe("");
-    expect(JSON.parse(stdout)).toMatchObject({
-      ok: true,
-      command: "agent install",
-      workspace,
-      data: {
-        adapter: "codex",
-        dryRun: false,
-        conflicts: [],
-        managedBlocks: [expect.objectContaining({ path: "AGENTS.md" })],
-      },
-      warnings: [],
-    });
+      expect(exitCode).toBe(0);
+      expect(stderr).toBe("");
+      expect(JSON.parse(stdout)).toMatchObject({
+        ok: true,
+        command: "agent install",
+        workspace,
+        data: {
+          adapter: "codex",
+          dryRun: false,
+          conflicts: [],
+          managedBlocks: [expect.objectContaining({ path: "AGENTS.md" })],
+          refresh: {
+            agentClient: "codex",
+            workspacePath: workspace,
+            message: expect.stringContaining("Codex"),
+          },
+        },
+        warnings: [],
+      });
+      expect(JSON.parse(stdout).data.refresh).not.toHaveProperty("commands");
+    } finally {
+      if (originalPath === undefined) {
+        delete process.env.PATH;
+      } else {
+        process.env.PATH = originalPath;
+      }
+    }
     await expect(readFile(path.join(workspace, "AGENTS.md"), "utf8")).resolves.toContain(
       "$okf-harness",
     );

@@ -1,9 +1,10 @@
 import path from "node:path";
-import { installAgentAdapters } from "@okf-harness/agent-pack";
+import { type AgentAdapter, installAgentAdapters } from "@okf-harness/agent-pack";
 import { readWorkspaceStatus } from "@okf-harness/core";
 import type { Command } from "commander";
 import { writeValidationError } from "../errors/index.js";
 import { parseAgentInstallTarget } from "../options/index.js";
+import { createWorkspaceRefreshHint, type WorkspaceRefreshHint } from "../refresh.js";
 import { writeResult } from "../render/result.js";
 import type { CliIo, JsonEnvelope } from "../types.js";
 
@@ -75,11 +76,17 @@ export function registerAgentCommands(
         force: options.force === true,
       });
       const ok = result.conflicts.length === 0;
+      const refresh = renderRefreshHint({
+        adapter,
+        ok,
+        dryRun: result.dryRun,
+        workspaceRoot: workspaceStatus.workspaceRoot,
+      });
       const envelope: JsonEnvelope = {
         ok,
         command: "agent install",
         workspace: workspaceStatus.workspaceRoot,
-        data: result,
+        data: { ...result, refresh },
         warnings: [],
         next: ok
           ? ["Run okfh status --workspace <path> --json to verify the workspace."]
@@ -89,4 +96,20 @@ export function registerAgentCommands(
       writeResult(io, envelope, options.json);
       setExitCode(ok ? 0 : 1);
     });
+}
+
+function renderRefreshHint(options: {
+  adapter: AgentAdapter | "all";
+  ok: boolean;
+  dryRun: boolean;
+  workspaceRoot: string;
+}): WorkspaceRefreshHint | undefined {
+  if (!options.ok || options.dryRun || options.adapter === "all") {
+    return undefined;
+  }
+
+  return createWorkspaceRefreshHint({
+    agentClient: options.adapter,
+    workspaceRoot: options.workspaceRoot,
+  });
 }
