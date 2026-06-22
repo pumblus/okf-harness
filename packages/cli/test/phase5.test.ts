@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
 import { runJsonCli } from "./helpers.js";
 
-describe("@okf-harness/cli query workflow", () => {
-  it("runs status, search, read, graph, and check from an auto-resolved workspace", async () => {
+describe("@okf-harness/cli answer workflow", () => {
+  it("runs status, evidence, search, read, graph, and check from an auto-resolved workspace", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {
@@ -26,11 +26,13 @@ describe("@okf-harness/cli query workflow", () => {
           command: "status",
           data: {
             capabilities: {
+              evidence: "available",
               search: "available",
               read: "available",
               graph: "available",
             },
           },
+          next: ["Use okfh evidence to answer from bounded synthesized wiki evidence."],
         },
       });
       const resolvedWorkspace = String(status.result.workspace);

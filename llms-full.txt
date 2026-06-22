@@ -46,7 +46,7 @@ raw/sources + .okfh/manifest.jsonl
 wiki/*.md with citations
         |
         v
-Claude Code or Codex uses okfh search/read/graph
+Claude Code or Codex uses okfh evidence/read/graph
 ```
 
 OKF Harness does not ask you to learn a new knowledge-base app. You install one CLI package, create one local workspace per knowledge domain, then ask Claude Code or Codex to add sources, maintain the wiki, and answer from it.
@@ -155,7 +155,7 @@ Most personal knowledge tools make the app the center. OKF Harness makes the loc
 
 The recommended layout is one workspace per knowledge domain, research area, or privacy boundary. Keep them under a local `Documents/OKF Harness/` folder unless you have a reason to separate them.
 
-The product stays narrow on purpose: local files, terminal-native commands, bounded reads, and explicit provenance come first. Broader surfaces such as GUI, cloud sync, Obsidian helpers, source connectors, and vector retrieval belong in the roadmap only when they preserve those guarantees.
+The product stays narrow on purpose: local files, terminal-native commands, bounded evidence, bounded reads, and explicit provenance come first. Broader surfaces such as GUI, cloud sync, Obsidian helpers, source connectors, and vector retrieval belong in the roadmap only when they preserve those guarantees.
 
 #### What It Does
 
@@ -163,7 +163,8 @@ The product stays narrow on purpose: local files, terminal-native commands, boun
 - Installs Claude Code and Codex guidance into the workspace.
 - Registers files and URL pointers as raw sources.
 - Produces ingest plans so an agent can update the wiki with citations.
-- Searches and reads synthesized wiki pages with bounded output.
+- Prepares bounded evidence briefs from synthesized wiki pages before answers.
+- Searches and reads synthesized wiki pages for debugging and bounded continuation.
 - Checks OKF conformance and Harness lint findings.
 - Generates a self-contained graph report.
 
@@ -173,7 +174,7 @@ The agent uses `okfh --json` through your local shell. For example:
 
 - setup calls `okfh init` with the current agent adapter
 - ingest calls `okfh source add` and `okfh ingest plan`
-- answers use `okfh search` and bounded `okfh read`
+- answers use `okfh evidence`, then at most one bounded `okfh read` when a continuation cue is needed
 - validation uses `okfh check`
 - graph reports use `okfh graph`
 
@@ -181,6 +182,7 @@ Developers can call the CLI directly when they need to script or debug a workspa
 
 ```bash
 okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh search "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh read topics/llm-wiki --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -578,12 +580,14 @@ The agent should call:
 
 ```bash
 okfh status --workspace <workspace> --json
-okfh read index --workspace <workspace> --json
-okfh search "<question>" --workspace <workspace> --json
-okfh read <concept-id-or-path> --workspace <workspace> --json
+okfh evidence "<question>" --workspace <workspace> --json
+# optional, only when the evidence result includes a needed continuation cue:
+okfh read <concept-id-or-path> --workspace <workspace> --offset <offset> --limit <limit> --json
 ```
 
-There is no `okfh query` command in the current CLI. The agent composes answers from search candidate cards plus bounded reads. It should say when evidence came only from synthesized wiki pages and not raw source bodies.
+There is no `okfh query` command in the current CLI. The agent prepares an evidence brief first, confirms that the returned question matches the request, follows at most one bounded continuation cue when needed, then answers or says that the evidence is missing, weak, truncated, or citation-poor.
+
+Normal answers use synthesized `wiki/` content. The agent should not read `raw/` source bodies unless you explicitly ask for a source-audit or ingest workflow. `search` and `read` remain available for retrieval debugging, candidate inspection, and bounded continuation, but they are no longer the default first step for answering.
 
 #### Maintain A Workspace
 
@@ -664,7 +668,7 @@ CLAUDE.md         Claude Code workspace guidance
 
 #### Design Restraint
 
-OKF Harness keeps the workflow local, inspectable, and easy to debug from normal terminal commands. Agent answers are built from synthesized `wiki/` content plus bounded reads, while broader product surfaces such as GUI, cloud sync, source connectors, vector retrieval, and Obsidian helpers stay on the roadmap until they can preserve those guarantees.
+OKF Harness keeps the workflow local, inspectable, and easy to debug from normal terminal commands. Agent answers are built from synthesized `wiki/` evidence briefs plus bounded continuation reads when needed, while broader product surfaces such as GUI, cloud sync, source connectors, vector retrieval, and Obsidian helpers stay on the roadmap until they can preserve those guarantees.
 
 ## CLI reference
 
@@ -779,7 +783,7 @@ Reports workspace initialization, wiki file count, concept count, concise check 
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-In the current CLI, `search`, `read`, and `graph` are available. There is no `okfh query` command.
+In the current CLI, `evidence`, `search`, `read`, and `graph` are available. There is no `okfh query` command.
 
 ##### check
 
@@ -872,7 +876,11 @@ Options:
 - `--budget compact|standard|large` selects a deterministic evidence-text character budget. Use compact around 256k, standard around 400k, and large around 1M when either the model or agent client has that context window. These are selection guides, not token estimates or guarantees that the full JSON fits a context window.
 - `--max-chars <number>` overrides the preset with an explicit evidence-text character limit.
 
-When an evidence item is truncated, its `range` includes `contentLength`, `returnedChars`, and `truncated`, and `continuationCues` gives a bounded `okfh read` command with `--offset` and `--limit`.
+The JSON data echoes the question and returns `budget`, selected `evidence`, thin `candidates`, `limits`, and short `guidance`. Empty evidence is a successful result when the workspace is readable: `ok` stays `true`, `evidence` is empty, and `limits` includes a mechanical no-match code.
+
+`limits` reports mechanical boundaries such as no matches, truncation, or workspace citation and provenance risk. The agent decides whether the evidence is enough to answer. Evidence items include provenance pointers under `provenance`: citations, citation issues, reference pages, source IDs, and safe source-manifest metadata. Normal answer workflows use the synthesized `wiki/` excerpts returned by evidence and do not read `raw/` source bodies.
+
+When an evidence item is truncated, its `range` includes `contentLength`, `returnedChars`, and `truncated`, and `continuationCues` gives a bounded `okfh read` command with `--offset` and `--limit`. Use search and read as lower-level tools for retrieval debugging, candidate inspection, or one bounded continuation.
 
 ##### read
 
@@ -938,7 +946,7 @@ It is an independent project that builds on Andrej Karpathy's [LLM Wiki](https:/
 
 It is not affiliated with or endorsed by Andrej Karpathy or Google.
 
-The key difference from full desktop LLM Wiki applications is deliberate: OKF Harness does not try to become the primary knowledge-base app. A person keeps working in Claude Code, Codex, and future agent clients; the harness provides a transparent local workspace, deterministic CLI, bounded reads, lint, and graph reports around ordinary markdown files.
+The key difference from full desktop LLM Wiki applications is deliberate: OKF Harness does not try to become the primary knowledge-base app. A person keeps working in Claude Code, Codex, and future agent clients; the harness provides a transparent local workspace, deterministic CLI, bounded evidence, bounded reads, lint, and graph reports around ordinary markdown files.
 
 This means OKF Harness should compete on:
 
@@ -951,10 +959,10 @@ This means OKF Harness should compete on:
 #### Roadmap Restraints
 
 - User-facing docs should lead with natural-language prompts to agents, not command tutorials.
-- Answers are based on synthesized `wiki/` content, not raw-source-wide discovery.
-- There is no `okfh query` or LLM answer command; agents compose answers from `search` and `read`.
-- Search returns candidate concept documents, not answer evidence.
-- Read output is bounded by default, with explicit continuation options.
+- Answers are based on bounded evidence from synthesized `wiki/` content, not raw-source-wide discovery.
+- There is no `okfh query` or LLM answer command; agents prepare evidence briefs, then answer from the returned evidence and disclosed limits.
+- Search returns candidate concept documents, not answer evidence, and remains a lower-level debugging tool.
+- Read output is bounded by default, with explicit continuation options for evidence follow-up.
 - Graph reports show concept links and evidence links; raw source files remain metadata, not graph nodes.
 - GUI, cloud sync, accounts, vector search, RAG, automatic web crawling, and Obsidian runtime code stay in demand buckets until they can preserve the local, inspectable workflow.
 
@@ -1084,7 +1092,7 @@ Source path: `packages/cli/README.md`
 
 ### @okf-harness/cli
 
-Command-line package for OKF Harness local workspaces. It provides the `okfh` command for initializing workspaces, registering sources, checking OKF conformance and Harness lint, searching and reading pages, generating graph reports, and installing Claude Code or Codex guidance.
+Command-line package for OKF Harness local workspaces. It provides the `okfh` command for initializing workspaces, registering sources, checking OKF conformance and Harness lint, preparing evidence briefs, searching and reading pages, generating graph reports, and installing Claude Code or Codex guidance.
 
 OKF Harness is an independent open-source project built on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 
@@ -1112,6 +1120,7 @@ okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agent
 okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh source add ~/Downloads/paper.pdf --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh ingest plan <source-id> --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh search "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh read topics/llm-wiki --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json

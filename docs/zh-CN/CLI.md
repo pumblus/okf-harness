@@ -107,7 +107,7 @@ okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --j
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-当前 CLI 可用能力包括 `search`、`read` 和 `graph`。没有 `okfh query` 命令。
+当前 CLI 可用能力包括 `evidence`、`search`、`read` 和 `graph`。没有 `okfh query` 命令。
 
 ### check
 
@@ -200,7 +200,11 @@ okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" -
 - `--budget compact|standard|large` 选择确定性的证据文本字符预算。当模型或 agent 客户端上下文窗口大约为 256k、400k、1M 时，可分别选择 compact、standard、large。这只是选择建议，不是 token 估算，也不保证完整 JSON 一定放得进上下文窗口。
 - `--max-chars <number>` 用显式证据文本字符上限覆盖 preset。
 
-证据项被截断时，它的 `range` 会包含 `contentLength`、`returnedChars` 和 `truncated`，`continuationCues` 会给出带 `--offset` 和 `--limit` 的受控 `okfh read` 命令。
+JSON 数据会回显问题，并返回 `budget`、选中的 `evidence`、轻量 `candidates`、`limits` 和短 `guidance`。只要 workspace 可读取，空证据也是成功结果：`ok` 仍为 `true`，`evidence` 为空，`limits` 中会出现机械性的 no-match 代码。
+
+`limits` 只报告机械边界，比如没有匹配、内容被截断、workspace 存在引用或溯源风险。证据是否足够回答，由 agent 判断。证据项会在 `provenance` 下保留溯源指针：引用、引用问题、参考页面、来源 ID，以及可安全展示的 source manifest 元数据。常规问答使用 evidence 返回的已整理 `wiki/` 摘录，不读取 `raw/` 原始资料正文。
+
+证据项被截断时，它的 `range` 会包含 `contentLength`、`returnedChars` 和 `truncated`，`continuationCues` 会给出带 `--offset` 和 `--limit` 的受控 `okfh read` 命令。`search` 和 `read` 是更底层的工具，用于调试检索、查看候选文档，或执行一次受控续读。
 
 ### read
 

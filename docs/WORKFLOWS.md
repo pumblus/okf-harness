@@ -99,12 +99,14 @@ The agent should call:
 
 ```bash
 okfh status --workspace <workspace> --json
-okfh read index --workspace <workspace> --json
-okfh search "<question>" --workspace <workspace> --json
-okfh read <concept-id-or-path> --workspace <workspace> --json
+okfh evidence "<question>" --workspace <workspace> --json
+# optional, only when the evidence result includes a needed continuation cue:
+okfh read <concept-id-or-path> --workspace <workspace> --offset <offset> --limit <limit> --json
 ```
 
-There is no `okfh query` command in the current CLI. The agent composes answers from search candidate cards plus bounded reads. It should say when evidence came only from synthesized wiki pages and not raw source bodies.
+There is no `okfh query` command in the current CLI. The agent prepares an evidence brief first, confirms that the returned question matches the request, follows at most one bounded continuation cue when needed, then answers or says that the evidence is missing, weak, truncated, or citation-poor.
+
+Normal answers use synthesized `wiki/` content. The agent should not read `raw/` source bodies unless you explicitly ask for a source-audit or ingest workflow. `search` and `read` remain available for retrieval debugging, candidate inspection, and bounded continuation, but they are no longer the default first step for answering.
 
 ## Maintain A Workspace
 
@@ -185,4 +187,4 @@ CLAUDE.md         Claude Code workspace guidance
 
 ## Design Restraint
 
-OKF Harness keeps the workflow local, inspectable, and easy to debug from normal terminal commands. Agent answers are built from synthesized `wiki/` content plus bounded reads, while broader product surfaces such as GUI, cloud sync, source connectors, vector retrieval, and Obsidian helpers stay on the roadmap until they can preserve those guarantees.
+OKF Harness keeps the workflow local, inspectable, and easy to debug from normal terminal commands. Agent answers are built from synthesized `wiki/` evidence briefs plus bounded continuation reads when needed, while broader product surfaces such as GUI, cloud sync, source connectors, vector retrieval, and Obsidian helpers stay on the roadmap until they can preserve those guarantees.

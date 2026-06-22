@@ -34,6 +34,7 @@ export function registerWorkspaceCommands(
             okfVersion: check.okfVersion,
           },
           capabilities: {
+            evidence: "available",
             search: "available",
             read: "available",
             graph: "available",
@@ -41,7 +42,7 @@ export function registerWorkspaceCommands(
         },
         warnings: result.warnings,
         next: result.initialized
-          ? ["Use okfh search and okfh read to answer from the synthesized wiki."]
+          ? ["Use okfh evidence to answer from bounded synthesized wiki evidence."]
           : [],
       };
 

@@ -107,7 +107,7 @@ Reports workspace initialization, wiki file count, concept count, concise check 
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-In the current CLI, `search`, `read`, and `graph` are available. There is no `okfh query` command.
+In the current CLI, `evidence`, `search`, `read`, and `graph` are available. There is no `okfh query` command.
 
 ### check
 
@@ -200,7 +200,11 @@ Options:
 - `--budget compact|standard|large` selects a deterministic evidence-text character budget. Use compact around 256k, standard around 400k, and large around 1M when either the model or agent client has that context window. These are selection guides, not token estimates or guarantees that the full JSON fits a context window.
 - `--max-chars <number>` overrides the preset with an explicit evidence-text character limit.
 
-When an evidence item is truncated, its `range` includes `contentLength`, `returnedChars`, and `truncated`, and `continuationCues` gives a bounded `okfh read` command with `--offset` and `--limit`.
+The JSON data echoes the question and returns `budget`, selected `evidence`, thin `candidates`, `limits`, and short `guidance`. Empty evidence is a successful result when the workspace is readable: `ok` stays `true`, `evidence` is empty, and `limits` includes a mechanical no-match code.
+
+`limits` reports mechanical boundaries such as no matches, truncation, or workspace citation and provenance risk. The agent decides whether the evidence is enough to answer. Evidence items include provenance pointers under `provenance`: citations, citation issues, reference pages, source IDs, and safe source-manifest metadata. Normal answer workflows use the synthesized `wiki/` excerpts returned by evidence and do not read `raw/` source bodies.
+
+When an evidence item is truncated, its `range` includes `contentLength`, `returnedChars`, and `truncated`, and `continuationCues` gives a bounded `okfh read` command with `--offset` and `--limit`. Use search and read as lower-level tools for retrieval debugging, candidate inspection, or one bounded continuation.
 
 ### read
 

@@ -21,7 +21,7 @@ raw/sources + .okfh/manifest.jsonl
 wiki/*.md（含引用标注）
         |
         v
-Claude Code 或 Codex 通过 okfh search/read/graph 查阅
+Claude Code 或 Codex 通过 okfh evidence/read/graph 查阅
 ```
 
 装一个 CLI 包，每个知识领域建一个本地 workspace，然后让 Claude Code 或 Codex 帮你添加资料、维护 wiki、回答问题。
@@ -130,7 +130,7 @@ Claude Code：
 
 推荐按知识领域、研究方向或隐私边界各建一个 workspace，统一放在本机的 `Documents/OKF Harness/` 目录下，除非你有特别的分离需求。
 
-产品有意保持克制：本地文件、终端原生命令、受控读取和显式溯源优先。GUI、云端同步、Obsidian 辅助、来源连接器和向量检索等更宽的产品面，只有在不破坏这些保证时才会进入路线图。
+产品有意保持克制：本地文件、终端原生命令、受控证据、受控读取和显式溯源优先。GUI、云端同步、Obsidian 辅助、来源连接器和向量检索等更宽的产品面，只有在不破坏这些保证时才会进入路线图。
 
 ## 能做什么
 
@@ -138,7 +138,8 @@ Claude Code：
 - 为 workspace 安装 Claude Code 和 Codex 的 agent 指引文件
 - 将文件和 URL 指针注册为原始资料
 - 生成 ingest plan，让 agent 据此更新 wiki 并添加引用
-- 搜索和读取 wiki 页面，输出长度可控
+- 回答前从已整理的 wiki 页面准备长度受控的 Evidence Brief
+- 搜索和读取 wiki 页面，用于调试检索和受控续读
 - 检查 OKF 合规状态和 Harness lint 发现
 - 生成自包含的本地图谱报告
 
@@ -148,7 +149,7 @@ Agent 会通过本地 shell 运行 `okfh --json`。例如：
 
 - setup 调用 `okfh init`，并传入当前 agent 的 adapter
 - ingest 调用 `okfh source add` 和 `okfh ingest plan`
-- 回答问题时使用 `okfh search` 和受控的 `okfh read`
+- 回答问题时使用 `okfh evidence`，只有需要跟随续读提示时才再执行一次受控的 `okfh read`
 - 验证 workspace 时使用 `okfh check`
 - 图谱报告使用 `okfh graph`
 
@@ -156,6 +157,7 @@ Agent 会通过本地 shell 运行 `okfh --json`。例如：
 
 ```bash
 okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh search "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh read topics/llm-wiki --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json

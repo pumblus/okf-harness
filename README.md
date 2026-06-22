@@ -21,7 +21,7 @@ raw/sources + .okfh/manifest.jsonl
 wiki/*.md with citations
         |
         v
-Claude Code or Codex uses okfh search/read/graph
+Claude Code or Codex uses okfh evidence/read/graph
 ```
 
 OKF Harness does not ask you to learn a new knowledge-base app. You install one CLI package, create one local workspace per knowledge domain, then ask Claude Code or Codex to add sources, maintain the wiki, and answer from it.
@@ -130,7 +130,7 @@ Most personal knowledge tools make the app the center. OKF Harness makes the loc
 
 The recommended layout is one workspace per knowledge domain, research area, or privacy boundary. Keep them under a local `Documents/OKF Harness/` folder unless you have a reason to separate them.
 
-The product stays narrow on purpose: local files, terminal-native commands, bounded reads, and explicit provenance come first. Broader surfaces such as GUI, cloud sync, Obsidian helpers, source connectors, and vector retrieval belong in the roadmap only when they preserve those guarantees.
+The product stays narrow on purpose: local files, terminal-native commands, bounded evidence, bounded reads, and explicit provenance come first. Broader surfaces such as GUI, cloud sync, Obsidian helpers, source connectors, and vector retrieval belong in the roadmap only when they preserve those guarantees.
 
 ## What It Does
 
@@ -138,7 +138,8 @@ The product stays narrow on purpose: local files, terminal-native commands, boun
 - Installs Claude Code and Codex guidance into the workspace.
 - Registers files and URL pointers as raw sources.
 - Produces ingest plans so an agent can update the wiki with citations.
-- Searches and reads synthesized wiki pages with bounded output.
+- Prepares bounded evidence briefs from synthesized wiki pages before answers.
+- Searches and reads synthesized wiki pages for debugging and bounded continuation.
 - Checks OKF conformance and Harness lint findings.
 - Generates a self-contained graph report.
 
@@ -148,7 +149,7 @@ The agent uses `okfh --json` through your local shell. For example:
 
 - setup calls `okfh init` with the current agent adapter
 - ingest calls `okfh source add` and `okfh ingest plan`
-- answers use `okfh search` and bounded `okfh read`
+- answers use `okfh evidence`, then at most one bounded `okfh read` when a continuation cue is needed
 - validation uses `okfh check`
 - graph reports use `okfh graph`
 
@@ -156,6 +157,7 @@ Developers can call the CLI directly when they need to script or debug a workspa
 
 ```bash
 okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh search "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh read topics/llm-wiki --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json

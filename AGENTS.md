@@ -8,7 +8,7 @@
 - Product terminology: `CONTEXT.md`.
 - Architecture decisions: `docs/adr/`.
 - Public roadmap: `docs/ROADMAP.md` and `docs/zh-CN/ROADMAP.md`.
-- Current public scope: CLI init/status/check/source/ingest/search/read/graph/doctor, retired lint compatibility, Claude/Codex adapter rendering, docs, npm metadata, and an example workspace.
+- Current public scope: CLI init/status/check/source/ingest/search/evidence/read/graph/doctor, retired lint compatibility, Claude/Codex adapter rendering, docs, npm metadata, and an example workspace.
 
 ## Project Boundaries
 

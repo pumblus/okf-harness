@@ -12,7 +12,7 @@ It is an independent project that builds on Andrej Karpathy's [LLM Wiki](https:/
 
 It is not affiliated with or endorsed by Andrej Karpathy or Google.
 
-The key difference from full desktop LLM Wiki applications is deliberate: OKF Harness does not try to become the primary knowledge-base app. A person keeps working in Claude Code, Codex, and future agent clients; the harness provides a transparent local workspace, deterministic CLI, bounded reads, lint, and graph reports around ordinary markdown files.
+The key difference from full desktop LLM Wiki applications is deliberate: OKF Harness does not try to become the primary knowledge-base app. A person keeps working in Claude Code, Codex, and future agent clients; the harness provides a transparent local workspace, deterministic CLI, bounded evidence, bounded reads, lint, and graph reports around ordinary markdown files.
 
 This means OKF Harness should compete on:
 
@@ -25,10 +25,10 @@ This means OKF Harness should compete on:
 ## Roadmap Restraints
 
 - User-facing docs should lead with natural-language prompts to agents, not command tutorials.
-- Answers are based on synthesized `wiki/` content, not raw-source-wide discovery.
-- There is no `okfh query` or LLM answer command; agents compose answers from `search` and `read`.
-- Search returns candidate concept documents, not answer evidence.
-- Read output is bounded by default, with explicit continuation options.
+- Answers are based on bounded evidence from synthesized `wiki/` content, not raw-source-wide discovery.
+- There is no `okfh query` or LLM answer command; agents prepare evidence briefs, then answer from the returned evidence and disclosed limits.
+- Search returns candidate concept documents, not answer evidence, and remains a lower-level debugging tool.
+- Read output is bounded by default, with explicit continuation options for evidence follow-up.
 - Graph reports show concept links and evidence links; raw source files remain metadata, not graph nodes.
 - GUI, cloud sync, accounts, vector search, RAG, automatic web crawling, and Obsidian runtime code stay in demand buckets until they can preserve the local, inspectable workflow.
 

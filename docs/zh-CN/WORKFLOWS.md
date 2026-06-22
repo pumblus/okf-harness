@@ -99,12 +99,14 @@ Agent 应调用：
 
 ```bash
 okfh status --workspace <workspace> --json
-okfh read index --workspace <workspace> --json
-okfh search "<question>" --workspace <workspace> --json
-okfh read <concept-id-or-path> --workspace <workspace> --json
+okfh evidence "<question>" --workspace <workspace> --json
+# 可选，仅在 evidence 结果给出且确实需要续读时使用：
+okfh read <concept-id-or-path> --workspace <workspace> --offset <offset> --limit <limit> --json
 ```
 
-当前 CLI 没有 `okfh query` 命令。agent 通过组合搜索候选卡片和受控读取来组织答案。当证据仅来自 wiki 页面而非原始资料正文时，agent 应明确说明。
+当前 CLI 没有 `okfh query` 命令。agent 先准备 Evidence Brief，确认返回的问题和用户请求一致；必要时最多跟随一次受控续读提示；然后回答，或说明证据缺失、偏弱、被截断，或引用不足。
+
+常规回答使用已整理的 `wiki/` 内容。除非你明确要求做来源审计或 ingest，agent 不应读取 `raw/` 原始资料正文。`search` 和 `read` 仍可用于调试检索、查看候选文档和受控续读，但不再是默认问答起点。
 
 ## 维护 Workspace
 
@@ -185,4 +187,4 @@ CLAUDE.md         Claude Code workspace 指引
 
 ## 设计克制
 
-OKF Harness 保持本地化、可检查，并且可以通过普通终端命令调试。Agent 回答来自已整理的 `wiki/` 内容和受控读取；GUI、云端同步、来源连接器、向量检索和 Obsidian 辅助等更宽的产品面，会留在路线图中，直到它们能保留这些保证。
+OKF Harness 保持本地化、可检查，并且可以通过普通终端命令调试。Agent 回答来自已整理的 `wiki/` Evidence Brief，必要时再做受控续读；GUI、云端同步、来源连接器、向量检索和 Obsidian 辅助等更宽的产品面，会留在路线图中，直到它们能保留这些保证。
