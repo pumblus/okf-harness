@@ -67,7 +67,7 @@ export async function searchWorkspace(
   const limit = clampLimit(options.limit);
   const config = await loadWorkspaceConfig(workspaceRoot);
   const scanResult = await scanConcepts(workspaceRoot, config);
-  const indexMentioned = await readRootIndexMentions(workspaceRoot, config.okf.bundle_root);
+  const indexMentions = await readRootIndexMentions(workspaceRoot, config.okf.bundle_root);
   const parsedQuery = parseSearchQuery(options.query);
   const warnings: SearchWarning[] = [];
 
@@ -75,7 +75,8 @@ export async function searchWorkspace(
     .filter((file) => !file.isReserved)
     .map((file) => {
       const document = okfDocumentView(file);
-      const card = cardFromMarkdownFile(file, document, indexMentioned.has(file.conceptId));
+      const indexTitles = indexMentions.get(file.conceptId) ?? [];
+      const card = cardFromMarkdownFile(file, document, indexTitles.length > 0);
       const body = document.body;
       if (!card.frontmatterOk) {
         warnings.push({
@@ -91,7 +92,7 @@ export async function searchWorkspace(
           message: `Search skipped body scoring for a large markdown file: ${file.workspacePath}`,
         });
       }
-      return scoreCard(card, body, parsedQuery);
+      return scoreCard(card, body, indexTitles.join(" "), parsedQuery);
     })
     .filter((candidate) => matchesFilters(candidate.card, parsedQuery.filters))
     .filter((candidate) => candidate.card.score > 0)
@@ -137,6 +138,7 @@ function cardFromMarkdownFile(
 function scoreCard(
   card: SearchResultCard,
   body: string,
+  indexText: string,
   query: ParsedSearchQuery,
 ): { card: SearchResultCard; exactIdentityMatch: boolean; titlePhraseMatch: boolean } {
   const phrase = query.phrase.toLocaleLowerCase();
@@ -146,6 +148,7 @@ function scoreCard(
   const typeValue = card.type.toLocaleLowerCase();
   const description = (card.description ?? "").toLocaleLowerCase();
   const tags = card.tags.map((tag) => tag.toLocaleLowerCase());
+  const index = indexText.toLocaleLowerCase();
   const matchedFields = new Set<string>();
   const scoreBreakdown: SearchScoreBreakdown[] = [];
 
@@ -179,11 +182,15 @@ function scoreCard(
   if (phrase.length > 0 && description.includes(phrase)) {
     addScore("description", "description phrase match", 20);
   }
+  if (phrase.length > 0 && index.includes(phrase)) {
+    addScore("index", "index link match", 30);
+  }
 
   addTokenScores("title", query.tokens, tokenize(title), 12, 5, addScore);
   addTokenScores("path", query.tokens, tokenize(`${conceptId} ${pathValue}`), 10, 5, addScore);
   addTokenScores("tags", query.tokens, tokenize(tags.join(" ")), 8, 5, addScore);
   addTokenScores("description", query.tokens, tokenize(description), 4, 5, addScore);
+  addTokenScores("index", query.tokens, tokenize(index), 6, 5, addScore);
 
   const bodyForSearch = body.length > maxSearchBodyChars ? "" : body.toLocaleLowerCase();
   const bodyPhraseHits = phrase.length > 0 ? countOccurrences(bodyForSearch, phrase) : 0;
@@ -303,18 +310,21 @@ function normalizePathFilter(input: string): string {
 async function readRootIndexMentions(
   workspaceRoot: string,
   wikiRoot: string,
-): Promise<Set<string>> {
+): Promise<Map<string, string[]>> {
   const indexPath = path.join(workspaceRoot, wikiRoot, "index.md");
   try {
     const indexMarkdown = await readFile(indexPath, "utf8");
-    return new Set(
-      parseMarkdownLinks(indexMarkdown)
-        .map((link) => resolveOkfLinkTarget(link.target, "index.md"))
-        .filter((conceptId): conceptId is string => conceptId !== undefined),
-    );
+    const mentions = new Map<string, string[]>();
+    for (const link of parseMarkdownLinks(indexMarkdown)) {
+      const conceptId = resolveOkfLinkTarget(link.target, "index.md");
+      if (conceptId !== undefined) {
+        mentions.set(conceptId, [...(mentions.get(conceptId) ?? []), link.text]);
+      }
+    }
+    return mentions;
   } catch (error) {
     if (errorCode(error) === "ENOENT") {
-      return new Set();
+      return new Map();
     }
     throw error;
   }

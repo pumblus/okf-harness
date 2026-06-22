@@ -520,7 +520,7 @@ function continuationCuesForRange(
       target,
       offset: range.endOffset,
       limit: readLimit,
-      command: `okfh read ${shellQuote(target)} --workspace ${shellQuote(workspaceRoot)} --offset ${range.endOffset} --limit ${readLimit} --json`,
+      command: `okfh read --workspace ${shellQuote(workspaceRoot)} --offset ${range.endOffset} --limit ${readLimit} --json -- ${shellQuote(target)}`,
     },
   ];
 }

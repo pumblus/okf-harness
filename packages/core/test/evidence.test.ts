@@ -286,6 +286,57 @@ Candidate Proof ${suffix.toUpperCase()} keeps candidate cards thin.
     expect(result.candidates).toEqual([]);
   });
 
+  it("uses index link text as navigation without returning the index as evidence", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(
+        path.join(workspace, "wiki/index.md"),
+        `# AI Research Wiki
+
+- [Only Index Label](topics/hidden.md)
+`,
+        "utf8",
+      );
+      await writeFile(
+        path.join(workspace, "wiki/topics/hidden.md"),
+        `---
+type: Topic
+title: Hidden Topic
+description: Unrelated description.
+tags: [hidden]
+timestamp: "2026-06-15T12:00:00-07:00"
+---
+
+# Overview
+
+This maintained wiki page is selected through the index link text.
+
+# Citations
+
+- /references/karpathy-llm-wiki.md
+`,
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "Only Index Label",
+      });
+
+      expect(result.evidence[0]).toMatchObject({
+        conceptId: "topics/hidden",
+        path: "wiki/topics/hidden.md",
+        matchedFields: expect.arrayContaining(["index"]),
+        matchReasons: expect.arrayContaining(["index link match"]),
+      });
+      expect(result.evidence[0]?.path).not.toBe("wiki/index.md");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("bounds large evidence pages and returns continuation cues", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
     const workspace = path.join(root, "workspace");
@@ -347,7 +398,7 @@ budget proof ${"large page ".repeat(10_000)}
         ],
       });
       expect(item?.continuationCues[0]?.command).toBe(
-        `okfh read 'topics/llm-wiki' --workspace '${workspace}' --offset ${item?.range.endOffset} --limit 120 --json`,
+        `okfh read --workspace '${workspace}' --offset ${item?.range.endOffset} --limit 120 --json -- 'topics/llm-wiki'`,
       );
       expect(JSON.stringify(result).length).toBeLessThan(5_000);
     } finally {
@@ -391,7 +442,7 @@ space proof ${"large page ".repeat(1_000)}
         },
       });
       expect(item?.continuationCues[0]?.command).toBe(
-        `okfh read 'topics/space proof' --workspace '${workspace}' --offset ${item?.range.endOffset} --limit 80 --json`,
+        `okfh read --workspace '${workspace}' --offset ${item?.range.endOffset} --limit 80 --json -- 'topics/space proof'`,
       );
     } finally {
       await rm(root, { recursive: true, force: true });

@@ -193,7 +193,7 @@ describe("@okf-harness/cli answer workflow", () => {
             target: "topics/llm-wiki",
             offset: boundedTopic?.range.endOffset,
             limit: expect.any(Number),
-            command: expect.stringContaining("okfh read 'topics/llm-wiki' --workspace"),
+            command: expect.stringContaining("okfh read --workspace"),
           },
         ],
       });
@@ -348,6 +348,65 @@ An LLM Wiki keeps raw sources separate from synthesized concept pages.
                 path: "wiki/topics/llm-wiki.md",
               }),
             ],
+          },
+        },
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reads concept ids that start with a dash after --", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(workspace, "wiki/-dash.md"),
+      `---
+type: Topic
+title: Dash Topic
+description: Dash target fixture.
+tags: [dash]
+timestamp: "2026-06-15T12:00:00-07:00"
+---
+
+# Overview
+
+Dash target content.
+`,
+      "utf8",
+    );
+
+    try {
+      const result = await runJsonCli([
+        "node",
+        "okfh",
+        "read",
+        "--workspace",
+        workspace,
+        "--offset",
+        "0",
+        "--limit",
+        "12",
+        "--json",
+        "--",
+        "-dash",
+      ]);
+
+      expect(result).toMatchObject({
+        exitCode: 0,
+        stderr: "",
+        result: {
+          ok: true,
+          command: "read",
+          workspace,
+          data: {
+            target: {
+              conceptId: "-dash",
+              path: "wiki/-dash.md",
+            },
           },
         },
       });
