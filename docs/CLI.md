@@ -183,7 +183,24 @@ Supported filters:
 - `tag:<value>`
 - `path:<prefix>`
 
-Search results are candidate cards, not final evidence. Use `read` before answering.
+Search results are candidate cards, not final evidence. Use `evidence` before answering.
+
+### evidence
+
+Prepares a bounded evidence brief from synthesized wiki concept documents. It does not answer the question and does not search raw sources.
+
+```bash
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --budget compact --json
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --max-chars 120000 --json
+```
+
+Options:
+
+- `--budget compact|standard|large` selects a deterministic evidence-text character budget. Use compact around 256k, standard around 400k, and large around 1M when either the model or agent client has that context window. These are selection guides, not token estimates or guarantees that the full JSON fits a context window.
+- `--max-chars <number>` overrides the preset with an explicit evidence-text character limit.
+
+When an evidence item is truncated, its `range` includes `contentLength`, `returnedChars`, and `truncated`, and `continuationCues` gives a bounded `okfh read` command with `--offset` and `--limit`.
 
 ### read
 

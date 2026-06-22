@@ -183,7 +183,24 @@ okfh search "type:Topic LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-re
 - `tag:<value>`
 - `path:<prefix>`
 
-搜索结果是指向候选文档的卡片，不是最终证据。在回答之前使用 `read` 确认内容。
+搜索结果是指向候选文档的卡片，不是最终证据。回答前优先使用 `evidence` 准备受控证据 brief。
+
+### evidence
+
+从已整理的 wiki 概念文档准备长度受控的证据 brief。它不会直接回答问题，也不会搜索原始资料。
+
+```bash
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --budget compact --json
+okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --max-chars 120000 --json
+```
+
+选项：
+
+- `--budget compact|standard|large` 选择确定性的证据文本字符预算。当模型或 agent 客户端上下文窗口大约为 256k、400k、1M 时，可分别选择 compact、standard、large。这只是选择建议，不是 token 估算，也不保证完整 JSON 一定放得进上下文窗口。
+- `--max-chars <number>` 用显式证据文本字符上限覆盖 preset。
+
+证据项被截断时，它的 `range` 会包含 `contentLength`、`returnedChars` 和 `truncated`，`continuationCues` 会给出带 `--offset` 和 `--limit` 的受控 `okfh read` 命令。
 
 ### read
 

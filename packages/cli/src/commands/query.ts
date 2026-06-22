@@ -1,5 +1,6 @@
 import {
   buildWorkspaceGraph,
+  type EvidenceBudgetPreset,
   planEvidenceBrief,
   readWorkspaceDocument,
   resolveWorkspaceRoot,
@@ -72,15 +73,32 @@ export function registerQueryCommands(
     .description("Prepare a bounded OKF evidence brief.")
     .storeOptionsAsProperties(false)
     .option("--workspace <path>", "workspace path")
+    .option(
+      "--budget <preset>",
+      "character budget preset: compact (~256k), standard (~400k), large (~1M); guidance, not token estimation",
+      parseEvidenceBudgetOption,
+    )
+    .option(
+      "--max-chars <number>",
+      "override the evidence text character budget",
+      parseIntegerOption,
+    )
     .option("--json", "write machine-readable JSON")
     .action(async (question: string, command: Command) => {
-      const options = command.opts() as { workspace?: string; json?: boolean };
+      const options = command.opts() as {
+        workspace?: string;
+        budget?: EvidenceBudgetPreset;
+        maxChars?: number;
+        json?: boolean;
+      };
       let workspaceRoot: string | null = null;
       try {
         workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
         const result = await planEvidenceBrief({
           workspaceRoot,
           question,
+          budget: options.budget,
+          maxChars: options.maxChars,
         });
         const { workspaceRoot: _workspaceRoot, warnings, ...data } = result;
         const envelope: JsonEnvelope = {
@@ -220,4 +238,11 @@ export function registerQueryCommands(
         throw error;
       }
     });
+}
+
+function parseEvidenceBudgetOption(value: string): EvidenceBudgetPreset {
+  if (value === "compact" || value === "standard" || value === "large") {
+    return value;
+  }
+  throw new Error(`Expected compact, standard, or large evidence budget, received: ${value}`);
 }

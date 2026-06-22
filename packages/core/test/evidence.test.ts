@@ -1,3 +1,6 @@
+import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { planEvidenceBrief } from "../src/evidence/index.js";
 import { validWorkspaceFixture } from "./helpers.js";
@@ -12,6 +15,12 @@ describe("OKF evidence brief planning", () => {
     expect(result).toMatchObject({
       workspaceRoot: validWorkspaceFixture,
       question: "zqxjv noremote",
+      budget: {
+        preset: "standard",
+        maxChars: 400_000,
+        override: false,
+        usedChars: 0,
+      },
       evidence: [],
       candidates: [],
       limits: [
@@ -94,5 +103,117 @@ describe("OKF evidence brief planning", () => {
     expect(result.evidence[0]?.matchReasons).not.toContain("index link match");
     expect(result.evidence[0]?.matchReasons).not.toContain("section body match: Overview");
     expect(result.candidates[0]?.matchReasons).not.toContain("index link match");
+  });
+
+  it("bounds large evidence pages and returns continuation cues", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(
+        path.join(workspace, "wiki/topics/llm-wiki.md"),
+        `---
+type: Topic
+title: Budget Proof
+description: Large evidence budget fixture.
+tags: [budget]
+timestamp: "2026-06-15T12:00:00-07:00"
+---
+
+# Budget Proof
+
+budget proof ${"large page ".repeat(10_000)}
+
+# Citations
+
+- /references/karpathy-llm-wiki.md
+`,
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "Budget Proof",
+        maxChars: 120,
+      });
+      const returnedChars = result.evidence.reduce(
+        (total, item) => total + item.range.returnedChars,
+        0,
+      );
+      const item = result.evidence[0];
+
+      expect(result.budget).toEqual({
+        preset: "standard",
+        maxChars: 120,
+        override: true,
+        usedChars: returnedChars,
+      });
+      expect(returnedChars).toBeLessThanOrEqual(120);
+      expect(item).toMatchObject({
+        conceptId: "topics/llm-wiki",
+        range: {
+          mode: "range",
+          contentLength: expect.any(Number),
+          returnedChars: 120,
+          truncated: true,
+        },
+        continuationCues: [
+          {
+            target: "topics/llm-wiki",
+            offset: expect.any(Number),
+            limit: 120,
+          },
+        ],
+      });
+      expect(item?.continuationCues[0]?.command).toBe(
+        `okfh read 'topics/llm-wiki' --workspace '${workspace}' --offset ${item?.range.endOffset} --limit 120 --json`,
+      );
+      expect(JSON.stringify(result).length).toBeLessThan(5_000);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("quotes continuation commands for workspace and concept paths", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace with space");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(
+        path.join(workspace, "wiki/topics/space proof.md"),
+        `---
+type: Topic
+title: Space Proof
+description: Space path proof.
+tags: [space]
+timestamp: "2026-06-15T12:00:00-07:00"
+---
+
+# Space Proof
+
+space proof ${"large page ".repeat(1_000)}
+`,
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "Space Proof",
+        maxChars: 80,
+      });
+      const item = result.evidence[0];
+
+      expect(item).toMatchObject({
+        conceptId: "topics/space proof",
+        range: {
+          truncated: true,
+        },
+      });
+      expect(item?.continuationCues[0]?.command).toBe(
+        `okfh read 'topics/space proof' --workspace '${workspace}' --offset ${item?.range.endOffset} --limit 80 --json`,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

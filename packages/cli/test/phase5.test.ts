@@ -135,6 +135,67 @@ describe("@okf-harness/cli query workflow", () => {
         /\b(score|confidence|relevance|ranking)\b/i,
       );
 
+      const boundedEvidence = await runJsonCli([
+        "node",
+        "okfh",
+        "evidence",
+        "LLM Wiki",
+        "--workspace",
+        resolvedWorkspace,
+        "--budget",
+        "large",
+        "--max-chars",
+        "12",
+        "--json",
+      ]);
+      const boundedItems = boundedEvidence.result.data.evidence as Array<{
+        conceptId: string;
+        range: { endOffset: number; returnedChars: number; truncated: boolean };
+        continuationCues: Array<{ target: string; offset: number; limit: number; command: string }>;
+      }>;
+      const boundedReturnedChars = boundedItems.reduce(
+        (total, item) => total + item.range.returnedChars,
+        0,
+      );
+      const boundedTopic = boundedItems.find((item) => item.conceptId === "topics/llm-wiki");
+      expect(boundedEvidence).toMatchObject({
+        exitCode: 0,
+        stderr: "",
+        result: {
+          ok: true,
+          command: "evidence",
+          workspace: resolvedWorkspace,
+          data: {
+            budget: {
+              preset: "large",
+              maxChars: 12,
+              override: true,
+              usedChars: boundedReturnedChars,
+            },
+            limits: expect.arrayContaining([
+              expect.objectContaining({
+                code: "EVIDENCE_TRUNCATED",
+              }),
+            ]),
+          },
+          warnings: [],
+        },
+      });
+      expect(boundedReturnedChars).toBeLessThanOrEqual(12);
+      expect(boundedTopic).toMatchObject({
+        range: {
+          truncated: true,
+        },
+        continuationCues: [
+          {
+            target: "topics/llm-wiki",
+            offset: boundedTopic?.range.endOffset,
+            limit: expect.any(Number),
+            command: expect.stringContaining("okfh read 'topics/llm-wiki' --workspace"),
+          },
+        ],
+      });
+
       const read = await runJsonCli(["node", "okfh", "read", "topics/llm-wiki", "--json"]);
       expect(read).toMatchObject({
         exitCode: 0,
