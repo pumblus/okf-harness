@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { registerAgentCommands } from "./commands/agent.js";
+import { registerBootstrapCommands } from "./commands/bootstrap.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerQueryCommands } from "./commands/query.js";
@@ -48,6 +49,8 @@ export async function runCli(
   registerSourceCommands(program, io, setExitCode);
 
   registerAgentCommands(program, io, setExitCode);
+
+  registerBootstrapCommands(program, io, setExitCode);
 
   const restoreConsoleError = captureCommanderConsoleError(capturedCommanderErrors);
   try {

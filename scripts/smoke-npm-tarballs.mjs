@@ -96,6 +96,55 @@ async function main() {
     assertCheckStatus(devDoctor, "pnpm", "pass", "okfh doctor --dev");
     console.log("okfh doctor --dev passed");
 
+    const agentPackVersion = await installedPackageVersion(installDir, "@okf-harness/agent-pack");
+    const bootstrapCodexHome = path.join(tempRoot, "codex-home");
+    const bootstrapEnv = { ...process.env, CODEX_HOME: bootstrapCodexHome };
+    const bootstrapInstall = JSON.parse(
+      (
+        await runInstalledBin(
+          installDir,
+          "okfh",
+          ["bootstrap", "install", "--agents", "codex", "--json"],
+          { env: bootstrapEnv },
+        )
+      ).stdout,
+    );
+    assertBootstrapState(bootstrapInstall, "installed", "bootstrap install");
+    await assertGeneratedSkill(
+      path.join(bootstrapCodexHome, "skills/okf-harness-bootstrap/SKILL.md"),
+      agentPackVersion,
+      "bootstrap",
+    );
+    for (const reference of ["setup.md", "discovery.md", "repair.md"]) {
+      await readFile(
+        path.join(bootstrapCodexHome, "skills/okf-harness-bootstrap/references", reference),
+        "utf8",
+      );
+    }
+    const bootstrapStatus = JSON.parse(
+      (
+        await runInstalledBin(
+          installDir,
+          "okfh",
+          ["bootstrap", "status", "--agents", "codex", "--json"],
+          { env: bootstrapEnv },
+        )
+      ).stdout,
+    );
+    assertBootstrapState(bootstrapStatus, "installed", "bootstrap status");
+    const bootstrapUninstall = JSON.parse(
+      (
+        await runInstalledBin(
+          installDir,
+          "okfh",
+          ["bootstrap", "uninstall", "--agents", "codex", "--json"],
+          { env: bootstrapEnv },
+        )
+      ).stdout,
+    );
+    assertBootstrapState(bootstrapUninstall, "missing", "bootstrap uninstall");
+    console.log("codex bootstrap lifecycle passed");
+
     const workspace = path.join(tempRoot, "workspace");
     await runInstalledBin(installDir, "okfh", [
       "init",
@@ -107,7 +156,6 @@ async function main() {
       "--git",
       "--json",
     ]);
-    const agentPackVersion = await installedPackageVersion(installDir, "@okf-harness/agent-pack");
     await assertGeneratedSkill(
       path.join(workspace, ".agents/skills/okf-harness/SKILL.md"),
       agentPackVersion,
@@ -203,9 +251,9 @@ async function main() {
   }
 }
 
-function runInstalledBin(installDir, binName, args) {
+function runInstalledBin(installDir, binName, args, options = {}) {
   return installedCliBinPath(installDir, binName).then((binPath) =>
-    run(process.execPath, [binPath, ...args], { cwd: installDir }),
+    run(process.execPath, [binPath, ...args], { cwd: installDir, env: options.env }),
   );
 }
 
@@ -223,7 +271,7 @@ function run(command, args, options) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
-      env: process.env,
+      env: options.env ?? process.env,
       shell: shouldRunWithShell(command),
       stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
     });
@@ -271,7 +319,7 @@ async function installedPackageVersion(installDir, packageName) {
   return packageJson.version;
 }
 
-async function assertGeneratedSkill(skillPath, expectedVersion) {
+async function assertGeneratedSkill(skillPath, expectedVersion, expectedEntrypoint = "workspace") {
   const contents = await readFile(skillPath, "utf8");
   if (!contents.includes(`okf-harness-version: "${expectedVersion}"`)) {
     throw new Error(
@@ -280,6 +328,19 @@ async function assertGeneratedSkill(skillPath, expectedVersion) {
   }
   if (!contents.includes('okf-harness-managed: "true"')) {
     throw new Error(`Generated skill does not use string managed metadata: ${skillPath}`);
+  }
+  if (!contents.includes(`okf-harness-entrypoint: "${expectedEntrypoint}"`)) {
+    throw new Error(`Generated skill does not use ${expectedEntrypoint} metadata: ${skillPath}`);
+  }
+  if (expectedEntrypoint === "bootstrap" && !contents.includes('okf-harness-agent: "codex"')) {
+    throw new Error(`Generated bootstrap skill does not use Codex metadata: ${skillPath}`);
+  }
+}
+
+function assertBootstrapState(envelope, expectedState, label) {
+  const state = envelope.data?.status?.state;
+  if (envelope.ok !== true || state !== expectedState) {
+    throw new Error(`${label} expected ${expectedState}: ${JSON.stringify(envelope)}`);
   }
 }
 

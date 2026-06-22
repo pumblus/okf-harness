@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { cp, lstat, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdir, readdir, readFile, rm, rmdir, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 
 export const packageInfo = {
@@ -11,6 +12,7 @@ export type PackageInfo = typeof packageInfo;
 
 export type AgentAdapter = "claude" | "codex";
 export type AgentInstallTarget = AgentAdapter | "all";
+export type BootstrapAgent = "codex";
 
 export type RenderedAgentFile = {
   path: string;
@@ -59,15 +61,85 @@ export type InstallAgentAdaptersResult = {
   managedBlocks: ManagedBlockResult[];
 };
 
+export type RenderBootstrapAgentOptions = {
+  agent: BootstrapAgent;
+  version?: string;
+};
+
+export type RenderedBootstrapAgent = {
+  agent: BootstrapAgent;
+  files: RenderedAgentFile[];
+};
+
+export type BootstrapStatusState =
+  | "missing"
+  | "installed"
+  | "version-drifted"
+  | "unmanaged-conflict";
+
+export type BootstrapVersionDrift = "older" | "newer" | "unknown";
+
+export type BootstrapStatus = {
+  agent: BootstrapAgent;
+  skillName: string;
+  skillDirectory: string;
+  skillPath: string;
+  state: BootstrapStatusState;
+  expectedVersion: string;
+  managed: boolean;
+  next: string[];
+  actualVersion?: string;
+  entrypoint?: string;
+  versionDrift?: BootstrapVersionDrift;
+  reason?: string;
+  conflictPath?: string;
+};
+
+export type BootstrapAgentOptions = {
+  agent: BootstrapAgent;
+  env?: NodeJS.ProcessEnv;
+};
+
+export type BootstrapLifecycleOptions = BootstrapAgentOptions & {
+  dryRun?: boolean;
+};
+
+export type BootstrapLifecycleResult = {
+  agent: BootstrapAgent;
+  dryRun: boolean;
+  status: BootstrapStatus;
+  plannedWrites: string[];
+  plannedRemovals: string[];
+  writtenFiles: string[];
+  replacedFiles: string[];
+  removedFiles: string[];
+  skippedFiles: string[];
+  conflicts: AgentInstallConflict[];
+};
+
+type BootstrapTarget = {
+  agent: BootstrapAgent;
+  codexHome: string;
+  skillsDirectory: string;
+  skillName: string;
+  skillDirectory: string;
+  skillPath: string;
+  expectedVersion: string;
+};
+
 const packageVersion = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { version: string };
 const managedBlockStart = "<!-- OKF Harness: start -->";
 const managedBlockEnd = "<!-- OKF Harness: end -->";
 const skillName = "okf-harness";
+const bootstrapSkillName = "okf-harness-bootstrap";
 const skillDescription =
   "One Door workflow for OKF Harness workspaces. Use when the user asks to set up, check, ingest into, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, ordinary repository maintenance, knowledge-base tasks outside an OKF Harness workspace, repository dependency graphs, old workflow-specific skill names, or an `okfh query` command.";
+const bootstrapSkillDescription =
+  "Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Codex. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.";
 const referenceTemplatePaths = ["setup.md", "check.md", "ingest.md", "answer.md", "graph.md"];
+const bootstrapReferenceTemplatePaths = ["setup.md", "discovery.md", "repair.md"];
 const adapterProfiles: Record<
   AgentAdapter,
   {
@@ -100,6 +172,14 @@ export function renderAgentAdapter(options: RenderAgentAdapterOptions): Rendered
   };
 }
 
+export function renderBootstrapAgent(options: RenderBootstrapAgentOptions): RenderedBootstrapAgent {
+  const version = options.version ?? packageVersion.version;
+  return {
+    agent: options.agent,
+    files: renderBootstrapSkillFiles(version),
+  };
+}
+
 export async function installAgentAdapters(
   options: InstallAgentAdaptersOptions,
 ): Promise<InstallAgentAdaptersResult> {
@@ -121,6 +201,196 @@ export async function installAgentAdapters(
   const result = createInstallResult(options.adapter, false);
   await planAgentAdapterWrites(workspaceRoot, options.adapter, { dryRun: false, force, result });
 
+  return result;
+}
+
+export async function readBootstrapAgentStatus(
+  options: BootstrapAgentOptions,
+): Promise<BootstrapStatus> {
+  const target = bootstrapTarget(options);
+  const pathConflict = await bootstrapPathConflict(target);
+  if (pathConflict !== undefined) {
+    return createBootstrapStatus({
+      ...target,
+      state: "unmanaged-conflict",
+      managed: false,
+      reason: pathConflict.reason,
+      conflictPath: pathConflict.path,
+    });
+  }
+
+  const contents = await readOptionalTextFile(target.skillPath);
+  if (contents === undefined) {
+    if (await directoryHasEntries(target.skillDirectory)) {
+      return createBootstrapStatus({
+        ...target,
+        state: "unmanaged-conflict",
+        managed: false,
+        reason: "Bootstrap skill directory exists without a managed SKILL.md.",
+      });
+    }
+    return createBootstrapStatus({ ...target, state: "missing", managed: false });
+  }
+
+  const frontmatter = frontmatterBlock(contents);
+  const managed =
+    frontmatter !== undefined &&
+    frontmatterMetadataValue(frontmatter, "okf-harness-managed") === "true";
+  if (!managed) {
+    return createBootstrapStatus({
+      ...target,
+      state: "unmanaged-conflict",
+      managed: false,
+      reason: "Existing bootstrap skill is not marked as OKF Harness managed.",
+    });
+  }
+
+  const actualVersion = frontmatterMetadataValue(frontmatter, "okf-harness-version");
+  const entrypoint = frontmatterMetadataValue(frontmatter, "okf-harness-entrypoint");
+  const skillAgent = frontmatterMetadataValue(frontmatter, "okf-harness-agent");
+  if (entrypoint !== undefined && entrypoint !== "bootstrap") {
+    return createBootstrapStatus({
+      ...target,
+      state: "unmanaged-conflict",
+      managed: true,
+      actualVersion,
+      entrypoint,
+      reason: `Managed skill is marked as ${entrypoint}, not bootstrap.`,
+    });
+  }
+  if (skillAgent !== undefined && skillAgent !== options.agent) {
+    return createBootstrapStatus({
+      ...target,
+      state: "unmanaged-conflict",
+      managed: true,
+      actualVersion,
+      entrypoint,
+      reason: `Managed skill is marked for ${skillAgent}, not ${options.agent}.`,
+    });
+  }
+
+  if (
+    actualVersion !== target.expectedVersion ||
+    entrypoint !== "bootstrap" ||
+    skillAgent !== target.agent
+  ) {
+    return createBootstrapStatus({
+      ...target,
+      state: "version-drifted",
+      managed: true,
+      actualVersion,
+      entrypoint,
+      versionDrift: versionDrift(actualVersion, target.expectedVersion),
+      reason:
+        entrypoint !== "bootstrap"
+          ? "Managed skill is missing bootstrap entrypoint metadata."
+          : skillAgent !== target.agent
+            ? "Managed skill is missing Codex agent metadata."
+            : undefined,
+    });
+  }
+
+  const renderedDrift = await bootstrapRenderedFilesDrift(target);
+  if (renderedDrift !== undefined) {
+    return createBootstrapStatus({
+      ...target,
+      state: "version-drifted",
+      managed: true,
+      actualVersion,
+      entrypoint,
+      versionDrift: "unknown",
+      reason: renderedDrift,
+    });
+  }
+
+  return createBootstrapStatus({
+    ...target,
+    state: "installed",
+    managed: true,
+    actualVersion,
+    entrypoint,
+  });
+}
+
+export async function installBootstrapAgent(
+  options: BootstrapLifecycleOptions,
+): Promise<BootstrapLifecycleResult> {
+  const dryRun = options.dryRun === true;
+  const status = await readBootstrapAgentStatus(options);
+  const result = createBootstrapLifecycleResult(options.agent, dryRun, status);
+  if (status.state === "unmanaged-conflict") {
+    result.conflicts.push({
+      path: status.conflictPath ?? status.skillPath,
+      reason: status.reason ?? "Existing bootstrap skill is unmanaged.",
+    });
+    return result;
+  }
+
+  const target = bootstrapTarget(options);
+  for (const file of renderBootstrapAgent({ agent: options.agent }).files) {
+    const absolutePath = path.join(target.codexHome, file.path);
+    const existing = await readOptionalTextFile(absolutePath);
+    if (existing === file.contents) {
+      result.skippedFiles.push(absolutePath);
+      continue;
+    }
+
+    result.plannedWrites.push(absolutePath);
+    if (dryRun) {
+      continue;
+    }
+
+    await writeRenderedFile(absolutePath, file.contents);
+    if (existing === undefined) {
+      result.writtenFiles.push(absolutePath);
+    } else {
+      result.replacedFiles.push(absolutePath);
+    }
+  }
+
+  result.status = dryRun ? status : await readBootstrapAgentStatus(options);
+  return result;
+}
+
+export async function uninstallBootstrapAgent(
+  options: BootstrapLifecycleOptions,
+): Promise<BootstrapLifecycleResult> {
+  const dryRun = options.dryRun === true;
+  const status = await readBootstrapAgentStatus(options);
+  const result = createBootstrapLifecycleResult(options.agent, dryRun, status);
+  if (status.state === "unmanaged-conflict") {
+    result.conflicts.push({
+      path: status.conflictPath ?? status.skillPath,
+      reason: status.reason ?? "Existing bootstrap skill is unmanaged.",
+    });
+    return result;
+  }
+  if (status.state === "missing") {
+    return result;
+  }
+
+  const target = bootstrapTarget(options);
+  for (const file of renderBootstrapAgent({ agent: options.agent }).files) {
+    const absolutePath = path.join(target.codexHome, file.path);
+    if ((await readOptionalTextFile(absolutePath)) === undefined) {
+      result.skippedFiles.push(absolutePath);
+      continue;
+    }
+
+    result.plannedRemovals.push(absolutePath);
+    if (dryRun) {
+      continue;
+    }
+
+    await rm(absolutePath, { force: true });
+    result.removedFiles.push(absolutePath);
+  }
+
+  if (!dryRun) {
+    await removeEmptyDirectory(path.join(target.skillDirectory, "references"));
+    await removeEmptyDirectory(target.skillDirectory);
+    result.status = await readBootstrapAgentStatus(options);
+  }
   return result;
 }
 
@@ -489,6 +759,31 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return typeof error === "object" && error !== null && "code" in error;
 }
 
+async function directoryHasEntries(filePath: string): Promise<boolean> {
+  try {
+    return (await readdir(filePath)).length > 0;
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function removeEmptyDirectory(filePath: string): Promise<void> {
+  try {
+    await rmdir(filePath);
+  } catch (error) {
+    if (
+      isNodeError(error) &&
+      (error.code === "ENOENT" || error.code === "ENOTEMPTY" || error.code === "EEXIST")
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
 function renderSkillFiles(adapter: AgentAdapter, version: string): RenderedAgentFile[] {
   const { skillRoot } = adapterProfiles[adapter];
   return [
@@ -512,11 +807,236 @@ compatibility: Designed for Claude Code and Codex with local shell command acces
 metadata:
   okf-harness-version: "${version}"
   okf-harness-managed: "true"
+  okf-harness-entrypoint: "workspace"
 ---
 
 ${readTemplate("SKILL.md")}`;
 }
 
+function renderBootstrapSkillFiles(version: string): RenderedAgentFile[] {
+  return [
+    {
+      path: `skills/${bootstrapSkillName}/SKILL.md`,
+      contents: renderBootstrapSkill(version),
+    },
+    ...bootstrapReferenceTemplatePaths.map((templatePath) => ({
+      path: `skills/${bootstrapSkillName}/references/${templatePath}`,
+      contents: readBootstrapTemplate(`references/${templatePath}`),
+    })),
+  ];
+}
+
+function renderBootstrapSkill(version: string): string {
+  return `---
+name: ${bootstrapSkillName}
+description: ${bootstrapSkillDescription}
+license: Apache-2.0
+compatibility: Designed for Codex with local shell command access. Requires the okfh CLI.
+metadata:
+  okf-harness-version: "${version}"
+  okf-harness-managed: "true"
+  okf-harness-entrypoint: "bootstrap"
+  okf-harness-agent: "codex"
+---
+
+${readBootstrapTemplate("SKILL.md")}`;
+}
+
 function readTemplate(relativePath: string): string {
   return readFileSync(new URL(`../templates/okf-harness/${relativePath}`, import.meta.url), "utf8");
+}
+
+function readBootstrapTemplate(relativePath: string): string {
+  return readFileSync(
+    new URL(`../templates/okf-harness-bootstrap/${relativePath}`, import.meta.url),
+    "utf8",
+  );
+}
+
+function bootstrapTarget(options: BootstrapAgentOptions): BootstrapTarget {
+  const codexHome = resolveCodexHome(options.env ?? process.env);
+  const skillsDirectory = path.join(codexHome, "skills");
+  const skillDirectory = path.join(skillsDirectory, bootstrapSkillName);
+  return {
+    agent: options.agent,
+    codexHome,
+    skillsDirectory,
+    skillName: bootstrapSkillName,
+    skillDirectory,
+    skillPath: path.join(skillDirectory, "SKILL.md"),
+    expectedVersion: packageVersion.version,
+  };
+}
+
+function resolveCodexHome(env: NodeJS.ProcessEnv): string {
+  const configured = firstNonEmpty(env.CODEX_HOME);
+  if (configured !== undefined) {
+    return path.resolve(configured);
+  }
+
+  const userHome = firstNonEmpty(env.HOME, env.USERPROFILE) ?? homedir();
+  return path.join(path.resolve(userHome), ".codex");
+}
+
+function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
+  return values.find((value) => value !== undefined && value.trim().length > 0);
+}
+
+function createBootstrapLifecycleResult(
+  agent: BootstrapAgent,
+  dryRun: boolean,
+  status: BootstrapStatus,
+): BootstrapLifecycleResult {
+  return {
+    agent,
+    dryRun,
+    status,
+    plannedWrites: [],
+    plannedRemovals: [],
+    writtenFiles: [],
+    replacedFiles: [],
+    removedFiles: [],
+    skippedFiles: [],
+    conflicts: [],
+  };
+}
+
+function createBootstrapStatus(options: {
+  agent: BootstrapAgent;
+  skillName: string;
+  skillDirectory: string;
+  skillPath: string;
+  expectedVersion: string;
+  state: BootstrapStatusState;
+  managed: boolean;
+  actualVersion?: string | undefined;
+  entrypoint?: string | undefined;
+  versionDrift?: BootstrapVersionDrift | undefined;
+  reason?: string | undefined;
+  conflictPath?: string | undefined;
+}): BootstrapStatus {
+  return {
+    agent: options.agent,
+    skillName: options.skillName,
+    skillDirectory: options.skillDirectory,
+    skillPath: options.skillPath,
+    state: options.state,
+    expectedVersion: options.expectedVersion,
+    managed: options.managed,
+    next: bootstrapNextSteps(options.state),
+    ...(options.actualVersion === undefined ? {} : { actualVersion: options.actualVersion }),
+    ...(options.entrypoint === undefined ? {} : { entrypoint: options.entrypoint }),
+    ...(options.versionDrift === undefined ? {} : { versionDrift: options.versionDrift }),
+    ...(options.reason === undefined ? {} : { reason: options.reason }),
+    ...(options.conflictPath === undefined ? {} : { conflictPath: options.conflictPath }),
+  };
+}
+
+function bootstrapNextSteps(state: BootstrapStatusState): string[] {
+  if (state === "installed") {
+    return ["Use $okf-harness-bootstrap from Codex to create or select an OKF Harness workspace."];
+  }
+  if (state === "unmanaged-conflict") {
+    return ["Review the existing okf-harness-bootstrap skill before installing or uninstalling."];
+  }
+  return ["Run okfh bootstrap repair --agents codex --json to install or repair it."];
+}
+
+function versionDrift(
+  actualVersion: string | undefined,
+  expectedVersion: string,
+): BootstrapVersionDrift {
+  if (actualVersion === undefined) {
+    return "unknown";
+  }
+  const comparison = compareVersionStrings(actualVersion, expectedVersion);
+  if (comparison === undefined || comparison === 0) {
+    return "unknown";
+  }
+  return comparison < 0 ? "older" : "newer";
+}
+
+function compareVersionStrings(left: string, right: string): number | undefined {
+  const leftParts = parseVersionParts(left);
+  const rightParts = parseVersionParts(right);
+  if (leftParts === undefined || rightParts === undefined) {
+    return undefined;
+  }
+
+  const length = Math.max(leftParts.length, rightParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = leftParts[index] ?? 0;
+    const rightPart = rightParts[index] ?? 0;
+    if (leftPart !== rightPart) {
+      return leftPart - rightPart;
+    }
+  }
+  return 0;
+}
+
+function parseVersionParts(version: string): number[] | undefined {
+  if (!/^\d+(?:\.\d+)*$/.test(version)) {
+    return undefined;
+  }
+  return version.split(".").map((part) => Number.parseInt(part, 10));
+}
+
+async function bootstrapPathConflict(
+  target: BootstrapTarget,
+): Promise<AgentInstallConflict | undefined> {
+  for (const directory of [
+    target.codexHome,
+    target.skillsDirectory,
+    target.skillDirectory,
+    path.join(target.skillDirectory, "references"),
+  ]) {
+    const entry = await lstatOptional(directory);
+    if (entry === "blocked" || (entry !== undefined && !entry.isDirectory())) {
+      return {
+        path: directory,
+        reason: "Existing bootstrap path is not a managed skill directory.",
+      };
+    }
+  }
+
+  for (const file of renderBootstrapAgent({ agent: target.agent }).files) {
+    const absolutePath = path.join(target.codexHome, file.path);
+    const entry = await lstatOptional(absolutePath);
+    if (entry === "blocked" || (entry !== undefined && !entry.isFile())) {
+      return {
+        path: absolutePath,
+        reason: "Existing bootstrap path is not a regular managed file.",
+      };
+    }
+  }
+
+  return undefined;
+}
+
+async function bootstrapRenderedFilesDrift(target: BootstrapTarget): Promise<string | undefined> {
+  for (const file of renderBootstrapAgent({ agent: target.agent }).files) {
+    const absolutePath = path.join(target.codexHome, file.path);
+    const contents = await readOptionalTextFile(absolutePath);
+    if (contents === undefined) {
+      return "Managed bootstrap skill is missing generated files.";
+    }
+    if (contents !== file.contents) {
+      return "Managed bootstrap skill files differ from this package version.";
+    }
+  }
+  return undefined;
+}
+
+async function lstatOptional(filePath: string) {
+  try {
+    return await lstat(filePath);
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return undefined;
+    }
+    if (isNodeError(error) && error.code === "ENOTDIR") {
+      return "blocked";
+    }
+    throw error;
+  }
 }

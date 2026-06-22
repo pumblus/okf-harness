@@ -99,6 +99,19 @@ okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --j
 
 Use the current agent adapter by default. Use `all` only when you explicitly want both supported adapters. Use `--dry-run` to inspect planned writes. Use `--force` only after reviewing conflicts.
 
+### bootstrap
+
+Installs, repairs, inspects, or uninstalls the managed global Codex bootstrap skill.
+
+```bash
+okfh bootstrap install --agents codex --json
+okfh bootstrap status --agents codex --json
+okfh bootstrap repair --agents codex --json
+okfh bootstrap uninstall --agents codex --json
+```
+
+`status` reports `missing`, `installed`, `version-drifted`, or `unmanaged-conflict`. `install` and `repair` create missing managed files or replace managed drift. They refuse unmanaged same-name content. `uninstall` removes only managed bootstrap files and also refuses unmanaged same-name content. Use `--dry-run --json` with `install`, `repair`, or `uninstall` to inspect planned writes or removals without changing files.
+
 ### status
 
 Reports workspace initialization, wiki file count, concept count, concise check state, and available capabilities.

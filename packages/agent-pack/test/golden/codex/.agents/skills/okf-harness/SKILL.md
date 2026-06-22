@@ -6,6 +6,7 @@ compatibility: Designed for Claude Code and Codex with local shell command acces
 metadata:
   okf-harness-version: "0.4.0"
   okf-harness-managed: "true"
+  okf-harness-entrypoint: "workspace"
 ---
 
 # OKF Harness

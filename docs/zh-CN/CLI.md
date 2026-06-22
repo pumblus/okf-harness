@@ -99,6 +99,19 @@ okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --j
 
 默认使用当前 agent adapter。只有明确需要两个受支持 adapter 时才使用 `all`。用 `--dry-run` 查看计划写入的内容。仅在检查冲突后使用 `--force`。
 
+### bootstrap
+
+安装、修复、检查或卸载受管理的全局 Codex bootstrap skill。
+
+```bash
+okfh bootstrap install --agents codex --json
+okfh bootstrap status --agents codex --json
+okfh bootstrap repair --agents codex --json
+okfh bootstrap uninstall --agents codex --json
+```
+
+`status` 会报告 `missing`、`installed`、`version-drifted` 或 `unmanaged-conflict`。`install` 和 `repair` 会创建缺失的受管理文件，或替换发生漂移的受管理文件；遇到同名非受管理内容会拒绝覆盖。`uninstall` 只删除受管理的 bootstrap 文件，遇到同名非受管理内容也会拒绝删除。对 `install`、`repair` 或 `uninstall` 使用 `--dry-run --json` 可以查看计划写入或删除的文件，不实际修改文件系统。
+
 ### status
 
 报告 workspace 初始化状态、wiki 文件数量、概念数量、简要 check 状态和可用能力。

@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { installAgentAdapters, packageInfo, renderAgentAdapter } from "../src/index.js";
+import {
+  installAgentAdapters,
+  packageInfo,
+  renderAgentAdapter,
+  renderBootstrapAgent,
+} from "../src/index.js";
 
 describe("@okf-harness/agent-pack", () => {
   it("exposes package metadata", () => {
@@ -130,7 +135,32 @@ describe("@okf-harness/agent-pack", () => {
 
     expect(skill).toContain(`okf-harness-version: "${packageJson.version}"`);
     expect(skill).toContain('okf-harness-managed: "true"');
+    expect(skill).toContain('okf-harness-entrypoint: "workspace"');
     expect(skill).not.toContain("okf-harness-managed: true");
+  });
+
+  it("renders the Codex global bootstrap skill", async () => {
+    const packageJsonPath = fileURLToPath(new URL("../package.json", import.meta.url));
+    const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as { version: string };
+    const bootstrap = renderBootstrapAgent({ agent: "codex" });
+
+    expect(bootstrap.files.map((file) => file.path)).toEqual([
+      "skills/okf-harness-bootstrap/SKILL.md",
+      "skills/okf-harness-bootstrap/references/setup.md",
+      "skills/okf-harness-bootstrap/references/discovery.md",
+      "skills/okf-harness-bootstrap/references/repair.md",
+    ]);
+
+    const skill = fileContents(bootstrap.files, "skills/okf-harness-bootstrap/SKILL.md");
+    expect(skill).toContain("name: okf-harness-bootstrap");
+    expect(skill).toContain("Bootstrap OKF Harness before a workspace exists");
+    expect(skill).toContain(`okf-harness-version: "${packageJson.version}"`);
+    expect(skill).toContain('okf-harness-managed: "true"');
+    expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
+    expect(skill).toContain('okf-harness-agent: "codex"');
+    expect(skill).toContain("references/setup.md");
+    expect(skill).toContain("references/discovery.md");
+    expect(skill).toContain("references/repair.md");
   });
 
   it("installs an adapter while preserving user root guidance outside the managed block", async () => {
