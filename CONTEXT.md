@@ -32,6 +32,14 @@ _Avoid_: CLI command, hidden automatic routing, adapter jargon
 The single OKF Harness workflow entrypoint exposed to an agent client, named `okf-harness`. It lets a person use one stable prefix while the guidance routes setup, check, ingest, answer, and graph intents internally.
 _Avoid_: multiple user-facing workflow skills, command menu, CLI alias
 
+**Global bootstrap entrypoint**:
+The low-frequency discoverable `okf-harness-bootstrap` entrypoint available before a person has selected or entered a specific OKF Harness workspace. It supports setup, workspace discovery or selection, guidance repair, and handoff into workspace-local work without making the person learn CLI commands.
+_Avoid_: global workspace, CLI installer, hidden account
+
+**Workspace-local entrypoint**:
+The high-frequency `okf-harness` entrypoint loaded from a specific OKF Harness workspace's agent guidance. It handles workspace operations such as check, ingest, answer, and graph after the workspace context is selected.
+_Avoid_: global entrypoint, bootstrap command, workspace selector
+
 **Internal workflow**:
 An agent-guidance route behind the unified `okf-harness` entrypoint, such as setup, check, ingest, answer, or graph. Internal workflows keep guidance organized, but they are not separate user-facing skill names.
 _Avoid_: user-facing skill, CLI command, separate product entrypoint
@@ -49,11 +57,11 @@ A natural-language request made inside an agent context where OKF Harness is alr
 _Avoid_: command-shaped prompt, product-name repetition, adapter jargon
 
 **Current-agent setup**:
-The setup experience where OKF Harness prepares guidance for the agent client the person is already using. The person should not need to choose adapter names during normal setup; after current-agent setup, the agent may report other detected supported agent clients and ask whether to prepare workspace guidance for them too.
+The setup experience where OKF Harness prepares guidance for the agent client the person is already using. The person should not need to choose adapter names during normal setup; global bootstrap may prepare every detected client for bootstrap, but workspace-local setup repairs only the current agent unless the person explicitly asks for more.
 _Avoid_: adapter selection, install all adapters by default, user-facing runtime setup, enablement toggle
 
 **Agent context refresh**:
-The handoff after setup or guidance changes where a person starts a fresh conversation in the current agent client so the client can load the new workspace guidance. The wording should match the agent client, such as a Claude Code session or a Codex thread.
+The handoff after setup or guidance changes where a person starts a fresh conversation in the current agent client so the client can load the new workspace guidance. The wording should match the agent client and operating-system conventions, using concrete local paths when known, without turning the handoff into a CLI tutorial.
 _Avoid_: app restart, cache clear, manual reload ritual
 
 **OKF**:
@@ -89,7 +97,7 @@ The operating-system-independent local directory managed by OKF Harness around o
 _Avoid_: OKF workspace, Obsidian vault, project repo, global knowledge base
 
 **Workspace collection**:
-The set of separate OKF Harness workspaces a person keeps on one machine. It is a loose local organization pattern, not a global database or synchronized account.
+The set of separate OKF Harness workspaces a person keeps on one machine. It is a loose local organization pattern that bootstrap may inspect from a parent folder, not a global database, registry, or synchronized account.
 _Avoid_: global workspace, account, cloud library
 
 **Workspace plan**:
