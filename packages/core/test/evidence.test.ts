@@ -75,18 +75,78 @@ describe("OKF evidence brief planning", () => {
         citationIssues: [],
       },
     });
-    expect(result.candidates[0]).toEqual(
-      expect.objectContaining({
-        item: 1,
-        conceptId: "topics/llm-wiki",
-        path: "wiki/topics/llm-wiki.md",
-        matchedFields: expect.arrayContaining(["title"]),
-        matchReasons: expect.arrayContaining(["title phrase match"]),
-      }),
-    );
-    expect(result.candidates[0]).not.toHaveProperty("excerpt");
+    expect(result.candidates).toEqual([]);
     expect(JSON.stringify(result)).not.toMatch(/\b(score|confidence|relevance|ranking)\b/i);
     expect(JSON.stringify(result)).not.toContain("Fixture raw source for the LLM Wiki pattern.");
+  });
+
+  it("returns selected evidence plus additional thin candidates in the same brief", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      for (const suffix of ["a", "b", "c", "d", "e"]) {
+        await writeFile(
+          path.join(workspace, `wiki/topics/candidate-proof-${suffix}.md`),
+          `---
+type: Topic
+title: Candidate Proof ${suffix.toUpperCase()}
+description: Candidate Proof matching fixture.
+tags: [candidate-proof]
+timestamp: "2026-06-15T12:00:00-07:00"
+---
+
+# Overview
+
+Candidate Proof ${suffix.toUpperCase()} keeps candidate cards thin.
+`,
+          "utf8",
+        );
+      }
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "Candidate Proof",
+      });
+
+      expect(result.evidence.map((item) => [item.item, item.conceptId])).toEqual([
+        [1, "topics/candidate-proof-a"],
+        [2, "topics/candidate-proof-b"],
+        [3, "topics/candidate-proof-c"],
+      ]);
+      expect(result.candidates).toEqual([
+        expect.objectContaining({
+          item: 4,
+          conceptId: "topics/candidate-proof-d",
+          path: "wiki/topics/candidate-proof-d.md",
+          title: "Candidate Proof D",
+          type: "Topic",
+          matchedFields: expect.arrayContaining(["title"]),
+          matchReasons: expect.arrayContaining(["title phrase match"]),
+        }),
+        expect.objectContaining({
+          item: 5,
+          conceptId: "topics/candidate-proof-e",
+          path: "wiki/topics/candidate-proof-e.md",
+          title: "Candidate Proof E",
+          type: "Topic",
+          matchedFields: expect.arrayContaining(["title"]),
+          matchReasons: expect.arrayContaining(["title phrase match"]),
+        }),
+      ]);
+      expect(result.evidence[0]?.excerpt).toContain(
+        "Candidate Proof A keeps candidate cards thin.",
+      );
+      for (const candidate of result.candidates) {
+        expect(candidate).not.toHaveProperty("excerpt");
+      }
+      expect(JSON.stringify(result.candidates)).not.toContain("keeps candidate cards thin.");
+      expect(JSON.stringify(result.candidates)).not.toMatch(
+        /\b(score|confidence|relevance|ranking)\b/i,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("does not report navigation or unhit sections as match reasons", async () => {
@@ -102,7 +162,7 @@ describe("OKF evidence brief planning", () => {
     });
     expect(result.evidence[0]?.matchReasons).not.toContain("index link match");
     expect(result.evidence[0]?.matchReasons).not.toContain("section body match: Overview");
-    expect(result.candidates[0]?.matchReasons).not.toContain("index link match");
+    expect(result.candidates).toEqual([]);
   });
 
   it("bounds large evidence pages and returns continuation cues", async () => {

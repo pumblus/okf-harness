@@ -132,8 +132,9 @@ export async function planEvidenceBrief(
     workspaceRoot,
     query: options.question,
   });
-  const candidates = search.results.map((result, index) => ({
-    item: index + 1,
+  const evidenceResults = search.results.slice(0, maxEvidenceItems);
+  const candidates = search.results.slice(maxEvidenceItems).map((result, index) => ({
+    item: maxEvidenceItems + index + 1,
     conceptId: result.conceptId,
     path: result.path,
     title: result.title,
@@ -144,7 +145,7 @@ export async function planEvidenceBrief(
   const evidence = await evidenceItemsForResults(
     workspaceRoot,
     options.question,
-    search.results.slice(0, maxEvidenceItems),
+    evidenceResults,
     budget.maxChars,
   );
   const usedChars = evidence.reduce((total, item) => total + item.range.returnedChars, 0);
