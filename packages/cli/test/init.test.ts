@@ -49,7 +49,11 @@ describe("@okf-harness/cli init", () => {
       await chmod(codex, 0o755);
     }
     const originalPath = process.env.PATH;
+    const originalShell = process.env.SHELL;
     process.env.PATH = bin;
+    if (process.platform === "win32") {
+      process.env.SHELL = "cmd.exe";
+    }
     let stdout = "";
     let stderr = "";
 
@@ -98,6 +102,11 @@ describe("@okf-harness/cli init", () => {
         delete process.env.PATH;
       } else {
         process.env.PATH = originalPath;
+      }
+      if (originalShell === undefined) {
+        delete process.env.SHELL;
+      } else {
+        process.env.SHELL = originalShell;
       }
     }
 

@@ -6,6 +6,7 @@ describe("workspace refresh hints", () => {
     const hint = createWorkspaceRefreshHint({
       agentClient: "claude",
       workspaceRoot: "/tmp/OKF Harness/研究",
+      runtimePlatform: "linux",
       env: { PATH: "" },
     });
 
@@ -22,6 +23,7 @@ describe("workspace refresh hints", () => {
     const hint = createWorkspaceRefreshHint({
       agentClient: "codex",
       workspaceRoot: "/tmp/OKF Harness/研究",
+      runtimePlatform: "linux",
       env: { PATH: "/fake/bin" },
       executableOnPath: () => true,
     });
