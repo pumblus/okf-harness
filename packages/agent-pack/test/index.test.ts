@@ -60,12 +60,26 @@ describe("@okf-harness/agent-pack", () => {
     expect(fileContents(claude.files, "CLAUDE.md")).not.toContain("/okf-harness-init");
     expect(fileContents(codex.files, "AGENTS.md")).not.toContain("$okf-harness-init");
     expect(fileContents(codex.files, "AGENTS.md")).toContain("okfh doctor --json");
-    expect(fileContents(codex.files, ".agents/skills/okf-harness/references/answer.md")).toContain(
-      "okfh read index --workspace <workspace> --json",
+    const claudeAnswer = fileContents(
+      claude.files,
+      ".claude/skills/okf-harness/references/answer.md",
     );
-    expect(fileContents(codex.files, ".agents/skills/okf-harness/references/answer.md")).toContain(
-      "Do not run or hallucinate an `okfh query` command.",
+    const codexAnswer = fileContents(
+      codex.files,
+      ".agents/skills/okf-harness/references/answer.md",
     );
+    for (const answer of [claudeAnswer, codexAnswer]) {
+      expect(answer).toContain("## Steps");
+      expect(answer).toContain("## Hard Boundaries");
+      expect(answer).toContain('okfh evidence "<question>" --workspace <workspace> --json');
+      expect(answer).toContain('Run `okfh evidence "<question>" --json` as the default');
+      expect(answer).toContain("Do not run or hallucinate an `okfh query` command.");
+      expect(answer).toContain("must not read `raw/` source bodies");
+      expect(answer).toContain("at most one automatic follow-up `okfh read`");
+      expect(answer).toContain("Evidence sufficiency and conflict judgment belong to the agent");
+      expect(answer).toContain("answer directly first");
+      expect(answer).not.toContain("okfh read index --workspace <workspace> --json");
+    }
     expect(fileContents(codex.files, ".agents/skills/okf-harness/references/graph.md")).toContain(
       "Run graph only when the user asks",
     );
@@ -99,8 +113,9 @@ describe("@okf-harness/agent-pack", () => {
     expect(fileContents(codex.files, referencePaths[2])).toContain(
       "If registration or planning fails, stop before wiki edits",
     );
+    expect(fileContents(codex.files, referencePaths[3])).toContain("No such command exists");
     expect(fileContents(codex.files, referencePaths[3])).toContain(
-      "There is no `okfh query` command",
+      'okfh evidence "<question>" --workspace <workspace> --json',
     );
     expect(fileContents(codex.files, referencePaths[4])).toContain(
       "not a repository dependency graph",
@@ -262,7 +277,7 @@ describe("@okf-harness/agent-pack", () => {
       ]),
     );
     await expect(readFile(path.join(skillRoot, "references/answer.md"), "utf8")).resolves.toContain(
-      "There is no `okfh query` command",
+      'okfh evidence "<question>" --workspace <workspace> --json',
     );
   });
 
