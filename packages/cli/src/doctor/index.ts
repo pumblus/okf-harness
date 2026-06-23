@@ -256,7 +256,7 @@ function shouldUseWindowsShell(
   runtimePlatform: NodeJS.Platform | string,
   executable: string,
 ): boolean {
-  return runtimePlatform === "win32" && ["npm", "pnpm"].includes(executable);
+  return runtimePlatform === "win32" && ["git", "npm", "pnpm"].includes(executable);
 }
 
 async function resolveDoctorWorkspace(

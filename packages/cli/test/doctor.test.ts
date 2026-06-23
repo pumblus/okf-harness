@@ -257,7 +257,7 @@ describe("@okf-harness/cli doctor", () => {
     );
     expect(runs).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ executable: "git", shell: false }),
+        expect.objectContaining({ executable: "git", shell: true }),
         expect.objectContaining({ executable: "pnpm", shell: true }),
       ]),
     );
