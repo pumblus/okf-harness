@@ -8,6 +8,8 @@ Install or repair {{agentLabel}} workspace-local guidance for a selected OKF Har
 
 - The target path must already be an initialized OKF Harness workspace.
 - Repair only {{agentLabel}} unless the user explicitly asks for another agent.
+- If bootstrap was invoked from inside the selected workspace, do not run setup; repair {{agentLabel}} workspace-local guidance and redirect the user to `{{workspaceInvocation}}`.
+- If a selected workspace already has current {{agentLabel}} guidance, report the path and refresh guidance instead of reinstalling extra clients.
 
 ## Allowed Commands
 
@@ -23,4 +25,4 @@ okfh status --workspace <workspace> --json
 
 ## Completion Condition
 
-Report the repair result and tell the user to open a fresh {{sessionName}} from the workspace folder so `{{workspaceInvocation}}` is loaded.
+Report the repair result and the `data.refresh` message from the CLI. If `data.refresh.commands` exists, show the two command lines exactly; otherwise repeat the natural-language refresh message so the user opens a fresh {{sessionName}} from the workspace folder with `{{workspaceInvocation}}` loaded.

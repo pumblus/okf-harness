@@ -145,12 +145,14 @@ describe("@okf-harness/agent-pack", () => {
     const codex = renderBootstrapAgent({ agent: "codex" });
     const claude = renderBootstrapAgent({ agent: "claude" });
     const setupReferencePath = "skills/okf-harness-bootstrap/references/setup.md";
+    const discoveryReferencePath = "skills/okf-harness-bootstrap/references/discovery.md";
+    const repairReferencePath = "skills/okf-harness-bootstrap/references/repair.md";
 
     const expectedPaths = [
       "skills/okf-harness-bootstrap/SKILL.md",
       setupReferencePath,
-      "skills/okf-harness-bootstrap/references/discovery.md",
-      "skills/okf-harness-bootstrap/references/repair.md",
+      discoveryReferencePath,
+      repairReferencePath,
     ];
     expect(codex.files.map((file) => file.path)).toEqual(expectedPaths);
     expect(claude.files.map((file) => file.path)).toEqual(expectedPaths);
@@ -166,6 +168,11 @@ describe("@okf-harness/agent-pack", () => {
       expect(skill).toContain("references/setup.md");
       expect(skill).toContain("references/discovery.md");
       expect(skill).toContain("references/repair.md");
+      expect(skill).toContain("resolved `--workspace <path>`");
+      expect(skill).not.toContain("references/check.md");
+      expect(skill).not.toContain("references/ingest.md");
+      expect(skill).not.toContain("references/answer.md");
+      expect(skill).not.toContain("references/graph.md");
     }
     expect(codexSkill).toContain('okf-harness-agent: "codex"');
     expect(fileContents(codex.files, setupReferencePath)).toContain("$okf-harness");
@@ -173,6 +180,32 @@ describe("@okf-harness/agent-pack", () => {
     expect(claudeSkill).toContain('okf-harness-agent: "claude"');
     expect(fileContents(claude.files, setupReferencePath)).toContain("/okf-harness");
     expect(fileContents(claude.files, setupReferencePath)).toContain("--agents claude");
+
+    const codexSetup = fileContents(codex.files, setupReferencePath);
+    expect(codexSetup).toContain("Ask only for inputs that remain missing or ambiguous");
+    expect(codexSetup).toContain("Honor explicit user paths");
+    expect(codexSetup).toContain("Documents/OKF Harness");
+    expect(codexSetup).toContain("conservative folder slug");
+    expect(codexSetup).toContain("allow a UTF-8 folder name");
+    expect(codexSetup).toContain("default and recommended answer is no");
+    expect(codexSetup).toContain("Before persistent writes");
+    expect(codexSetup).toContain("choose an empty directory or a new subdirectory");
+    expect(codexSetup).toContain("data.refresh.commands");
+    expect(codexSetup).toContain("--dry-run --json");
+
+    const codexDiscovery = fileContents(codex.files, discoveryReferencePath);
+    expect(codexDiscovery).toContain("okfh status --json");
+    expect(codexDiscovery).toContain("never create a nested workspace");
+    expect(codexDiscovery).toContain("immediate child directories");
+    expect(codexDiscovery).toContain("node_modules");
+    expect(codexDiscovery).toContain("If zero workspaces are discovered, enter setup");
+    expect(codexDiscovery).toContain("If one workspace is discovered, select it");
+    expect(codexDiscovery).toContain("If multiple workspaces match");
+
+    const codexRepair = fileContents(codex.files, repairReferencePath);
+    expect(codexRepair).toContain("Repair only Codex unless");
+    expect(codexRepair).toContain("redirect the user to `$okf-harness`");
+    expect(codexRepair).toContain("data.refresh.commands");
   });
 
   it("installs an adapter while preserving user root guidance outside the managed block", async () => {

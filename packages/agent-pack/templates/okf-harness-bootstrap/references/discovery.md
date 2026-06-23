@@ -7,12 +7,22 @@ Find or select an existing OKF Harness workspace before workspace-local guidance
 ## Preconditions
 
 - Treat the current directory as a possible workspace first.
-- Keep discovery shallow and local to the current folder or a user-named parent folder.
+- Use `okfh status --json` to detect whether the current directory is inside an initialized workspace.
+- If the current directory is inside an initialized workspace, select the reported workspace and redirect to `{{workspaceInvocation}}` or the repair route; never create a nested workspace.
+- Keep discovery bounded to the current folder, a user-named parent folder, or the default `Documents/OKF Harness` parent folder.
+- Inspect only the search root and its immediate child directories unless the user names a deeper path.
+- Skip obvious heavy or internal directories such as `.git`, `.okfh`, `node_modules`, `dist`, `build`, `coverage`, caches, and `raw`.
+- Verify each candidate with `okfh status --workspace <workspace> --json`; do not trust folder names alone.
+- If zero workspaces are discovered, enter setup.
+- If one workspace is discovered, select it and report the resolved path.
 - If multiple workspaces match and the user's request is ambiguous, ask the user to choose.
 
 ## Allowed Commands
 
+Filesystem listing of the bounded search roots is allowed before verification.
+
 ```bash
+okfh status --json
 okfh status --workspace <workspace> --json
 ```
 
