@@ -8,7 +8,6 @@ Most users should install the CLI instead:
 
 ```bash
 npm install -g @okf-harness/cli
-okfh doctor --json
 ```
 
 For project overview, workflows, and security notes, see the [main repository README](https://github.com/pumblus/okf-harness#readme).

@@ -41,34 +41,35 @@ Install the CLI once:
 
 ```bash
 npm install -g @okf-harness/cli
-okfh doctor --json
 ```
 
-Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; and the `@okf-harness/cli` package. Repository development additionally needs `pnpm`, but a normal installed `okfh doctor --json` does not check for it.
+Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; and the `@okf-harness/cli` package. Repository development additionally needs `pnpm`.
 
 You can run that command yourself, or ask your agent to check whether `okfh` is installed. If an agent needs to install a global npm package, it must ask for your explicit approval first.
+
+Package installation best-effort installs managed global bootstrap entrypoints for detected Codex and Claude Code clients. If that cannot complete, package installation still succeeds and troubleshooting can use `okfh doctor --json`.
 
 The recommended parent folder is only a convention, not a hidden CLI default. On macOS or Linux, use `$HOME/Documents/OKF Harness`. On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness`. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.
 
 ## Start With Your Agent
 
-Use the prefix for the agent you are already using.
+Use the prefix for the agent you are already using. Before a workspace exists, start with the low-frequency global bootstrap entrypoint. After setup or selection, work inside the workspace with the workspace-local entrypoint.
 
 No workspace yet:
 
 Codex:
 
 ```text
-$okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+$okf-harness-bootstrap Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
 ```
 
 Claude Code:
 
 ```text
-/okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+/okf-harness-bootstrap Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
 ```
 
-Existing workspace:
+Inside a workspace:
 
 Codex:
 
@@ -81,6 +82,8 @@ Claude Code:
 ```text
 /okf-harness Check this workspace and tell me whether it is ready.
 ```
+
+Bootstrap can also discover or select a workspace from a local workspace collection and repair current-agent setup for the selected workspace. It does not synthesize wiki content, migrate non-empty non-workspace folders, or write global root guidance files.
 
 To try the command without a global install:
 
@@ -147,7 +150,7 @@ The product stays narrow on purpose: local files, terminal-native commands, boun
 
 The agent uses `okfh --json` through your local shell. For example:
 
-- setup calls `okfh init` with the current agent adapter
+- first setup uses the global bootstrap entrypoint to resolve the workspace collection, confirm writes, call `okfh init` with the current agent adapter, and return agent context refresh guidance
 - ingest calls `okfh source add` and `okfh ingest plan`
 - answers use `okfh evidence`, then at most one bounded `okfh read` when a continuation cue is needed
 - validation uses `okfh check`
@@ -162,6 +165,16 @@ okfh search "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --j
 okfh read topics/llm-wiki --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
+
+## Troubleshooting
+
+If `$okf-harness-bootstrap` or `/okf-harness-bootstrap` is missing, stale, or blocked by an unmanaged same-name skill, run:
+
+```bash
+okfh doctor --json
+```
+
+`doctor` reports global bootstrap status even before a workspace is selected. Use `okfh bootstrap status|repair --agents codex|claude|all --json` only as diagnostic or repair tooling; the primary first-setup workflow is the agent prompt above.
 
 ## Docs
 

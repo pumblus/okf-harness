@@ -7,7 +7,7 @@
 
 [English](README.md) | 中文
 
-一个 agent 优先、本地优先、终端原生的知识管理工具。在 Claude Code、Codex 以及未来的编程 agent 里维护 OKF 兼容的 LLM Wiki，不需要额外安装知识库应用。
+一个智能体（Agent）优先、本地优先、终端原生的知识管理工具。在 Claude Code、Codex 以及未来的编程智能体里维护 OKF 兼容的 LLM Wiki，不需要额外安装知识库应用。
 
 OKF Harness 是一个独立开源项目，基于两个上游想法：Andrej Karpathy 的 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 模式，以及 Google 的 [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF 规范](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)。
 
@@ -24,14 +24,14 @@ wiki/*.md（含引用标注）
 Claude Code 或 Codex 通过 okfh evidence/read/graph 查阅
 ```
 
-装一个 CLI 包，每个知识领域建一个本地 workspace，然后让 Claude Code 或 Codex 帮你添加资料、维护 wiki、回答问题。
+装一个 CLI 包，每个知识领域建一个本地工作区（Workspace），然后让 Claude Code 或 Codex 帮你添加资料、维护 Wiki、回答问题。
 
 ## 来源
 
 OKF Harness 建立在：
 
-- Andrej Karpathy 的 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)：agent 维护 index、log、互链页面，并执行 ingest、query、lint 的 living wiki 模式。
-- Google 的 [Open Knowledge Format 介绍](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) 和 [OKF 规范](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)：用 markdown + frontmatter 表达可移植知识 bundle 的格式。
+- Andrej Karpathy 的 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)：智能体维护 index、log、互链页面，并执行 ingest、query、lint 的 living Wiki 模式。
+- Google 的 [Open Knowledge Format 介绍](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) 和 [OKF 规范](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)：用 Markdown 和 frontmatter 表达可移植知识包（bundle）的格式。
 
 本仓库与 Andrej Karpathy 或 Google 没有关联，也不代表其背书。
 
@@ -41,46 +41,49 @@ OKF Harness 建立在：
 
 ```bash
 npm install -g @okf-harness/cli
-okfh doctor --json
 ```
 
-普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、git，以及 `@okf-harness/cli` 包。只有参与仓库开发时才额外需要 `pnpm`；普通安装后的 `okfh doctor --json` 不会检查 `pnpm`。
+普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、git，以及 `@okf-harness/cli` 包。只有参与仓库开发时才额外需要 `pnpm`。
 
-你可以自己运行这条命令，也可以让 agent 检查本机是否已经安装 `okfh`。如果 agent 需要安装全局 npm 包，必须先得到你的明确同意。
+你可以自己运行这条命令，也可以让智能体检查本机是否已经安装 `okfh`。如果智能体需要安装全局 npm 包，必须先得到你的明确同意。
+
+包安装时会尽量为检测到的 Codex 和 Claude Code 安装受管理的全局引导入口（Global bootstrap entrypoint）。如果这一步没完成，包安装仍会成功，排查时可以运行 `okfh doctor --json`。
 
 推荐父目录只是一个约定，不是 CLI 隐式默认路径。macOS 或 Linux 使用 `$HOME/Documents/OKF Harness`。Windows PowerShell 使用 `$env:USERPROFILE\Documents\OKF Harness`。Command Prompt 使用 `%USERPROFILE%\Documents\OKF Harness`。
 
-## 从你的 agent 开始
+## 从你的智能体开始
 
-使用当前 agent 对应的 OKF Harness 前缀。
+使用当前智能体对应的 OKF Harness 前缀。还没有工作区时，先用低频的全局引导入口。完成设置或选择工作区后，在工作区内使用工作区本地入口（Workspace-local entrypoint）。
 
-还没有 workspace：
+还没有工作区：
 
 Codex：
 
 ```text
-$okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+$okf-harness-bootstrap 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区，然后告诉我如何刷新当前智能体上下文。
 ```
 
 Claude Code：
 
 ```text
-/okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+/okf-harness-bootstrap 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区，然后告诉我如何刷新当前智能体上下文。
 ```
 
-已有 workspace：
+已在工作区内：
 
 Codex：
 
 ```text
-$okf-harness Check this workspace and tell me whether it is ready.
+$okf-harness 检查这个工作区，并告诉我它是否已经就绪。
 ```
 
 Claude Code：
 
 ```text
-/okf-harness Check this workspace and tell me whether it is ready.
+/okf-harness 检查这个工作区，并告诉我它是否已经就绪。
 ```
+
+全局引导入口也可以从本地工作区集合（Workspace collection）中发现或选择工作区，并为选中的工作区修复当前智能体设置（Current-agent setup）。它不会整理 Wiki 内容、迁移非空的非工作区目录，也不会写入全局根指引文件。
 
 不想全局安装可以先试一下：
 
@@ -95,13 +98,13 @@ npx --package @okf-harness/cli okfh doctor --json
 Codex：
 
 ```text
-$okf-harness Add this PDF to my workspace, update the wiki with citations, then check the workspace again.
+$okf-harness 将这个 PDF 添加到我的工作区，更新 Wiki 并加上引用，然后再次检查工作区。
 ```
 
 Claude Code：
 
 ```text
-/okf-harness Add this PDF to my workspace, update the wiki with citations, then check the workspace again.
+/okf-harness 将这个 PDF 添加到我的工作区，更新 Wiki 并加上引用，然后再次检查工作区。
 ```
 
 提问：
@@ -109,13 +112,13 @@ Claude Code：
 Codex：
 
 ```text
-$okf-harness What does my workspace say about LLM Wiki structure?
+$okf-harness 我的工作区里是如何描述 LLM Wiki 结构的？
 ```
 
 Claude Code：
 
 ```text
-/okf-harness What does my workspace say about LLM Wiki structure?
+/okf-harness 我的工作区里是如何描述 LLM Wiki 结构的？
 ```
 
 ## 为什么选 OKF Harness
@@ -123,34 +126,34 @@ Claude Code：
 大多数个人知识工具以应用为中心。OKF Harness 以本地文件夹为中心：
 
 - 原始资料放在 `raw/sources/` 下，随时可以查看
-- 整理后的知识就是 `wiki/` 下的普通 markdown 文件
+- 整理后的知识就是 `wiki/` 下的普通 Markdown 文件
 - 引用标注把主题页面、参考页面和来源 ID 连在一起
-- `okfh --json` 给 agent 提供一个确定性的工具接口
+- `okfh --json` 给智能体提供一个确定性的工具接口
 - 图谱报告是一个本地 HTML 文件，不依赖任何在线服务
 
-推荐按知识领域、研究方向或隐私边界各建一个 workspace，统一放在本机的 `Documents/OKF Harness/` 目录下，除非你有特别的分离需求。
+推荐按知识领域、研究方向或隐私边界各建一个工作区，统一放在本机的 `Documents/OKF Harness/` 目录下，除非你有特别的分离需求。
 
-产品有意保持克制：本地文件、终端原生命令、受控证据、受控读取和显式溯源优先。GUI、云端同步、Obsidian 辅助、来源连接器和向量检索等更宽的产品面，只有在不破坏这些保证时才会进入路线图。
+产品有意保持克制：本地文件、终端原生命令、受控证据、受控读取和显式溯源优先。图形界面（GUI）、云端同步、Obsidian 辅助、来源连接器和向量检索等更宽的产品面，只有在不破坏这些保证时才会进入路线图。
 
 ## 能做什么
 
-- 初始化本地 OKF Harness workspace
-- 为 workspace 安装 Claude Code 和 Codex 的 agent 指引文件
+- 初始化本地 OKF Harness 工作区
+- 为工作区安装 Claude Code 和 Codex 的智能体指引文件
 - 将文件和 URL 指针注册为原始资料
-- 生成 ingest plan，让 agent 据此更新 wiki 并添加引用
-- 回答前从已整理的 wiki 页面准备长度受控的 Evidence Brief
-- 搜索和读取 wiki 页面，用于调试检索和受控续读
+- 生成整理计划（Ingest plan），让智能体据此更新 Wiki 并添加引用
+- 回答前从已整理的 Wiki 页面准备长度受控的证据摘要（Evidence Brief）
+- 搜索和读取 Wiki 页面，用于调试检索和受控续读
 - 检查 OKF 合规状态和 Harness lint 发现
 - 生成自包含的本地图谱报告
 
 ## 背后发生什么
 
-Agent 会通过本地 shell 运行 `okfh --json`。例如：
+智能体会通过本地 shell 运行 `okfh --json`。例如：
 
-- setup 调用 `okfh init`，并传入当前 agent 的 adapter
+- 首次设置会通过全局引导入口解析工作区集合、确认写入、调用 `okfh init` 并传入当前智能体的适配器（Adapter），然后返回智能体上下文刷新（Agent context refresh）指引
 - ingest 调用 `okfh source add` 和 `okfh ingest plan`
 - 回答问题时使用 `okfh evidence`，只有需要跟随续读提示时才再执行一次受控的 `okfh read`
-- 验证 workspace 时使用 `okfh check`
+- 验证工作区时使用 `okfh check`
 - 图谱报告使用 `okfh graph`
 
 开发者也可以直接使用命令行：
@@ -163,6 +166,16 @@ okfh read topics/llm-wiki --workspace "$HOME/Documents/OKF Harness/ai-research" 
 okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
+## 排查问题
+
+如果 `$okf-harness-bootstrap` 或 `/okf-harness-bootstrap` 缺失、版本漂移，或被同名非受管理技能（Skill）阻挡，运行：
+
+```bash
+okfh doctor --json
+```
+
+即使还没有选中工作区，`doctor` 也会报告全局引导状态。`okfh bootstrap status|repair --agents codex|claude|all --json` 只用于诊断或修复；主要的首次设置流程仍然是上面的智能体提示词。
+
 ## 文档
 
 - [工作流](docs/zh-CN/WORKFLOWS.md)：面向用户的 Claude Code 和 Codex 操作流程
@@ -170,7 +183,7 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 - [路线图](docs/zh-CN/ROADMAP.md)：当前重点和按需求排序的候选想法
 - [LLM 上下文](llms.txt)：给 AI 工具看的公开项目文档索引
 - [完整 LLM 上下文](llms-full.txt)：聚合公开概览、术语、工作流、CLI 参考、路线图和包 README
-- [示例 workspace](examples/ai-research-workspace/README.md)：一个可通过 check 检查的小型 workspace
+- [示例工作区](examples/ai-research-workspace/README.md)：一个可通过 check 检查的小型工作区
 - [参与贡献](docs/zh-CN/CONTRIBUTING.md)：项目范围和验证方式
 - [安全策略](docs/zh-CN/SECURITY.md)：本地数据边界和漏洞报告
 
@@ -188,7 +201,7 @@ pnpm build
 
 ## 致谢
 
-感谢 Andrej Karpathy 公开 LLM Wiki 模式，也感谢 Google 公开 Open Knowledge Format 这一简洁、可移植的 markdown 知识 bundle 形态。OKF Harness 在此基础上面向本地优先、agent 优先的工作流做了适配。
+感谢 Andrej Karpathy 公开 LLM Wiki 模式，也感谢 Google 公开 Open Knowledge Format 这一简洁、可移植的 Markdown 知识 bundle 形态。OKF Harness 在此基础上面向本地优先、智能体优先的工作流做了适配。
 
 也感谢 Tw93 的 [Waza](https://github.com/tw93/waza) 和 Matt Pocock 的 [Skills for Real Engineers](https://github.com/mattpocock/skills) 对本项目开发工作流的帮助。
 

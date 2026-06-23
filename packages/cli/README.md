@@ -10,7 +10,6 @@ Install:
 
 ```bash
 npm install -g @okf-harness/cli
-okfh doctor --json
 ```
 
 Try without a global install:
@@ -20,6 +19,8 @@ npx --package @okf-harness/cli okfh doctor --json
 ```
 
 Runtime requirements are macOS, Windows, or Linux; Node.js 22 or newer; git; and this package. Repository development additionally requires `pnpm` and can be checked with `okfh doctor --dev --json`.
+
+Normal first setup starts from the managed `okf-harness-bootstrap` entrypoint in Codex or Claude Code. Use `okfh doctor --json` and `okfh bootstrap` when bootstrap discovery needs diagnostics or repair.
 
 Common commands:
 

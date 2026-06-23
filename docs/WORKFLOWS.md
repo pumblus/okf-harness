@@ -26,35 +26,35 @@ Run this once in your local terminal:
 
 ```bash
 npm install -g @okf-harness/cli
-okfh doctor --json
-mkdir -p "$HOME/Documents/OKF Harness"
 ```
 
 Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; and `@okf-harness/cli`. `pnpm` is only for repository development.
 
-You can also ask your agent to check whether `okfh` is installed. The agent must ask for explicit approval before installing a global npm package.
+Package installation best-effort installs managed global bootstrap entrypoints for detected Codex and Claude Code clients. You can also ask your agent to check whether `okfh` is installed. The agent must ask for explicit approval before installing a global npm package.
 
 ## Start With Your Agent
 
-Use the current agent's OKF Harness prefix.
+Use the current agent's OKF Harness prefix. Before a workspace exists, use the global bootstrap entrypoint. After setup or selection, use the workspace-local entrypoint from inside the workspace.
 
 No workspace yet:
 
 Codex:
 
 ```text
-$okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+$okf-harness-bootstrap Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
 ```
 
 Claude Code:
 
 ```text
-/okf-harness Set up a workspace for my AI research notes in my Documents folder, then check that this agent can use it.
+/okf-harness-bootstrap Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
 ```
 
-The agent should call `okfh init` with the adapter for the current agent: `--agents codex` for Codex or `--agents claude` for Claude Code. Use `--agents all` only when you explicitly ask to prepare both supported agents.
+Bootstrap should discover or select an existing workspace from a shallow local workspace collection when possible. If none is selected, it should perform current-agent setup: infer the display name and target folder, ask before persistent writes when details are missing or ambiguous, confirm Git when it was not explicit, then call `okfh init` with the adapter for the current agent: `--agents codex` for Codex or `--agents claude` for Claude Code. Use `--agents all` only when you explicitly ask to prepare both supported agents.
 
-After setup, the agent should run `okfh status --workspace <workspace> --json` and tell you to start a fresh Codex thread or Claude Code session so the client can load the new guidance.
+After setup, bootstrap should repair the workspace-local entrypoint for the current agent and give an agent context refresh hint, usually opening a fresh Codex thread or Claude Code session from the workspace folder so the client can load the new guidance.
+
+Bootstrap is not the daily workflow. It should not synthesize wiki content, migrate non-empty non-workspace folders, write global root guidance files, or promise unsupported agent clients.
 
 ## Add A Source
 
@@ -172,6 +172,16 @@ okfh agent install claude --workspace <workspace> --json
 ```
 
 Use the command that matches the current agent. Use `all` only when you explicitly ask for both adapters. Use `--force` only after reviewing conflicts.
+
+## Troubleshoot Bootstrap
+
+If `$okf-harness-bootstrap` or `/okf-harness-bootstrap` is missing, stale, or blocked by unmanaged same-name content, run:
+
+```bash
+okfh doctor --json
+```
+
+`doctor` reports global bootstrap status even when no workspace is resolved. Use `okfh bootstrap status|repair --agents codex|claude|all --json` as diagnostic or repair tooling, not as the primary first-setup workflow.
 
 ## What Goes Where
 

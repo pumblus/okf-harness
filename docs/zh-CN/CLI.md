@@ -8,7 +8,6 @@ npm 包名为 `@okf-harness/cli`。安装后可用 `okfh` 命令，也提供了 
 
 ```bash
 npm install -g @okf-harness/cli
-okfh doctor --json
 ```
 
 不全局安装的试用方式：
@@ -26,9 +25,11 @@ npx --package @okf-harness/cli okfh doctor --json
 
 参与仓库开发时额外需要 `pnpm`；用 `okfh doctor --dev --json` 检查开发环境。
 
-## Workspace 规则
+普通首次设置应从 Codex 或 Claude Code 里的 `okf-harness-bootstrap` 全局引导入口（Global bootstrap entrypoint）开始。`okfh doctor --json` 和 `okfh bootstrap` 用于排查、诊断和修复。
 
-按知识领域、研究方向或隐私边界各建一个 workspace。推荐父目录只是文档约定，OKF Harness 不会从这里解析隐藏的全局 workspace。
+## 工作区规则
+
+按知识领域、研究方向或隐私边界各建一个工作区（Workspace）。推荐父目录只是文档约定，OKF Harness 不会从这里解析隐藏的全局工作区。
 
 | 环境 | 推荐父目录 |
 |---|---|
@@ -36,7 +37,7 @@ npx --package @okf-harness/cli okfh doctor --json
 | Windows PowerShell | `$env:USERPROFILE\Documents\OKF Harness` |
 | Windows Command Prompt | `%USERPROFILE%\Documents\OKF Harness` |
 
-大多数命令通过 `--workspace <path>` 或从当前目录向上查找最近的 `okfh.config.yaml` 来定位 workspace。涉及修改资料来源的命令需要明确指定 workspace 路径，避免把文件注册到错误的文件夹。
+大多数命令通过 `--workspace <path>` 或从当前目录向上查找最近的 `okfh.config.yaml` 来定位工作区。涉及修改资料来源的命令需要明确指定工作区路径，避免把文件注册到错误的文件夹。
 
 ## JSON 格式
 
@@ -53,13 +54,13 @@ npx --package @okf-harness/cli okfh doctor --json
 }
 ```
 
-失败时使用同样的格式，`ok` 为 `false`，并附带 `error` 对象。agent 指引应依赖这个 JSON 约定，而不是解析人类可读的终端输出。
+失败时使用同样的格式，`ok` 为 `false`，并附带 `error` 对象。智能体（Agent）指引应依赖这个 JSON 约定，而不是解析人类可读的终端输出。
 
 ## 命令
 
 ### doctor
 
-检查 CLI 运行环境、Node.js、git、运行平台，以及可解析到 workspace 时的 workspace 就绪状态。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
+检查 CLI 运行环境、Node.js、git、运行平台、全局引导状态，以及可解析到工作区时的工作区就绪状态。即使没有解析到工作区，也会运行全局引导检查。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
 
 ```bash
 okfh doctor --json
@@ -71,7 +72,7 @@ okfh doctor --dev --json
 
 ### init
 
-创建 workspace，可选渲染 Claude Code 和 Codex 的适配文件。
+创建工作区，可选渲染 Claude Code 和 Codex 的适配文件。
 
 ```bash
 okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --git --json
@@ -85,11 +86,11 @@ okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agent
 - `--git` 初始化 git 仓库但不提交。
 - `--dry-run` 返回计划的写入内容，不实际创建文件。
 
-使用当前 agent 对应的 adapter：Codex 使用 `codex`，Claude Code 使用 `claude`。只有明确需要两个受支持 adapter 时才使用 `all`。`none` 仅用于高级或开发场景。
+使用当前智能体对应的适配器（Adapter）：Codex 使用 `codex`，Claude Code 使用 `claude`。只有明确需要两个受支持适配器时才使用 `all`。`none` 仅用于高级或开发场景。
 
 ### agent install
 
-在已有 workspace 中安装或修复 Claude Code 和 Codex 的适配文件。
+在已有工作区中安装或修复 Claude Code 和 Codex 的适配文件。
 
 ```bash
 okfh agent install codex --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -97,11 +98,11 @@ okfh agent install claude --workspace "$HOME/Documents/OKF Harness/ai-research" 
 okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-默认使用当前 agent adapter。只有明确需要两个受支持 adapter 时才使用 `all`。用 `--dry-run` 查看计划写入的内容。仅在检查冲突后使用 `--force`。
+默认使用当前智能体对应的适配器。只有明确需要两个受支持适配器时才使用 `all`。用 `--dry-run` 查看计划写入的内容。仅在检查冲突后使用 `--force`。
 
 ### bootstrap
 
-安装、修复、检查或卸载受支持 agent 的受管理全局 bootstrap skill。
+诊断和修复受支持智能体的受管理全局引导入口。它不是主要的首次设置流程；常规设置从 Codex 的 `$okf-harness-bootstrap` 或 Claude Code 的 `/okf-harness-bootstrap` 开始。
 
 ```bash
 okfh bootstrap install --agents codex --json
@@ -116,7 +117,7 @@ okfh bootstrap uninstall --agents codex --json
 
 ### status
 
-报告 workspace 初始化状态、wiki 文件数量、概念数量、简要 check 状态和可用能力。
+报告工作区初始化状态、Wiki 文件数量、概念数量、简要 check 状态和可用能力。
 
 ```bash
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -136,7 +137,7 @@ okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 - `ready`：OKF 合规通过，Harness lint 没有发现问题。
 - `needs_attention`：OKF 合规通过，但 Harness lint 发现可维护性或证据完整性问题。
-- `blocked`：OKF 合规失败，workspace 不是 OKF-readable。
+- `blocked`：OKF 合规失败，工作区不是 OKF 可读取状态。
 
 JSON 响应会在 `data.okfVersion` 中报告 OKF version，目前固定为 `0.1`。OKF 合规结果放在 `data.okfConformance`，Harness lint 结果放在 `data.harnessLint`。
 
@@ -175,17 +176,17 @@ okfh source list --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 ### ingest plan
 
-为 agent 生成一份确定性的 checklist，指导如何将已注册的来源整理到 wiki 中。
+为智能体生成一份确定性的清单，指导如何将已注册的来源整理到 Wiki 中。
 
 ```bash
 okfh ingest plan src_20260615_0001 --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-plan 仅使用元数据。agent 在撰写 wiki 内容之前必须读取来源正文。
+整理计划（Ingest plan）仅使用元数据。智能体在撰写 Wiki 内容之前必须读取来源正文。
 
 ### search
 
-搜索 wiki 中已整理的概念文档。不会搜索原始资料。
+搜索 Wiki 中已整理的概念文档。不会搜索原始资料。
 
 ```bash
 okfh search "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -198,11 +199,11 @@ okfh search "type:Topic LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-re
 - `tag:<value>`
 - `path:<prefix>`
 
-搜索结果是指向候选文档的卡片，不是最终证据。回答前优先使用 `evidence` 准备受控证据 brief。
+搜索结果是指向候选文档的卡片，不是最终证据。回答前优先使用 `evidence` 准备受控证据摘要。
 
 ### evidence
 
-从已整理的 wiki 概念文档准备长度受控的证据 brief。它不会直接回答问题，也不会搜索原始资料。
+从已整理的 Wiki 概念文档准备长度受控的证据摘要（Evidence Brief）。它不会直接回答问题，也不会搜索原始资料。
 
 ```bash
 okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -212,18 +213,18 @@ okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" -
 
 选项：
 
-- `--budget compact|standard|large` 选择确定性的证据文本字符预算。当模型或 agent 客户端上下文窗口大约为 256k、400k、1M 时，可分别选择 compact、standard、large。这只是选择建议，不是 token 估算，也不保证完整 JSON 一定放得进上下文窗口。
+- `--budget compact|standard|large` 选择确定性的证据文本字符预算。当模型或智能体客户端上下文窗口大约为 256k、400k、1M 时，可分别选择 compact、standard、large。这只是选择建议，不是 token 估算，也不保证完整 JSON 一定放得进上下文窗口。
 - `--max-chars <number>` 用显式证据文本字符上限覆盖 preset。
 
-JSON 数据会回显问题，并返回 `budget`、选中的 `evidence`、轻量 `candidates`、`limits` 和短 `guidance`。只要 workspace 可读取，空证据也是成功结果：`ok` 仍为 `true`，`evidence` 为空，`limits` 中会出现机械性的 no-match 代码。
+JSON 数据会回显问题，并返回 `budget`、选中的 `evidence`、轻量 `candidates`、`limits` 和短 `guidance`。只要工作区可读取，空证据也是成功结果：`ok` 仍为 `true`，`evidence` 为空，`limits` 中会出现机械性的 no-match 代码。
 
-`limits` 只报告机械边界，比如没有匹配、内容被截断、workspace 存在引用或溯源风险。证据是否足够回答，由 agent 判断。证据项会在 `provenance` 下保留溯源指针：引用、引用问题、参考页面、来源 ID，以及可安全展示的 source manifest 元数据。常规问答使用 evidence 返回的已整理 `wiki/` 摘录，不读取 `raw/` 原始资料正文。
+`limits` 只报告机械边界，比如没有匹配、内容被截断、工作区存在引用或溯源风险。证据是否足够回答，由智能体判断。证据项会在 `provenance` 下保留溯源指针：引用、引用问题、参考页面、来源 ID，以及可安全展示的来源清单（source manifest）元数据。常规问答使用 evidence 返回的已整理 `wiki/` 摘录，不读取 `raw/` 原始资料正文。
 
 证据项被截断时，它的 `range` 会包含 `contentLength`、`returnedChars` 和 `truncated`，`continuationCues` 会给出带 `--offset` 和 `--limit` 的受控 `okfh read` 命令。`search` 和 `read` 是更底层的工具，用于调试检索、查看候选文档，或执行一次受控续读。
 
 ### read
 
-按概念 ID、路径、`index` 或 `log` 读取 wiki 文档，输出长度受控。
+按概念 ID、路径、`index` 或 `log` 读取 Wiki 文档，输出长度受控。
 
 ```bash
 okfh read index --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -238,7 +239,7 @@ okfh read wiki/topics/llm-wiki.md --workspace "$HOME/Documents/OKF Harness/ai-re
 - `--offset <number> --limit <number>` 按范围读取
 - `--full` 显式请求完整读取（仍受上限控制）
 
-内容被截断时，JSON 响应会告知 agent 如何继续。
+内容被截断时，JSON 响应会告知智能体如何继续。
 
 ### graph
 
@@ -251,11 +252,11 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --open --json
 
 报告写入 `.okfh/reports/graph.html`。图谱不会上传任何数据。
 
-`--open` 会请求操作系统用默认浏览器或 HTML 处理程序打开报告。如果 Linux 环境没有 GUI 或 opener 命令，OKF Harness 仍会写入报告，并返回清楚的错误，提示你手动打开 HTML 文件。
+`--open` 会请求操作系统用默认浏览器或 HTML 处理程序打开报告。如果 Linux 环境没有图形界面（GUI）或 opener 命令，OKF Harness 仍会写入报告，并返回清楚的错误，提示你手动打开 HTML 文件。
 
 ## 退出行为
 
-成功的命令返回退出码 `0`。验证失败、workspace 问题或来源命令失败会返回非零退出码，带 `--json` 时 JSON 中包含 `ok: false`。对于 `check`，`ready` 和 `needs_attention` 退出 `0`；`blocked` 退出非 `0`。
+成功的命令返回退出码 `0`。验证失败、工作区问题或来源命令失败会返回非零退出码，带 `--json` 时 JSON 中包含 `ok: false`。对于 `check`，`ready` 和 `needs_attention` 退出 `0`；`blocked` 退出非 `0`。
 
 ## 从源码安装（开发者）
 
