@@ -97,27 +97,49 @@ async function main() {
     console.log("okfh doctor --dev passed");
 
     const agentPackVersion = await installedPackageVersion(installDir, "@okf-harness/agent-pack");
-    const bootstrapCodexHome = path.join(tempRoot, "codex-home");
-    const bootstrapEnv = { ...process.env, CODEX_HOME: bootstrapCodexHome };
+    const bootstrapHome = path.join(tempRoot, "bootstrap-home");
+    const bootstrapCodexState = path.join(tempRoot, "codex-state");
+    const bootstrapClaudeHome = path.join(tempRoot, "claude-home");
+    await mkdir(bootstrapHome, { recursive: true });
+    await mkdir(bootstrapCodexState, { recursive: true });
+    await mkdir(bootstrapClaudeHome, { recursive: true });
+    const bootstrapCodexSkillRoot = path.join(bootstrapHome, ".agents");
+    const bootstrapEnv = {
+      ...process.env,
+      CLAUDE_CONFIG_DIR: bootstrapClaudeHome,
+      CODEX_HOME: bootstrapCodexState,
+      HOME: bootstrapHome,
+    };
     const bootstrapInstall = JSON.parse(
       (
         await runInstalledBin(
           installDir,
           "okfh",
-          ["bootstrap", "install", "--agents", "codex", "--json"],
+          ["bootstrap", "install", "--agents", "all", "--json"],
           { env: bootstrapEnv },
         )
       ).stdout,
     );
-    assertBootstrapState(bootstrapInstall, "installed", "bootstrap install");
+    assertBootstrapAllState(bootstrapInstall, "installed", "bootstrap install");
     await assertGeneratedSkill(
-      path.join(bootstrapCodexHome, "skills/okf-harness-bootstrap/SKILL.md"),
+      path.join(bootstrapCodexSkillRoot, "skills/okf-harness-bootstrap/SKILL.md"),
       agentPackVersion,
       "bootstrap",
+      "codex",
+    );
+    await assertGeneratedSkill(
+      path.join(bootstrapClaudeHome, "skills/okf-harness-bootstrap/SKILL.md"),
+      agentPackVersion,
+      "bootstrap",
+      "claude",
     );
     for (const reference of ["setup.md", "discovery.md", "repair.md"]) {
       await readFile(
-        path.join(bootstrapCodexHome, "skills/okf-harness-bootstrap/references", reference),
+        path.join(bootstrapCodexSkillRoot, "skills/okf-harness-bootstrap/references", reference),
+        "utf8",
+      );
+      await readFile(
+        path.join(bootstrapClaudeHome, "skills/okf-harness-bootstrap/references", reference),
         "utf8",
       );
     }
@@ -126,24 +148,24 @@ async function main() {
         await runInstalledBin(
           installDir,
           "okfh",
-          ["bootstrap", "status", "--agents", "codex", "--json"],
+          ["bootstrap", "status", "--agents", "all", "--json"],
           { env: bootstrapEnv },
         )
       ).stdout,
     );
-    assertBootstrapState(bootstrapStatus, "installed", "bootstrap status");
+    assertBootstrapAllState(bootstrapStatus, "installed", "bootstrap status");
     const bootstrapUninstall = JSON.parse(
       (
         await runInstalledBin(
           installDir,
           "okfh",
-          ["bootstrap", "uninstall", "--agents", "codex", "--json"],
+          ["bootstrap", "uninstall", "--agents", "all", "--json"],
           { env: bootstrapEnv },
         )
       ).stdout,
     );
-    assertBootstrapState(bootstrapUninstall, "missing", "bootstrap uninstall");
-    console.log("codex bootstrap lifecycle passed");
+    assertBootstrapAllState(bootstrapUninstall, "missing", "bootstrap uninstall");
+    console.log("codex and claude bootstrap lifecycle passed");
 
     const workspace = path.join(tempRoot, "workspace");
     await runInstalledBin(installDir, "okfh", [
@@ -319,7 +341,12 @@ async function installedPackageVersion(installDir, packageName) {
   return packageJson.version;
 }
 
-async function assertGeneratedSkill(skillPath, expectedVersion, expectedEntrypoint = "workspace") {
+async function assertGeneratedSkill(
+  skillPath,
+  expectedVersion,
+  expectedEntrypoint = "workspace",
+  expectedAgent,
+) {
   const contents = await readFile(skillPath, "utf8");
   if (!contents.includes(`okf-harness-version: "${expectedVersion}"`)) {
     throw new Error(
@@ -332,15 +359,22 @@ async function assertGeneratedSkill(skillPath, expectedVersion, expectedEntrypoi
   if (!contents.includes(`okf-harness-entrypoint: "${expectedEntrypoint}"`)) {
     throw new Error(`Generated skill does not use ${expectedEntrypoint} metadata: ${skillPath}`);
   }
-  if (expectedEntrypoint === "bootstrap" && !contents.includes('okf-harness-agent: "codex"')) {
-    throw new Error(`Generated bootstrap skill does not use Codex metadata: ${skillPath}`);
+  if (
+    expectedEntrypoint === "bootstrap" &&
+    !contents.includes(`okf-harness-agent: "${expectedAgent ?? "codex"}"`)
+  ) {
+    throw new Error(`Generated bootstrap skill does not use expected agent metadata: ${skillPath}`);
   }
 }
 
-function assertBootstrapState(envelope, expectedState, label) {
-  const state = envelope.data?.status?.state;
-  if (envelope.ok !== true || state !== expectedState) {
-    throw new Error(`${label} expected ${expectedState}: ${JSON.stringify(envelope)}`);
+function assertBootstrapAllState(envelope, expectedState, label) {
+  const agents = Array.isArray(envelope.data?.agents) ? envelope.data.agents : [];
+  for (const agent of ["codex", "claude"]) {
+    const entry = agents.find((candidate) => candidate?.agent === agent);
+    const state = entry?.status?.state ?? entry?.result?.status?.state;
+    if (envelope.ok !== true || state !== expectedState) {
+      throw new Error(`${label} expected ${agent} ${expectedState}: ${JSON.stringify(envelope)}`);
+    }
   }
 }
 

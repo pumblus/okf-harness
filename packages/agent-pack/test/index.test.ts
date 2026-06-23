@@ -139,28 +139,40 @@ describe("@okf-harness/agent-pack", () => {
     expect(skill).not.toContain("okf-harness-managed: true");
   });
 
-  it("renders the Codex global bootstrap skill", async () => {
+  it("renders global bootstrap skills for Claude and Codex", async () => {
     const packageJsonPath = fileURLToPath(new URL("../package.json", import.meta.url));
     const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as { version: string };
-    const bootstrap = renderBootstrapAgent({ agent: "codex" });
+    const codex = renderBootstrapAgent({ agent: "codex" });
+    const claude = renderBootstrapAgent({ agent: "claude" });
+    const setupReferencePath = "skills/okf-harness-bootstrap/references/setup.md";
 
-    expect(bootstrap.files.map((file) => file.path)).toEqual([
+    const expectedPaths = [
       "skills/okf-harness-bootstrap/SKILL.md",
-      "skills/okf-harness-bootstrap/references/setup.md",
+      setupReferencePath,
       "skills/okf-harness-bootstrap/references/discovery.md",
       "skills/okf-harness-bootstrap/references/repair.md",
-    ]);
+    ];
+    expect(codex.files.map((file) => file.path)).toEqual(expectedPaths);
+    expect(claude.files.map((file) => file.path)).toEqual(expectedPaths);
 
-    const skill = fileContents(bootstrap.files, "skills/okf-harness-bootstrap/SKILL.md");
-    expect(skill).toContain("name: okf-harness-bootstrap");
-    expect(skill).toContain("Bootstrap OKF Harness before a workspace exists");
-    expect(skill).toContain(`okf-harness-version: "${packageJson.version}"`);
-    expect(skill).toContain('okf-harness-managed: "true"');
-    expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
-    expect(skill).toContain('okf-harness-agent: "codex"');
-    expect(skill).toContain("references/setup.md");
-    expect(skill).toContain("references/discovery.md");
-    expect(skill).toContain("references/repair.md");
+    const codexSkill = fileContents(codex.files, "skills/okf-harness-bootstrap/SKILL.md");
+    const claudeSkill = fileContents(claude.files, "skills/okf-harness-bootstrap/SKILL.md");
+    for (const skill of [codexSkill, claudeSkill]) {
+      expect(skill).toContain("name: okf-harness-bootstrap");
+      expect(skill).toContain("Bootstrap OKF Harness before a workspace exists");
+      expect(skill).toContain(`okf-harness-version: "${packageJson.version}"`);
+      expect(skill).toContain('okf-harness-managed: "true"');
+      expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
+      expect(skill).toContain("references/setup.md");
+      expect(skill).toContain("references/discovery.md");
+      expect(skill).toContain("references/repair.md");
+    }
+    expect(codexSkill).toContain('okf-harness-agent: "codex"');
+    expect(fileContents(codex.files, setupReferencePath)).toContain("$okf-harness");
+    expect(fileContents(codex.files, setupReferencePath)).toContain("--agents codex");
+    expect(claudeSkill).toContain('okf-harness-agent: "claude"');
+    expect(fileContents(claude.files, setupReferencePath)).toContain("/okf-harness");
+    expect(fileContents(claude.files, setupReferencePath)).toContain("--agents claude");
   });
 
   it("installs an adapter while preserving user root guidance outside the managed block", async () => {

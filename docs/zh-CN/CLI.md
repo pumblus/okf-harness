@@ -101,16 +101,18 @@ okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --j
 
 ### bootstrap
 
-安装、修复、检查或卸载受管理的全局 Codex bootstrap skill。
+安装、修复、检查或卸载受支持 agent 的受管理全局 bootstrap skill。
 
 ```bash
 okfh bootstrap install --agents codex --json
+okfh bootstrap install --agents claude --json
+okfh bootstrap install --agents all --json
 okfh bootstrap status --agents codex --json
 okfh bootstrap repair --agents codex --json
 okfh bootstrap uninstall --agents codex --json
 ```
 
-`status` 会报告 `missing`、`installed`、`version-drifted` 或 `unmanaged-conflict`。`install` 和 `repair` 会创建缺失的受管理文件，或替换发生漂移的受管理文件；遇到同名非受管理内容会拒绝覆盖。`uninstall` 只删除受管理的 bootstrap 文件，遇到同名非受管理内容也会拒绝删除。对 `install`、`repair` 或 `uninstall` 使用 `--dry-run --json` 可以查看计划写入或删除的文件，不实际修改文件系统。
+使用 `--agents codex`、`--agents claude` 或 `--agents all`。`status` 会报告 `missing`、`installed`、`version-drifted` 或 `unmanaged-conflict`。`install` 和 `repair` 会创建缺失的受管理文件，或替换发生漂移的受管理文件；遇到同名非受管理内容会拒绝覆盖。`uninstall` 只删除受管理的 bootstrap 文件，遇到同名非受管理内容也会拒绝删除。对 `install`、`repair` 或 `uninstall` 使用 `--dry-run --json` 可以查看计划写入或删除的文件，不实际修改文件系统。
 
 ### status
 

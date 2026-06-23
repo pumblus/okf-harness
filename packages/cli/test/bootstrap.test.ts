@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -80,6 +80,369 @@ describe("@okf-harness/cli bootstrap", () => {
         },
       });
       await expect(stat(skillPath)).rejects.toMatchObject({ code: "ENOENT" });
+    });
+  });
+
+  it("installs, reports, and uninstalls the Claude Code global bootstrap skill", async () => {
+    await withFakeBootstrapEnv(async ({ claudeHome }) => {
+      const skillPath = path.join(claudeHome, "skills/okf-harness-bootstrap/SKILL.md");
+
+      const install = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "install",
+        "--agents",
+        "claude",
+        "--json",
+      ]);
+
+      expect(install).toMatchObject({
+        exitCode: 0,
+        stderr: "",
+        result: {
+          ok: true,
+          command: "bootstrap install",
+          data: {
+            agent: "claude",
+            status: { state: "installed", skillPath },
+            writtenFiles: expect.arrayContaining([skillPath]),
+          },
+        },
+      });
+      const skill = await readFile(skillPath, "utf8");
+      expect(skill).toContain('okf-harness-agent: "claude"');
+      await expect(
+        readFile(path.join(claudeHome, "skills/okf-harness-bootstrap/references/setup.md"), "utf8"),
+      ).resolves.toContain("/okf-harness");
+
+      const status = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "status",
+        "--agents",
+        "claude",
+        "--json",
+      ]);
+      expect(status).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: {
+            agent: "claude",
+            status: {
+              state: "installed",
+              detection: {
+                agent: "claude",
+                userStateDirectory: { path: claudeHome, detected: true },
+              },
+            },
+          },
+        },
+      });
+
+      const uninstall = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "uninstall",
+        "--agents",
+        "claude",
+        "--json",
+      ]);
+      expect(uninstall).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: {
+            agent: "claude",
+            status: { state: "missing" },
+            removedFiles: expect.arrayContaining([skillPath]),
+          },
+        },
+      });
+      await expect(stat(skillPath)).rejects.toMatchObject({ code: "ENOENT" });
+    });
+  });
+
+  it("installs only detected agents with --agents all", async () => {
+    await withFakeBootstrapEnv(async ({ codexHome, codexStateDirectory, claudeHome }) => {
+      await mkdir(codexStateDirectory, { recursive: true });
+      const codexSkillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const claudeSkillPath = path.join(claudeHome, "skills/okf-harness-bootstrap/SKILL.md");
+
+      const result = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "install",
+        "--agents",
+        "all",
+        "--json",
+      ]);
+
+      expect(result).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: {
+            agents: [
+              {
+                agent: "codex",
+                detected: true,
+                detection: {
+                  userStateDirectory: { path: codexStateDirectory, detected: true },
+                },
+                result: { status: { state: "installed" } },
+              },
+              {
+                agent: "claude",
+                detected: false,
+                skipped: true,
+                reason: "not-detected",
+              },
+            ],
+          },
+          warnings: [
+            expect.objectContaining({
+              code: "BOOTSTRAP_AGENT_NOT_DETECTED",
+              message: expect.stringContaining("Claude Code"),
+            }),
+          ],
+        },
+      });
+      await expect(stat(codexSkillPath)).resolves.toBeDefined();
+      await expect(stat(claudeSkillPath)).rejects.toMatchObject({ code: "ENOENT" });
+    });
+  });
+
+  it("detects Claude Code from the user-state directory with --agents all", async () => {
+    await withFakeBootstrapEnv(async ({ codexHome, claudeHome }) => {
+      await mkdir(claudeHome, { recursive: true });
+      const codexSkillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const claudeSkillPath = path.join(claudeHome, "skills/okf-harness-bootstrap/SKILL.md");
+
+      const result = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "install",
+        "--agents",
+        "all",
+        "--json",
+      ]);
+
+      expect(result).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: {
+            agents: [
+              { agent: "codex", detected: false, skipped: true },
+              {
+                agent: "claude",
+                detected: true,
+                detection: {
+                  executable: { command: "claude", detected: false },
+                  userStateDirectory: { path: claudeHome, detected: true },
+                },
+                result: { status: { state: "installed" } },
+              },
+            ],
+          },
+        },
+      });
+      await expect(stat(codexSkillPath)).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(readFile(claudeSkillPath, "utf8")).resolves.toContain(
+        'okf-harness-agent: "claude"',
+      );
+    });
+  });
+
+  it("does not detect directories on PATH as agent executables", async () => {
+    await withFakeBootstrapEnv(async ({ bin }) => {
+      await mkdir(path.join(bin, "codex"));
+
+      const result = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "install",
+        "--agents",
+        "all",
+        "--json",
+      ]);
+
+      expect(result).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: {
+            agents: [
+              { agent: "codex", detected: false, skipped: true },
+              { agent: "claude", detected: false, skipped: true },
+            ],
+          },
+        },
+      });
+    });
+  });
+
+  it("reports both detected agents and neither detected through --agents all", async () => {
+    await withFakeBootstrapEnv(async ({ bin, claudeHome, codexStateDirectory }) => {
+      await writeFakeExecutable(bin, "codex");
+      await writeFakeExecutable(bin, "claude");
+
+      const install = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "install",
+        "--agents",
+        "all",
+        "--json",
+      ]);
+      expect(install).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: {
+            agents: [
+              { agent: "codex", detected: true, result: { status: { state: "installed" } } },
+              { agent: "claude", detected: true, result: { status: { state: "installed" } } },
+            ],
+          },
+          warnings: [],
+        },
+      });
+      await expect(stat(path.join(codexStateDirectory, "AGENTS.md"))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      await expect(stat(path.join(claudeHome, "CLAUDE.md"))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+
+      const status = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "status",
+        "--agents",
+        "all",
+        "--json",
+      ]);
+      expect(status).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: {
+            agents: [
+              { agent: "codex", status: { state: "installed" } },
+              { agent: "claude", status: { state: "installed" } },
+            ],
+          },
+        },
+      });
+
+      const uninstall = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "uninstall",
+        "--agents",
+        "all",
+        "--json",
+      ]);
+      expect(uninstall).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: {
+            agents: [
+              { agent: "codex", result: { status: { state: "missing" } } },
+              { agent: "claude", result: { status: { state: "missing" } } },
+            ],
+          },
+        },
+      });
+    });
+
+    await withFakeBootstrapEnv(async () => {
+      const result = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "install",
+        "--agents",
+        "all",
+        "--json",
+      ]);
+      expect(result).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: {
+            agents: [
+              { agent: "codex", detected: false, skipped: true },
+              { agent: "claude", detected: false, skipped: true },
+            ],
+          },
+          warnings: [
+            expect.objectContaining({ message: expect.stringContaining("Codex") }),
+            expect.objectContaining({ message: expect.stringContaining("Claude Code") }),
+          ],
+        },
+      });
+    });
+  });
+
+  it("continues --agents all when one detected agent has a bootstrap conflict", async () => {
+    await withFakeBootstrapEnv(async ({ bin, codexHome, claudeHome }) => {
+      await writeFakeExecutable(bin, "codex");
+      await writeFakeExecutable(bin, "claude");
+      const codexSkillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const claudeSkillPath = path.join(claudeHome, "skills/okf-harness-bootstrap/SKILL.md");
+      await mkdir(path.dirname(codexSkillPath), { recursive: true });
+      await writeFile(codexSkillPath, "---\nname: okf-harness-bootstrap\n---\n\n# Mine\n", "utf8");
+
+      const result = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "install",
+        "--agents",
+        "all",
+        "--json",
+      ]);
+
+      expect(result).toMatchObject({
+        exitCode: 1,
+        result: {
+          ok: false,
+          data: {
+            agents: [
+              {
+                agent: "codex",
+                result: {
+                  status: { state: "unmanaged-conflict" },
+                  conflicts: [expect.objectContaining({ path: codexSkillPath })],
+                },
+              },
+              {
+                agent: "claude",
+                result: { status: { state: "installed" } },
+              },
+            ],
+          },
+          warnings: [expect.objectContaining({ code: "BOOTSTRAP_AGENT_FAILED" })],
+          next: expect.arrayContaining([
+            expect.stringContaining("Review the existing okf-harness-bootstrap skill"),
+          ]),
+        },
+      });
+      await expect(readFile(codexSkillPath, "utf8")).resolves.toContain("# Mine");
+      await expect(stat(claudeSkillPath)).resolves.toBeDefined();
     });
   });
 
@@ -490,18 +853,73 @@ describe("@okf-harness/cli bootstrap", () => {
 
 async function withFakeCodexHome(run: (codexHome: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(path.join(tmpdir(), "okfh-bootstrap-"));
-  const codexHome = path.join(root, ".codex");
-  const previous = process.env.CODEX_HOME;
-  process.env.CODEX_HOME = codexHome;
+  const home = path.join(root, "home");
+  const codexHome = path.join(home, ".agents");
+  const keys = ["CODEX_HOME", "HOME", "USERPROFILE"] as const;
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]])) as Record<
+    (typeof keys)[number],
+    string | undefined
+  >;
+  process.env.CODEX_HOME = path.join(root, ".codex");
+  process.env.HOME = home;
+  delete process.env.USERPROFILE;
   try {
     await run(codexHome);
   } finally {
-    if (previous === undefined) {
-      delete process.env.CODEX_HOME;
-    } else {
-      process.env.CODEX_HOME = previous;
+    for (const key of keys) {
+      const value = previous[key];
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
     }
   }
+}
+
+async function withFakeBootstrapEnv(
+  run: (paths: {
+    bin: string;
+    claudeHome: string;
+    codexHome: string;
+    codexStateDirectory: string;
+  }) => Promise<void>,
+): Promise<void> {
+  const root = await mkdtemp(path.join(tmpdir(), "okfh-bootstrap-"));
+  const bin = path.join(root, "bin");
+  const home = path.join(root, "home");
+  const codexHome = path.join(home, ".agents");
+  const codexStateDirectory = path.join(root, ".codex");
+  const claudeHome = path.join(root, ".claude");
+  await mkdir(bin, { recursive: true });
+  const keys = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "HOME", "PATH", "USERPROFILE"] as const;
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]])) as Record<
+    (typeof keys)[number],
+    string | undefined
+  >;
+  process.env.CLAUDE_CONFIG_DIR = claudeHome;
+  process.env.CODEX_HOME = codexStateDirectory;
+  process.env.HOME = home;
+  process.env.PATH = bin;
+  delete process.env.USERPROFILE;
+  try {
+    await run({ bin, claudeHome, codexHome, codexStateDirectory });
+  } finally {
+    for (const key of keys) {
+      const value = previous[key];
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
+async function writeFakeExecutable(bin: string, name: string): Promise<void> {
+  const executable = path.join(bin, name);
+  await writeFile(executable, "#!/bin/sh\nexit 0\n", "utf8");
+  await chmod(executable, 0o755);
 }
 
 async function writeManagedBootstrap(skillPath: string, version: string): Promise<void> {

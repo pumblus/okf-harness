@@ -1,5 +1,15 @@
-import { readFileSync } from "node:fs";
-import { cp, lstat, mkdir, readdir, readFile, rm, rmdir, writeFile } from "node:fs/promises";
+import { constants, readFileSync } from "node:fs";
+import {
+  access,
+  cp,
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  rmdir,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -12,7 +22,8 @@ export type PackageInfo = typeof packageInfo;
 
 export type AgentAdapter = "claude" | "codex";
 export type AgentInstallTarget = AgentAdapter | "all";
-export type BootstrapAgent = "codex";
+export type BootstrapAgent = "claude" | "codex";
+export const supportedBootstrapAgents: BootstrapAgent[] = ["codex", "claude"];
 
 export type RenderedAgentFile = {
   path: string;
@@ -79,14 +90,31 @@ export type BootstrapStatusState =
 
 export type BootstrapVersionDrift = "older" | "newer" | "unknown";
 
+export type BootstrapAgentDetection = {
+  agent: BootstrapAgent;
+  label: string;
+  detected: boolean;
+  executable: {
+    command: string;
+    detected: boolean;
+    path?: string;
+  };
+  userStateDirectory: {
+    path: string;
+    detected: boolean;
+  };
+};
+
 export type BootstrapStatus = {
   agent: BootstrapAgent;
   skillName: string;
+  targetDirectory: string;
   skillDirectory: string;
   skillPath: string;
   state: BootstrapStatusState;
   expectedVersion: string;
   managed: boolean;
+  detection: BootstrapAgentDetection;
   next: string[];
   actualVersion?: string;
   entrypoint?: string;
@@ -119,7 +147,7 @@ export type BootstrapLifecycleResult = {
 
 type BootstrapTarget = {
   agent: BootstrapAgent;
-  codexHome: string;
+  targetDirectory: string;
   skillsDirectory: string;
   skillName: string;
   skillDirectory: string;
@@ -136,10 +164,50 @@ const skillName = "okf-harness";
 const bootstrapSkillName = "okf-harness-bootstrap";
 const skillDescription =
   "One Door workflow for OKF Harness workspaces. Use when the user asks to set up, check, ingest into, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, ordinary repository maintenance, knowledge-base tasks outside an OKF Harness workspace, repository dependency graphs, old workflow-specific skill names, or an `okfh query` command.";
-const bootstrapSkillDescription =
-  "Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Codex. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.";
 const referenceTemplatePaths = ["setup.md", "check.md", "ingest.md", "answer.md", "graph.md"];
 const bootstrapReferenceTemplatePaths = ["setup.md", "discovery.md", "repair.md"];
+const bootstrapAgentProfiles: Record<
+  BootstrapAgent,
+  {
+    command: string;
+    label: string;
+    routePrefix: string;
+    targetDirectoryEnv?: string;
+    targetDirectory: string;
+    stateDirectoryEnv: string;
+    stateDirectory: string;
+    sessionName: string;
+    compatibility: string;
+    description: string;
+  }
+> = {
+  codex: {
+    command: "codex",
+    label: "Codex",
+    routePrefix: "$",
+    targetDirectory: ".agents",
+    stateDirectoryEnv: "CODEX_HOME",
+    stateDirectory: ".codex",
+    sessionName: "Codex thread",
+    compatibility: "Designed for Codex with local shell command access. Requires the okfh CLI.",
+    description:
+      "Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Codex. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.",
+  },
+  claude: {
+    command: "claude",
+    label: "Claude Code",
+    routePrefix: "/",
+    targetDirectoryEnv: "CLAUDE_CONFIG_DIR",
+    targetDirectory: ".claude",
+    stateDirectoryEnv: "CLAUDE_CONFIG_DIR",
+    stateDirectory: ".claude",
+    sessionName: "Claude Code session",
+    compatibility:
+      "Designed for Claude Code with local shell command access. Requires the okfh CLI.",
+    description:
+      "Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Claude Code. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.",
+  },
+};
 const adapterProfiles: Record<
   AgentAdapter,
   {
@@ -176,7 +244,33 @@ export function renderBootstrapAgent(options: RenderBootstrapAgentOptions): Rend
   const version = options.version ?? packageVersion.version;
   return {
     agent: options.agent,
-    files: renderBootstrapSkillFiles(version),
+    files: renderBootstrapSkillFiles(options.agent, version),
+  };
+}
+
+export async function detectBootstrapAgent(
+  options: BootstrapAgentOptions,
+): Promise<BootstrapAgentDetection> {
+  const env = options.env ?? process.env;
+  const profile = bootstrapAgentProfiles[options.agent];
+  const stateDirectory = resolveBootstrapStateDirectory(options.agent, env);
+  const [executablePath, userStateDirectoryDetected] = await Promise.all([
+    findExecutable(profile.command, env),
+    directoryExists(stateDirectory),
+  ]);
+  return {
+    agent: options.agent,
+    label: profile.label,
+    detected: executablePath !== undefined || userStateDirectoryDetected,
+    executable: {
+      command: profile.command,
+      detected: executablePath !== undefined,
+      ...(executablePath === undefined ? {} : { path: executablePath }),
+    },
+    userStateDirectory: {
+      path: stateDirectory,
+      detected: userStateDirectoryDetected,
+    },
   };
 }
 
@@ -208,10 +302,12 @@ export async function readBootstrapAgentStatus(
   options: BootstrapAgentOptions,
 ): Promise<BootstrapStatus> {
   const target = bootstrapTarget(options);
+  const detection = await detectBootstrapAgent(options);
   const pathConflict = await bootstrapPathConflict(target);
   if (pathConflict !== undefined) {
     return createBootstrapStatus({
       ...target,
+      detection,
       state: "unmanaged-conflict",
       managed: false,
       reason: pathConflict.reason,
@@ -224,12 +320,13 @@ export async function readBootstrapAgentStatus(
     if (await directoryHasEntries(target.skillDirectory)) {
       return createBootstrapStatus({
         ...target,
+        detection,
         state: "unmanaged-conflict",
         managed: false,
         reason: "Bootstrap skill directory exists without a managed SKILL.md.",
       });
     }
-    return createBootstrapStatus({ ...target, state: "missing", managed: false });
+    return createBootstrapStatus({ ...target, detection, state: "missing", managed: false });
   }
 
   const frontmatter = frontmatterBlock(contents);
@@ -239,6 +336,7 @@ export async function readBootstrapAgentStatus(
   if (!managed) {
     return createBootstrapStatus({
       ...target,
+      detection,
       state: "unmanaged-conflict",
       managed: false,
       reason: "Existing bootstrap skill is not marked as OKF Harness managed.",
@@ -251,6 +349,7 @@ export async function readBootstrapAgentStatus(
   if (entrypoint !== undefined && entrypoint !== "bootstrap") {
     return createBootstrapStatus({
       ...target,
+      detection,
       state: "unmanaged-conflict",
       managed: true,
       actualVersion,
@@ -261,6 +360,7 @@ export async function readBootstrapAgentStatus(
   if (skillAgent !== undefined && skillAgent !== options.agent) {
     return createBootstrapStatus({
       ...target,
+      detection,
       state: "unmanaged-conflict",
       managed: true,
       actualVersion,
@@ -276,6 +376,7 @@ export async function readBootstrapAgentStatus(
   ) {
     return createBootstrapStatus({
       ...target,
+      detection,
       state: "version-drifted",
       managed: true,
       actualVersion,
@@ -285,7 +386,7 @@ export async function readBootstrapAgentStatus(
         entrypoint !== "bootstrap"
           ? "Managed skill is missing bootstrap entrypoint metadata."
           : skillAgent !== target.agent
-            ? "Managed skill is missing Codex agent metadata."
+            ? `Managed skill is missing ${bootstrapAgentProfiles[target.agent].label} agent metadata.`
             : undefined,
     });
   }
@@ -294,6 +395,7 @@ export async function readBootstrapAgentStatus(
   if (renderedDrift !== undefined) {
     return createBootstrapStatus({
       ...target,
+      detection,
       state: "version-drifted",
       managed: true,
       actualVersion,
@@ -305,6 +407,7 @@ export async function readBootstrapAgentStatus(
 
   return createBootstrapStatus({
     ...target,
+    detection,
     state: "installed",
     managed: true,
     actualVersion,
@@ -328,7 +431,7 @@ export async function installBootstrapAgent(
 
   const target = bootstrapTarget(options);
   for (const file of renderBootstrapAgent({ agent: options.agent }).files) {
-    const absolutePath = path.join(target.codexHome, file.path);
+    const absolutePath = path.join(target.targetDirectory, file.path);
     const existing = await readOptionalTextFile(absolutePath);
     if (existing === file.contents) {
       result.skippedFiles.push(absolutePath);
@@ -371,7 +474,7 @@ export async function uninstallBootstrapAgent(
 
   const target = bootstrapTarget(options);
   for (const file of renderBootstrapAgent({ agent: options.agent }).files) {
-    const absolutePath = path.join(target.codexHome, file.path);
+    const absolutePath = path.join(target.targetDirectory, file.path);
     if ((await readOptionalTextFile(absolutePath)) === undefined) {
       result.skippedFiles.push(absolutePath);
       continue;
@@ -750,6 +853,54 @@ async function directoryExists(filePath: string): Promise<boolean> {
   }
 }
 
+async function findExecutable(
+  executable: string,
+  env: NodeJS.ProcessEnv,
+): Promise<string | undefined> {
+  const searchPath = firstNonEmpty(env.PATH);
+  if (searchPath === undefined) {
+    return undefined;
+  }
+
+  for (const directory of searchPath.split(path.delimiter)) {
+    if (directory.trim().length === 0) {
+      continue;
+    }
+    for (const name of executableNames(executable, env)) {
+      const candidate = path.join(directory, name);
+      if (await canExecute(candidate)) {
+        return candidate;
+      }
+    }
+  }
+  return undefined;
+}
+
+function executableNames(executable: string, env: NodeJS.ProcessEnv): string[] {
+  if (process.platform !== "win32" || path.extname(executable).length > 0) {
+    return [executable];
+  }
+  const extensions = firstNonEmpty(env.PATHEXT)
+    ?.split(";")
+    .filter((extension) => extension.trim().length > 0) ?? [".EXE", ".CMD", ".BAT", ".COM"];
+  return [executable, ...extensions.map((extension) => `${executable}${extension}`)];
+}
+
+async function canExecute(filePath: string): Promise<boolean> {
+  try {
+    if (!(await lstat(filePath)).isFile()) {
+      return false;
+    }
+    await access(filePath, constants.X_OK);
+    return true;
+  } catch (error) {
+    if (isNodeError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function writeRenderedFile(filePath: string, contents: string): Promise<void> {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, contents, "utf8");
@@ -813,33 +964,34 @@ metadata:
 ${readTemplate("SKILL.md")}`;
 }
 
-function renderBootstrapSkillFiles(version: string): RenderedAgentFile[] {
+function renderBootstrapSkillFiles(agent: BootstrapAgent, version: string): RenderedAgentFile[] {
   return [
     {
       path: `skills/${bootstrapSkillName}/SKILL.md`,
-      contents: renderBootstrapSkill(version),
+      contents: renderBootstrapSkill(agent, version),
     },
     ...bootstrapReferenceTemplatePaths.map((templatePath) => ({
       path: `skills/${bootstrapSkillName}/references/${templatePath}`,
-      contents: readBootstrapTemplate(`references/${templatePath}`),
+      contents: renderBootstrapTemplate(`references/${templatePath}`, agent),
     })),
   ];
 }
 
-function renderBootstrapSkill(version: string): string {
+function renderBootstrapSkill(agent: BootstrapAgent, version: string): string {
+  const profile = bootstrapAgentProfiles[agent];
   return `---
 name: ${bootstrapSkillName}
-description: ${bootstrapSkillDescription}
+description: ${profile.description}
 license: Apache-2.0
-compatibility: Designed for Codex with local shell command access. Requires the okfh CLI.
+compatibility: ${profile.compatibility}
 metadata:
   okf-harness-version: "${version}"
   okf-harness-managed: "true"
   okf-harness-entrypoint: "bootstrap"
-  okf-harness-agent: "codex"
+  okf-harness-agent: "${agent}"
 ---
 
-${readBootstrapTemplate("SKILL.md")}`;
+${renderBootstrapTemplate("SKILL.md", agent)}`;
 }
 
 function readTemplate(relativePath: string): string {
@@ -853,13 +1005,34 @@ function readBootstrapTemplate(relativePath: string): string {
   );
 }
 
+function renderBootstrapTemplate(relativePath: string, agent: BootstrapAgent): string {
+  const profile = bootstrapAgentProfiles[agent];
+  return replaceTemplateVariables(readBootstrapTemplate(relativePath), {
+    agentAdapter: agent,
+    agentLabel: profile.label,
+    sessionName: profile.sessionName,
+    workspaceInvocation: `${profile.routePrefix}${skillName}`,
+  });
+}
+
+function replaceTemplateVariables(input: string, values: Record<string, string>): string {
+  let output = input;
+  for (const [key, value] of Object.entries(values)) {
+    output = output.split(`{{${key}}}`).join(value);
+  }
+  return output;
+}
+
 function bootstrapTarget(options: BootstrapAgentOptions): BootstrapTarget {
-  const codexHome = resolveCodexHome(options.env ?? process.env);
-  const skillsDirectory = path.join(codexHome, "skills");
+  const targetDirectory = resolveBootstrapTargetDirectory(
+    options.agent,
+    options.env ?? process.env,
+  );
+  const skillsDirectory = path.join(targetDirectory, "skills");
   const skillDirectory = path.join(skillsDirectory, bootstrapSkillName);
   return {
     agent: options.agent,
-    codexHome,
+    targetDirectory,
     skillsDirectory,
     skillName: bootstrapSkillName,
     skillDirectory,
@@ -868,14 +1041,29 @@ function bootstrapTarget(options: BootstrapAgentOptions): BootstrapTarget {
   };
 }
 
-function resolveCodexHome(env: NodeJS.ProcessEnv): string {
-  const configured = firstNonEmpty(env.CODEX_HOME);
+function resolveBootstrapTargetDirectory(agent: BootstrapAgent, env: NodeJS.ProcessEnv): string {
+  const profile = bootstrapAgentProfiles[agent];
+  const configured =
+    profile.targetDirectoryEnv === undefined
+      ? undefined
+      : firstNonEmpty(env[profile.targetDirectoryEnv]);
   if (configured !== undefined) {
     return path.resolve(configured);
   }
 
   const userHome = firstNonEmpty(env.HOME, env.USERPROFILE) ?? homedir();
-  return path.join(path.resolve(userHome), ".codex");
+  return path.join(path.resolve(userHome), profile.targetDirectory);
+}
+
+function resolveBootstrapStateDirectory(agent: BootstrapAgent, env: NodeJS.ProcessEnv): string {
+  const profile = bootstrapAgentProfiles[agent];
+  const configured = firstNonEmpty(env[profile.stateDirectoryEnv]);
+  if (configured !== undefined) {
+    return path.resolve(configured);
+  }
+
+  const userHome = firstNonEmpty(env.HOME, env.USERPROFILE) ?? homedir();
+  return path.join(path.resolve(userHome), profile.stateDirectory);
 }
 
 function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
@@ -904,11 +1092,13 @@ function createBootstrapLifecycleResult(
 function createBootstrapStatus(options: {
   agent: BootstrapAgent;
   skillName: string;
+  targetDirectory: string;
   skillDirectory: string;
   skillPath: string;
   expectedVersion: string;
   state: BootstrapStatusState;
   managed: boolean;
+  detection: BootstrapAgentDetection;
   actualVersion?: string | undefined;
   entrypoint?: string | undefined;
   versionDrift?: BootstrapVersionDrift | undefined;
@@ -918,12 +1108,14 @@ function createBootstrapStatus(options: {
   return {
     agent: options.agent,
     skillName: options.skillName,
+    targetDirectory: options.targetDirectory,
     skillDirectory: options.skillDirectory,
     skillPath: options.skillPath,
     state: options.state,
     expectedVersion: options.expectedVersion,
     managed: options.managed,
-    next: bootstrapNextSteps(options.state),
+    detection: options.detection,
+    next: bootstrapNextSteps(options.state, options.agent),
     ...(options.actualVersion === undefined ? {} : { actualVersion: options.actualVersion }),
     ...(options.entrypoint === undefined ? {} : { entrypoint: options.entrypoint }),
     ...(options.versionDrift === undefined ? {} : { versionDrift: options.versionDrift }),
@@ -932,14 +1124,17 @@ function createBootstrapStatus(options: {
   };
 }
 
-function bootstrapNextSteps(state: BootstrapStatusState): string[] {
+function bootstrapNextSteps(state: BootstrapStatusState, agent: BootstrapAgent): string[] {
+  const profile = bootstrapAgentProfiles[agent];
   if (state === "installed") {
-    return ["Use $okf-harness-bootstrap from Codex to create or select an OKF Harness workspace."];
+    return [
+      `Use ${profile.routePrefix}${bootstrapSkillName} from ${profile.label} to create or select an OKF Harness workspace.`,
+    ];
   }
   if (state === "unmanaged-conflict") {
     return ["Review the existing okf-harness-bootstrap skill before installing or uninstalling."];
   }
-  return ["Run okfh bootstrap repair --agents codex --json to install or repair it."];
+  return [`Run okfh bootstrap repair --agents ${agent} --json to install or repair it.`];
 }
 
 function versionDrift(
@@ -985,7 +1180,7 @@ async function bootstrapPathConflict(
   target: BootstrapTarget,
 ): Promise<AgentInstallConflict | undefined> {
   for (const directory of [
-    target.codexHome,
+    target.targetDirectory,
     target.skillsDirectory,
     target.skillDirectory,
     path.join(target.skillDirectory, "references"),
@@ -1000,7 +1195,7 @@ async function bootstrapPathConflict(
   }
 
   for (const file of renderBootstrapAgent({ agent: target.agent }).files) {
-    const absolutePath = path.join(target.codexHome, file.path);
+    const absolutePath = path.join(target.targetDirectory, file.path);
     const entry = await lstatOptional(absolutePath);
     if (entry === "blocked" || (entry !== undefined && !entry.isFile())) {
       return {
@@ -1015,7 +1210,7 @@ async function bootstrapPathConflict(
 
 async function bootstrapRenderedFilesDrift(target: BootstrapTarget): Promise<string | undefined> {
   for (const file of renderBootstrapAgent({ agent: target.agent }).files) {
-    const absolutePath = path.join(target.codexHome, file.path);
+    const absolutePath = path.join(target.targetDirectory, file.path);
     const contents = await readOptionalTextFile(absolutePath);
     if (contents === undefined) {
       return "Managed bootstrap skill is missing generated files.";

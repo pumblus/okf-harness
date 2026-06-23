@@ -2,7 +2,7 @@
 
 ## Intent
 
-Create the first OKF Harness workspace for Codex from a parent folder.
+Create the first OKF Harness workspace for {{agentLabel}} from a parent folder.
 
 ## Preconditions
 
@@ -13,16 +13,16 @@ Create the first OKF Harness workspace for Codex from a parent folder.
 ## Allowed Commands
 
 ```bash
-okfh init <workspace> --name <name> --agents codex --json
-okfh init <workspace> --name <name> --agents codex --git --json
+okfh init <workspace> --name <name> --agents {{agentAdapter}} --json
+okfh init <workspace> --name <name> --agents {{agentAdapter}} --git --json
 okfh status --workspace <workspace> --json
 ```
 
 ## Allowed Writes
 
 - A new OKF Harness workspace at the confirmed target path.
-- Codex workspace-local guidance created by `okfh init --agents codex`.
+- {{agentLabel}} workspace-local guidance created by `okfh init --agents {{agentAdapter}}`.
 
 ## Completion Condition
 
-Report the workspace path, whether Git was initialized, and that the user should open a fresh Codex thread from the workspace folder before using `$okf-harness`.
+Report the workspace path, whether Git was initialized, and that the user should open a fresh {{sessionName}} from the workspace folder before using `{{workspaceInvocation}}`.

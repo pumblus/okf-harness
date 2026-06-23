@@ -5,11 +5,11 @@ Bootstrap routes OKF Harness setup before a workspace-local `okf-harness` skill 
 ## Required Behavior
 
 1. Classify the request as setup, discovery, repair, or an explicit combination of those.
-2. If the current directory is already an OKF Harness workspace, do not create a nested workspace; repair Codex support and hand off to a fresh workspace thread.
+2. If the current directory is already an OKF Harness workspace, do not create a nested workspace; repair {{agentLabel}} support and hand off to a fresh workspace session.
 3. Load only the reference needed for the current route.
 4. Run harness operations through local-shell `okfh --json` commands and read their JSON before deciding the next step.
 5. Before persistent setup writes, state the resolved workspace name, path, agent target, and Git choice when any of them was inferred.
-6. Finish by naming the resolved workspace path and telling the user to open a fresh Codex thread from that folder.
+6. Finish by naming the resolved workspace path and telling the user to open a fresh {{sessionName}} from that folder.
 
 ## Hard Rules
 

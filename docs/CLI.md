@@ -101,16 +101,18 @@ Use the current agent adapter by default. Use `all` only when you explicitly wan
 
 ### bootstrap
 
-Installs, repairs, inspects, or uninstalls the managed global Codex bootstrap skill.
+Installs, repairs, inspects, or uninstalls managed global bootstrap skills for supported agents.
 
 ```bash
 okfh bootstrap install --agents codex --json
+okfh bootstrap install --agents claude --json
+okfh bootstrap install --agents all --json
 okfh bootstrap status --agents codex --json
 okfh bootstrap repair --agents codex --json
 okfh bootstrap uninstall --agents codex --json
 ```
 
-`status` reports `missing`, `installed`, `version-drifted`, or `unmanaged-conflict`. `install` and `repair` create missing managed files or replace managed drift. They refuse unmanaged same-name content. `uninstall` removes only managed bootstrap files and also refuses unmanaged same-name content. Use `--dry-run --json` with `install`, `repair`, or `uninstall` to inspect planned writes or removals without changing files.
+Use `--agents codex`, `--agents claude`, or `--agents all`. `status` reports `missing`, `installed`, `version-drifted`, or `unmanaged-conflict`. `install` and `repair` create missing managed files or replace managed drift. They refuse unmanaged same-name content. `uninstall` removes only managed bootstrap files and also refuses unmanaged same-name content. Use `--dry-run --json` with `install`, `repair`, or `uninstall` to inspect planned writes or removals without changing files.
 
 ### status
 

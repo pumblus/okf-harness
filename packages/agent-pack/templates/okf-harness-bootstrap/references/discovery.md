@@ -22,4 +22,4 @@ None. Discovery is read-only.
 
 ## Completion Condition
 
-Report the selected workspace path, then hand off to repair when Codex workspace-local guidance is missing or stale.
+Report the selected workspace path, then hand off to repair when {{agentLabel}} workspace-local guidance is missing or stale.
