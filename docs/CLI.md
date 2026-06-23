@@ -10,11 +10,13 @@ The npm package is `@okf-harness/cli`. It installs the `okfh` command and the lo
 npm install -g @okf-harness/cli
 ```
 
-Trial run without a global install:
+Transient diagnostic command:
 
 ```bash
 npx --package @okf-harness/cli okfh doctor --json
 ```
+
+This does not add a global `okfh` binary, but npm may still run package install hooks while preparing the temporary package.
 
 Requirements for normal use:
 

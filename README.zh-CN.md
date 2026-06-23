@@ -85,11 +85,13 @@ Claude Code：
 
 全局引导入口也可以从本地工作区集合（Workspace collection）中发现或选择工作区，并为选中的工作区修复当前智能体设置（Current-agent setup）。它不会整理 Wiki 内容、迁移非空的非工作区目录，也不会写入全局根指引文件。
 
-不想全局安装可以先试一下：
+临时诊断可以使用：
 
 ```bash
 npx --package @okf-harness/cli okfh doctor --json
 ```
+
+这不会添加全局 `okfh` 命令，但 npm 准备临时包时仍可能运行包安装钩子。
 
 ## 常见下一步
 

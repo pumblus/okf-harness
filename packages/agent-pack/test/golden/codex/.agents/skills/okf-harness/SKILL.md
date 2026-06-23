@@ -4,7 +4,7 @@ description: One Door workflow for OKF Harness workspaces. Use when the user ask
 license: Apache-2.0
 compatibility: Designed for Claude Code and Codex with local shell command access. Requires the okfh CLI.
 metadata:
-  okf-harness-version: "0.4.0"
+  okf-harness-version: "0.5.0"
   okf-harness-managed: "true"
   okf-harness-entrypoint: "workspace"
 ---

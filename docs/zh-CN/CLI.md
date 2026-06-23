@@ -10,11 +10,13 @@ npm 包名为 `@okf-harness/cli`。安装后可用 `okfh` 命令，也提供了 
 npm install -g @okf-harness/cli
 ```
 
-不全局安装的试用方式：
+临时诊断命令：
 
 ```bash
 npx --package @okf-harness/cli okfh doctor --json
 ```
+
+这不会添加全局 `okfh` 命令，但 npm 准备临时包时仍可能运行包安装钩子。
 
 普通使用环境要求：
 

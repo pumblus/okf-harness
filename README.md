@@ -85,11 +85,13 @@ Claude Code:
 
 Bootstrap can also discover or select a workspace from a local workspace collection and repair current-agent setup for the selected workspace. It does not synthesize wiki content, migrate non-empty non-workspace folders, or write global root guidance files.
 
-To try the command without a global install:
+For a transient diagnostic command:
 
 ```bash
 npx --package @okf-harness/cli okfh doctor --json
 ```
+
+This does not add a global `okfh` binary, but npm may still run package install hooks while preparing the temporary package.
 
 ## Common Next Steps
 
