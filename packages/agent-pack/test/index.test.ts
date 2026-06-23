@@ -208,6 +208,21 @@ describe("@okf-harness/agent-pack", () => {
     expect(codexRepair).toContain("data.refresh.commands");
   });
 
+  it("renders transitional setup-plus-source bootstrap guidance", () => {
+    const codex = renderBootstrapAgent({ agent: "codex" });
+    const skill = fileContents(codex.files, "skills/okf-harness-bootstrap/SKILL.md");
+
+    expect(skill).toContain("setup-plus-source");
+    expect(skill).toContain("Validate every required local source path before `okfh init`");
+    expect(skill).toContain("Missing or unreadable local source inputs stop setup");
+    expect(skill).toContain("URL sources are accepted without webpage fetching");
+    expect(skill).toContain("register each requested source and prepare an ingest plan");
+    expect(skill).toContain("okfh source add <source> --workspace <workspace> --json");
+    expect(skill).toContain("okfh ingest plan <source-id-or-path> --workspace <workspace> --json");
+    expect(skill).toContain("Do not read or write `wiki/` content");
+    expect(skill).toContain("Hand off wiki synthesis to `$okf-harness`");
+  });
+
   it("installs an adapter while preserving user root guidance outside the managed block", async () => {
     const workspace = await mkdtemp(path.join(tmpdir(), "okfh-agent-pack-"));
     await writeFile(
