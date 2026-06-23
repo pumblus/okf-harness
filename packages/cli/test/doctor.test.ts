@@ -326,7 +326,12 @@ async function useFakeDoctorEnv(): Promise<{
     path.join(bin, "git"),
     '#!/bin/sh\nif [ "$1" = "init" ]; then mkdir -p .git; exit 0; fi\nif [ "$1" = "--version" ]; then echo "git version 2.50.0"; exit 0; fi\nexit 0\n',
   );
+  await writeExecutable(
+    path.join(bin, "git.cmd"),
+    '@echo off\r\nif "%1"=="init" (mkdir .git & exit /b 0)\r\nif "%1"=="--version" (echo git version 2.50.0 & exit /b 0)\r\nexit /b 0\r\n',
+  );
   await writeExecutable(path.join(bin, "pnpm"), "#!/bin/sh\necho 11.0.6\n");
+  await writeExecutable(path.join(bin, "pnpm.cmd"), "@echo off\r\necho 11.0.6\r\n");
 
   const keys = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "HOME", "PATH", "USERPROFILE"] as const;
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]])) as Record<
