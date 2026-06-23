@@ -46,6 +46,16 @@ describe("@okf-harness/cli doctor", () => {
     await mkdir(fakeEnv.codexStateDirectory, { recursive: true });
     await mkdir(fakeEnv.claudeHome, { recursive: true });
     await runJsonCli(["node", "okfh", "bootstrap", "install", "--agents", "all", "--json"]);
+    await runJsonCli([
+      "node",
+      "okfh",
+      "agent",
+      "install",
+      "all",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
 
     const result = await runJsonCli(["node", "okfh", "doctor", "--workspace", workspace, "--json"]);
 
@@ -114,9 +124,13 @@ describe("@okf-harness/cli doctor", () => {
 
   it("keeps reporting when a global bootstrap status cannot be read", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
-    process.env.CODEX_HOME = path.join(root, "x".repeat(10_000));
 
-    const result = await runDoctor({ startDir: root });
+    const result = await runDoctor({
+      startDir: root,
+      readBootstrapStatus: async () => {
+        throw new Error("status boom");
+      },
+    });
 
     expect(result.ok).toBe(true);
     expect(result.checks).toEqual(

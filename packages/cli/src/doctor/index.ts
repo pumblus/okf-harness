@@ -42,6 +42,7 @@ export type RunDoctorOptions = {
   dev?: boolean | undefined;
   runtimePlatform?: NodeJS.Platform | string | undefined;
   runExecutable?: RunExecutable | undefined;
+  readBootstrapStatus?: ReadBootstrapStatus | undefined;
 };
 
 export type RunExecutable = (
@@ -49,6 +50,8 @@ export type RunExecutable = (
   args: string[],
   options: { shell?: boolean | undefined },
 ) => Promise<{ stdout: string; stderr: string }>;
+
+type ReadBootstrapStatus = typeof readBootstrapAgentStatus;
 
 const execFileAsync = promisify(execFile);
 const requiredSkillFiles = [
@@ -63,6 +66,7 @@ const requiredSkillFiles = [
 export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorResult> {
   const runtimePlatform = options.runtimePlatform ?? process.platform;
   const runExecutable = options.runExecutable ?? runExecutableDefault;
+  const readBootstrapStatus = options.readBootstrapStatus ?? readBootstrapAgentStatus;
   const checks: DoctorCheck[] = [
     checkOkfh(),
     checkPlatform(runtimePlatform),
@@ -88,7 +92,11 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     );
   }
 
-  checks.push(...(await Promise.all(supportedBootstrapAgents.map(checkGlobalBootstrap))));
+  checks.push(
+    ...(await Promise.all(
+      supportedBootstrapAgents.map((agent) => checkGlobalBootstrap(agent, readBootstrapStatus)),
+    )),
+  );
 
   const workspaceRoot = await resolveDoctorWorkspace(options, checks);
   if (workspaceRoot === null) {
@@ -286,10 +294,13 @@ async function resolveDoctorWorkspace(
   }
 }
 
-async function checkGlobalBootstrap(agent: BootstrapAgent): Promise<DoctorCheck> {
-  let status: Awaited<ReturnType<typeof readBootstrapAgentStatus>>;
+async function checkGlobalBootstrap(
+  agent: BootstrapAgent,
+  readBootstrapStatus: ReadBootstrapStatus,
+): Promise<DoctorCheck> {
+  let status: Awaited<ReturnType<ReadBootstrapStatus>>;
   try {
-    status = await readBootstrapAgentStatus({ agent });
+    status = await readBootstrapStatus({ agent });
   } catch (error) {
     return {
       id: `global-bootstrap-${agent}`,
