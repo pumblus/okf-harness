@@ -54,6 +54,20 @@ async function main() {
       path.join(installDir, "package.json"),
       JSON.stringify({ private: true, type: "module" }, null, 2),
     );
+    const bootstrapHome = path.join(tempRoot, "bootstrap-home");
+    const bootstrapCodexState = path.join(tempRoot, "codex-state");
+    const bootstrapClaudeHome = path.join(tempRoot, "claude-home");
+    await mkdir(bootstrapHome, { recursive: true });
+    await mkdir(bootstrapCodexState, { recursive: true });
+    await mkdir(bootstrapClaudeHome, { recursive: true });
+    const bootstrapCodexSkillRoot = path.join(bootstrapHome, ".agents");
+    const bootstrapEnv = {
+      ...process.env,
+      CLAUDE_CONFIG_DIR: bootstrapClaudeHome,
+      CODEX_HOME: bootstrapCodexState,
+      HOME: bootstrapHome,
+    };
+    delete bootstrapEnv.CI;
 
     const tarballs = [];
     for (const packageInfo of publishablePackages) {
@@ -74,16 +88,34 @@ async function main() {
     console.log("installing local tarballs");
     await run("npm", ["install", "--no-audit", "--no-fund", ...tarballs], {
       cwd: installDir,
-      stdio: "inherit",
+      env: bootstrapEnv,
     });
+    const agentPackVersion = await installedPackageVersion(installDir, "@okf-harness/agent-pack");
+    await assertGeneratedSkill(
+      path.join(bootstrapCodexSkillRoot, "skills/okf-harness-bootstrap/SKILL.md"),
+      agentPackVersion,
+      "bootstrap",
+      "codex",
+    );
+    await assertGeneratedSkill(
+      path.join(bootstrapClaudeHome, "skills/okf-harness-bootstrap/SKILL.md"),
+      agentPackVersion,
+      "bootstrap",
+      "claude",
+    );
+    console.log("postinstall bootstrap passed");
 
     for (const binName of ["okfh", "okf-harness"]) {
-      const result = await runInstalledBin(installDir, binName, ["doctor", "--json"]);
+      const result = await runInstalledBin(installDir, binName, ["doctor", "--json"], {
+        env: bootstrapEnv,
+      });
       const envelope = JSON.parse(result.stdout);
       if (envelope.ok !== true || envelope.data?.summary?.fail !== 0) {
         throw new Error(`${binName} doctor smoke failed: ${result.stdout}`);
       }
-      assertCheckAbsent(envelope, "pnpm", `${binName} default doctor`);
+      assertCheckAbsent(envelope, "runtime-pnpm", `${binName} default doctor`);
+      assertCheckStatus(envelope, "global-bootstrap-codex", "pass", `${binName} default doctor`);
+      assertCheckStatus(envelope, "global-bootstrap-claude", "pass", `${binName} default doctor`);
       const summary = envelope.data.summary;
       console.log(
         `${binName} doctor passed: ${summary.pass} pass, ${summary.warn} warn, ${summary.skip} skip`,
@@ -91,25 +123,15 @@ async function main() {
     }
 
     const devDoctor = JSON.parse(
-      (await runInstalledBin(installDir, "okfh", ["doctor", "--dev", "--json"])).stdout,
+      (
+        await runInstalledBin(installDir, "okfh", ["doctor", "--dev", "--json"], {
+          env: bootstrapEnv,
+        })
+      ).stdout,
     );
-    assertCheckStatus(devDoctor, "pnpm", "pass", "okfh doctor --dev");
+    assertCheckStatus(devDoctor, "runtime-pnpm", "pass", "okfh doctor --dev");
     console.log("okfh doctor --dev passed");
 
-    const agentPackVersion = await installedPackageVersion(installDir, "@okf-harness/agent-pack");
-    const bootstrapHome = path.join(tempRoot, "bootstrap-home");
-    const bootstrapCodexState = path.join(tempRoot, "codex-state");
-    const bootstrapClaudeHome = path.join(tempRoot, "claude-home");
-    await mkdir(bootstrapHome, { recursive: true });
-    await mkdir(bootstrapCodexState, { recursive: true });
-    await mkdir(bootstrapClaudeHome, { recursive: true });
-    const bootstrapCodexSkillRoot = path.join(bootstrapHome, ".agents");
-    const bootstrapEnv = {
-      ...process.env,
-      CLAUDE_CONFIG_DIR: bootstrapClaudeHome,
-      CODEX_HOME: bootstrapCodexState,
-      HOME: bootstrapHome,
-    };
     const bootstrapInstall = JSON.parse(
       (
         await runInstalledBin(

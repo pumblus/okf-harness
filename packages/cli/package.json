@@ -45,10 +45,12 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "postinstall.mjs"
   ],
   "scripts": {
-    "build": "pnpm --dir ../.. --filter @okf-harness/core build && pnpm --dir ../.. --filter @okf-harness/agent-pack build && tsup src/index.ts src/main.ts --format esm --dts --clean",
+    "build": "pnpm --dir ../.. --filter @okf-harness/core build && pnpm --dir ../.. --filter @okf-harness/agent-pack build && tsup src/index.ts src/main.ts src/postinstall.ts --format esm --dts --clean",
+    "postinstall": "node postinstall.mjs",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {

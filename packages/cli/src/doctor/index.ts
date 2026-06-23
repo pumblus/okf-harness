@@ -3,6 +3,11 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import {
+  type BootstrapAgent,
+  readBootstrapAgentStatus,
+  supportedBootstrapAgents,
+} from "@okf-harness/agent-pack";
+import {
   GIT_CHECKPOINT_POLICY_NOT_ENFORCED,
   readWorkspaceStatus,
   resolveWorkspaceRoot,
@@ -63,7 +68,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     checkPlatform(runtimePlatform),
     checkNode(),
     await checkExecutable("git", ["--version"], {
-      id: "git",
+      id: "runtime-git",
       label: "git",
       missingMessage: "git executable was not found.",
       runtimePlatform,
@@ -73,7 +78,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
   if (options.dev === true) {
     checks.push(
       await checkExecutable("pnpm", ["--version"], {
-        id: "pnpm",
+        id: "runtime-pnpm",
         label: "pnpm",
         missingMessage: "pnpm executable was not found.",
         outputPrefix: "pnpm ",
@@ -83,11 +88,31 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     );
   }
 
+  checks.push(...(await Promise.all(supportedBootstrapAgents.map(checkGlobalBootstrap))));
+
   const workspaceRoot = await resolveDoctorWorkspace(options, checks);
   if (workspaceRoot === null) {
-    checks.push(skipCheck("workspace-status", "Workspace status", "No workspace was resolved."));
-    checks.push(skipCheck("claude-adapter", "Claude Code adapter", "No workspace was resolved."));
-    checks.push(skipCheck("codex-adapter", "Codex adapter", "No workspace was resolved."));
+    checks.push(
+      skipCheck(
+        "workspace-status",
+        "Workspace status",
+        "Workspace check skipped: no workspace was resolved.",
+      ),
+    );
+    checks.push(
+      skipCheck(
+        "workspace-adapter-claude",
+        "Claude Code adapter",
+        "Workspace adapter check skipped: no workspace was resolved.",
+      ),
+    );
+    checks.push(
+      skipCheck(
+        "workspace-adapter-codex",
+        "Codex adapter",
+        "Workspace adapter check skipped: no workspace was resolved.",
+      ),
+    );
   } else {
     checks.push(await checkWorkspaceStatus(workspaceRoot));
     checks.push(...(await checkSafetyPolicy(workspaceRoot)));
@@ -106,10 +131,10 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 
 function checkOkfh(): DoctorCheck {
   return {
-    id: "okfh",
+    id: "runtime-okfh",
     label: "okfh CLI",
     status: "pass",
-    message: "The current okfh CLI entrypoint is running.",
+    message: "Runtime check passed: the current okfh CLI entrypoint is running.",
     details: {
       argv0: process.argv[1] ?? null,
       pid: process.pid,
@@ -121,12 +146,12 @@ function checkPlatform(runtimePlatform: NodeJS.Platform | string): DoctorCheck {
   const platformLabel = platformLabelFor(runtimePlatform);
   const supported = platformLabel !== null;
   return {
-    id: "platform",
+    id: "runtime-platform",
     label: "Runtime platform",
     status: supported ? "pass" : "fail",
     message: supported
-      ? `${platformLabel} is supported by OKF Harness.`
-      : `Node platform ${runtimePlatform} is not supported by OKF Harness.`,
+      ? `Runtime check passed: ${platformLabel} is supported by OKF Harness.`
+      : `Runtime check failed: Node platform ${runtimePlatform} is not supported by OKF Harness.`,
     details: {
       nodePlatform: runtimePlatform,
       okfHarnessPlatform: platformLabel,
@@ -153,19 +178,19 @@ function checkNode(): DoctorCheck {
   const major = Number.parseInt(version.split(".")[0] ?? "", 10);
   if (Number.isFinite(major) && major >= 22) {
     return {
-      id: "node",
+      id: "runtime-node",
       label: "Node.js",
       status: "pass",
-      message: `Node.js ${version} satisfies the >=22 runtime requirement.`,
+      message: `Runtime check passed: Node.js ${version} satisfies the >=22 runtime requirement.`,
       details: { version },
     };
   }
 
   return {
-    id: "node",
+    id: "runtime-node",
     label: "Node.js",
     status: "fail",
-    message: `Node.js ${version} does not satisfy the >=22 runtime requirement.`,
+    message: `Runtime check failed: Node.js ${version} does not satisfy the >=22 runtime requirement.`,
     details: { version, required: ">=22.0.0" },
   };
 }
@@ -193,8 +218,8 @@ async function checkExecutable(
       status: "pass",
       message:
         output.length > 0
-          ? `${options.outputPrefix ?? ""}${output}`
-          : `${executable} is available.`,
+          ? `Runtime check passed: ${options.outputPrefix ?? ""}${output}`
+          : `Runtime check passed: ${executable} is available.`,
       details: { executable },
     };
   } catch (error) {
@@ -203,7 +228,10 @@ async function checkExecutable(
       id: options.id,
       label: options.label,
       status: "fail",
-      message: code === "ENOENT" ? options.missingMessage : `${executable} check failed.`,
+      message:
+        code === "ENOENT"
+          ? `Runtime check failed: ${options.missingMessage}`
+          : `Runtime check failed: ${executable} check failed.`,
       details: {
         executable,
         error: error instanceof Error ? error.message : String(error),
@@ -248,14 +276,74 @@ async function resolveDoctorWorkspace(
         status: options.workspaceRoot === undefined ? "warn" : "fail",
         message:
           options.workspaceRoot === undefined
-            ? "No okfh.config.yaml was found from the current directory or its parents."
-            : "The requested workspace could not be resolved.",
+            ? "Workspace check warning: no okfh.config.yaml was found from the current directory or its parents."
+            : "Workspace check failed: the requested workspace could not be resolved.",
         details: { startDir: error.startDir },
       });
       return null;
     }
     throw error;
   }
+}
+
+async function checkGlobalBootstrap(agent: BootstrapAgent): Promise<DoctorCheck> {
+  let status: Awaited<ReturnType<typeof readBootstrapAgentStatus>>;
+  try {
+    status = await readBootstrapAgentStatus({ agent });
+  } catch (error) {
+    return {
+      id: `global-bootstrap-${agent}`,
+      label: `${agent} global bootstrap`,
+      status: "warn",
+      message: `Global bootstrap check warning: ${agent} bootstrap status could not be read.`,
+      details: {
+        agent,
+        error: error instanceof Error ? error.message : String(error),
+        repairCommand: `okfh bootstrap repair --agents ${agent} --json`,
+      },
+    };
+  }
+
+  const label = `${status.detection.label} global bootstrap`;
+  const details = {
+    agent,
+    detected: status.detection.detected,
+    state: status.state,
+    targetDirectory: status.targetDirectory,
+    skillPath: status.skillPath,
+    next: status.next,
+  };
+
+  if (status.state === "installed") {
+    return {
+      id: `global-bootstrap-${agent}`,
+      label,
+      status: "pass",
+      message: `Global bootstrap check passed: ${status.detection.label} bootstrap skill is installed.`,
+      details,
+    };
+  }
+
+  if (!status.detection.detected) {
+    return skipCheck(
+      `global-bootstrap-${agent}`,
+      label,
+      `Global bootstrap check skipped: ${status.detection.label} was not detected.`,
+      details,
+    );
+  }
+
+  return {
+    id: `global-bootstrap-${agent}`,
+    label,
+    status: "warn",
+    message: `Global bootstrap check warning: ${status.detection.label} bootstrap status is ${status.state}.`,
+    details: {
+      ...details,
+      reason: status.reason ?? null,
+      repairCommand: `okfh bootstrap repair --agents ${agent} --json`,
+    },
+  };
 }
 
 async function checkWorkspaceStatus(workspaceRoot: string): Promise<DoctorCheck> {
@@ -265,7 +353,8 @@ async function checkWorkspaceStatus(workspaceRoot: string): Promise<DoctorCheck>
       id: "workspace-status",
       label: "Workspace status",
       status: "fail",
-      message: "Workspace is not initialized or okfh.config.yaml is invalid.",
+      message:
+        "Workspace check failed: workspace is not initialized or okfh.config.yaml is invalid.",
       details: {
         workspace: status.workspaceRoot,
         lintIssues: status.lint.issues.length,
@@ -278,8 +367,8 @@ async function checkWorkspaceStatus(workspaceRoot: string): Promise<DoctorCheck>
     label: "Workspace status",
     status: status.lint.ok ? "pass" : "warn",
     message: status.lint.ok
-      ? `Workspace ${status.name ?? workspaceRoot} is initialized and lint passes.`
-      : `Workspace ${status.name ?? workspaceRoot} is initialized but lint has issues.`,
+      ? `Workspace check passed: ${status.name ?? workspaceRoot} is initialized and lint passes.`
+      : `Workspace check warning: ${status.name ?? workspaceRoot} is initialized but lint has issues.`,
     details: {
       workspace: status.workspaceRoot,
       name: status.name ?? null,
@@ -302,10 +391,10 @@ async function checkSafetyPolicy(workspaceRoot: string): Promise<DoctorCheck[]> 
 
   return [
     {
-      id: "safety-policy",
+      id: "workspace-safety-policy",
       label: "Safety policy",
       status: "warn",
-      message: checkpointWarning.message,
+      message: `Workspace check warning: ${checkpointWarning.message}`,
       details: {
         workspace: status.workspaceRoot,
         issueCode: checkpointWarning.code,
@@ -340,19 +429,19 @@ async function checkAdapter(
     rootContents.includes("<!-- OKF Harness: end -->");
   if (missingFiles.length === 0 && hasManagedBlock) {
     return {
-      id: `${adapter}-adapter`,
+      id: `workspace-adapter-${adapter}`,
       label: adapter === "claude" ? "Claude Code adapter" : "Codex adapter",
       status: "pass",
-      message: `${adapter === "claude" ? "Claude Code" : "Codex"} adapter files are installed.`,
+      message: `Workspace adapter check passed: ${adapter === "claude" ? "Claude Code" : "Codex"} adapter files are installed.`,
       details: { rootGuidance, skillRoot },
     };
   }
 
   return {
-    id: `${adapter}-adapter`,
+    id: `workspace-adapter-${adapter}`,
     label: adapter === "claude" ? "Claude Code adapter" : "Codex adapter",
     status: "warn",
-    message: `${adapter === "claude" ? "Claude Code" : "Codex"} adapter support is incomplete.`,
+    message: `Workspace adapter check warning: ${adapter === "claude" ? "Claude Code" : "Codex"} adapter support is incomplete.`,
     details: {
       rootGuidance,
       skillRoot,
@@ -363,12 +452,18 @@ async function checkAdapter(
   };
 }
 
-function skipCheck(id: string, label: string, message: string): DoctorCheck {
+function skipCheck(
+  id: string,
+  label: string,
+  message: string,
+  details?: Record<string, unknown>,
+): DoctorCheck {
   return {
     id,
     label,
     status: "skip",
     message,
+    ...(details === undefined ? {} : { details }),
   };
 }
 

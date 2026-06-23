@@ -50,8 +50,8 @@ describe("@okf-harness/cli terminal-native smoke", () => {
         ok: true,
         data: {
           checks: expect.arrayContaining([
-            expect.objectContaining({ id: "claude-adapter", status: "pass" }),
-            expect.objectContaining({ id: "codex-adapter", status: "pass" }),
+            expect.objectContaining({ id: "workspace-adapter-claude", status: "pass" }),
+            expect.objectContaining({ id: "workspace-adapter-codex", status: "pass" }),
           ]),
         },
       },
