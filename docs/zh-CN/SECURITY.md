@@ -2,7 +2,7 @@
 
 OKF Harness 是本地优先的。当前运行面是本地 CLI 和它写入的 workspace 文件；云端服务、账户、资料上传和后台守护进程不属于这个运行面。
 
-[English](../SECURITY.md) | 中文
+[English](../../SECURITY.md) | 中文
 
 ## 支持范围
 

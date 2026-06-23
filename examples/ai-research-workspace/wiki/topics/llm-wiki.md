@@ -12,8 +12,8 @@ An LLM Wiki keeps raw source material separate from synthesized concept pages. O
 
 # Workspace Pattern
 
-In this example, the raw source is [LLM Wiki Field Note](/references/llm-wiki-field-note.md). The topic page summarizes the pattern, while the reference page points back to `src_20260616_0001`.
+In this example, the raw source is [LLM Wiki Field Note](../references/llm-wiki-field-note.md). The topic page summarizes the pattern, while the reference page points back to `src_20260616_0001`.
 
 # Citations
 
-- /references/llm-wiki-field-note.md
+- ../references/llm-wiki-field-note.md

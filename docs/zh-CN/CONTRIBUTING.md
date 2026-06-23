@@ -2,7 +2,7 @@
 
 感谢你花时间改进 OKF Harness。项目目前还很小，最好的贡献是范围窄、可测试、且与当前本地 agent 优先方向一致的改动。
 
-[English](../CONTRIBUTING.md) | 中文
+[English](../../CONTRIBUTING.md) | 中文
 
 请使用 GitHub issue templates 提交 bug report、feature discussion，或协调安全报告。
 
