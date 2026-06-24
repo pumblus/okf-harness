@@ -76,7 +76,9 @@ export function registerInitCommand(
             next:
               error.code === "INIT_NOT_EMPTY"
                 ? ["Choose an empty directory, or run okfh doctor --workspace <path> --json."]
-                : ["Fix the initialization input and rerun okfh init --json."],
+                : error.code === "INIT_NESTED_WORKSPACE"
+                  ? ["Use the existing workspace, or choose an empty directory outside it."]
+                  : ["Fix the initialization input and rerun okfh init --json."],
             json: options.json === true,
           });
           setExitCode(error.code === "DEPENDENCY_MISSING" ? 4 : 1);

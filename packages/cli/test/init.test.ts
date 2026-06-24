@@ -124,6 +124,7 @@ describe("@okf-harness/cli init", () => {
     ).rejects.toMatchObject({
       code: "ENOENT",
     });
+    await expect(stat(path.join(workspace, ".git"))).rejects.toMatchObject({ code: "ENOENT" });
     expect((await stat(path.join(workspace, "raw/inbox/README.md"))).isFile()).toBe(true);
   });
 
@@ -216,7 +217,7 @@ describe("@okf-harness/cli init", () => {
     });
   });
 
-  it("refuses to initialize a non-empty workspace without overwriting files", async () => {
+  it("refuses to initialize a non-empty workspace without writing agent guidance", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await mkdir(workspace);
@@ -225,7 +226,7 @@ describe("@okf-harness/cli init", () => {
     let stderr = "";
 
     const exitCode = await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "codex", "--json"],
       {
         writeOut: (chunk) => {
           stdout += chunk;
@@ -250,6 +251,59 @@ describe("@okf-harness/cli init", () => {
     await expect(readFile(path.join(workspace, "keep.txt"), "utf8")).resolves.toBe(
       "do not overwrite\n",
     );
+    await expect(stat(path.join(workspace, "AGENTS.md"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await expect(
+      stat(path.join(workspace, ".agents/skills/okf-harness/SKILL.md")),
+    ).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("refuses to initialize a nested workspace", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    let initStdout = "";
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: (chunk) => {
+          initStdout += chunk;
+        },
+        writeErr: () => {},
+      },
+    );
+    expect(JSON.parse(initStdout)).toMatchObject({ ok: true });
+    const nestedWorkspace = path.join(workspace, "nested");
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(
+      ["node", "okfh", "init", nestedWorkspace, "--name", "Nested", "--agents", "codex", "--json"],
+      {
+        writeOut: (chunk) => {
+          stdout += chunk;
+        },
+        writeErr: (chunk) => {
+          stderr += chunk;
+        },
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(stdout).toBe("");
+    expect(JSON.parse(stderr)).toMatchObject({
+      ok: false,
+      command: "init",
+      workspace: nestedWorkspace,
+      data: {},
+      error: {
+        code: "INIT_NESTED_WORKSPACE",
+      },
+      next: [expect.stringContaining("choose an empty directory outside it")],
+    });
+    await expect(stat(nestedWorkspace)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("returns command usage errors as JSON when requested", async () => {

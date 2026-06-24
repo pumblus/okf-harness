@@ -265,6 +265,14 @@ function workspaceDirectories(): string[] {
 }
 
 async function assertWorkspaceCanBeInitialized(workspaceRoot: string): Promise<void> {
+  const parentWorkspaceRoot = await findNearestWorkspaceRoot(path.dirname(workspaceRoot));
+  if (parentWorkspaceRoot !== undefined) {
+    throw new WorkspaceInitError(
+      `Cannot initialize a workspace inside existing OKF Harness workspace: ${parentWorkspaceRoot}.`,
+      "INIT_NESTED_WORKSPACE",
+    );
+  }
+
   try {
     const workspaceStat = await stat(workspaceRoot);
     if (!workspaceStat.isDirectory()) {
