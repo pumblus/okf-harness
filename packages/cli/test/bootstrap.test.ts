@@ -446,6 +446,58 @@ describe("@okf-harness/cli bootstrap", () => {
     });
   });
 
+  it("fails --agents all when one detected bootstrap target is unwritable", async () => {
+    if (process.platform === "win32" || process.getuid?.() === 0) {
+      return;
+    }
+
+    await withFakeBootstrapEnv(async ({ bin, codexHome }) => {
+      await writeFakeExecutable(bin, "codex");
+      await writeFakeExecutable(bin, "claude");
+      const codexParent = path.dirname(codexHome);
+      await mkdir(codexParent, { recursive: true });
+      await chmod(codexParent, 0o555);
+      try {
+        const result = await runJsonCli([
+          "node",
+          "okfh",
+          "bootstrap",
+          "repair",
+          "--agents",
+          "all",
+          "--json",
+        ]);
+
+        expect(result).toMatchObject({
+          exitCode: 1,
+          result: {
+            ok: false,
+            data: {
+              agents: [
+                {
+                  agent: "codex",
+                  result: {
+                    status: { state: "unwritable-target", blockedPath: codexParent },
+                  },
+                },
+                {
+                  agent: "claude",
+                  result: { status: { state: "installed" } },
+                },
+              ],
+            },
+            warnings: [expect.objectContaining({ code: "BOOTSTRAP_AGENT_FAILED" })],
+            next: expect.arrayContaining([
+              expect.stringContaining("Make the bootstrap target writable"),
+            ]),
+          },
+        });
+      } finally {
+        await chmod(codexParent, 0o755);
+      }
+    });
+  });
+
   it("supports dry-run install and uninstall without changing files", async () => {
     await withFakeCodexHome(async (codexHome) => {
       const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
@@ -640,6 +692,89 @@ describe("@okf-harness/cli bootstrap", () => {
           },
         },
       });
+    });
+  });
+
+  it("reports unwritable bootstrap targets without throwing", async () => {
+    if (process.platform === "win32" || process.getuid?.() === 0) {
+      return;
+    }
+
+    await withFakeCodexHome(async (codexHome) => {
+      const home = path.dirname(codexHome);
+      await mkdir(home, { recursive: true });
+      await chmod(home, 0o555);
+      try {
+        const repair = await runJsonCli([
+          "node",
+          "okfh",
+          "bootstrap",
+          "repair",
+          "--agents",
+          "codex",
+          "--json",
+        ]);
+
+        expect(repair).toMatchObject({
+          exitCode: 1,
+          stderr: "",
+          result: {
+            ok: false,
+            command: "bootstrap repair",
+            data: {
+              status: {
+                state: "unwritable-target",
+                targetDirectory: codexHome,
+                blockedPath: home,
+              },
+            },
+            next: [expect.stringContaining("Make the bootstrap target writable")],
+          },
+        });
+      } finally {
+        await chmod(home, 0o755);
+      }
+    });
+  });
+
+  it("reports unreadable existing bootstrap files without throwing", async () => {
+    if (process.platform === "win32" || process.getuid?.() === 0) {
+      return;
+    }
+
+    await withFakeCodexHome(async (codexHome) => {
+      const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      await writeManagedBootstrap(skillPath, "0.0.1");
+      await chmod(skillPath, 0o200);
+      try {
+        const status = await runJsonCli([
+          "node",
+          "okfh",
+          "bootstrap",
+          "status",
+          "--agents",
+          "codex",
+          "--json",
+        ]);
+
+        expect(status).toMatchObject({
+          exitCode: 1,
+          stderr: "",
+          result: {
+            ok: false,
+            command: "bootstrap status",
+            data: {
+              status: {
+                state: "unwritable-target",
+                blockedPath: skillPath,
+              },
+            },
+            next: [expect.stringContaining("Make the bootstrap target writable")],
+          },
+        });
+      } finally {
+        await chmod(skillPath, 0o600);
+      }
     });
   });
 

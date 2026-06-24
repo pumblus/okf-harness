@@ -104,16 +104,14 @@ export function registerBootstrapCommands(
               agent: selection,
               dryRun: options.dryRun === true,
             });
-      const ok = result.conflicts.length === 0;
+      const ok = result.conflicts.length === 0 && result.status.state !== "unwritable-target";
       const envelope: JsonEnvelope = {
         ok,
         command: `bootstrap ${action}`,
         workspace: null,
         data: result,
         warnings: [],
-        next: ok
-          ? result.status.next
-          : ["Resolve the unmanaged okf-harness-bootstrap skill before retrying."],
+        next: result.status.next,
       };
 
       writeResult(io, envelope, options.json);
@@ -225,7 +223,9 @@ function agentEntryFailed(entry: BootstrapAllEntry): boolean {
   if (entry.status !== undefined) {
     return entry.status.state !== "installed";
   }
-  return (entry.result?.conflicts.length ?? 0) > 0;
+  return (
+    (entry.result?.conflicts.length ?? 0) > 0 || entry.result?.status.state === "unwritable-target"
+  );
 }
 
 function agentEntryNext(entry: BootstrapAllEntry): string[] {

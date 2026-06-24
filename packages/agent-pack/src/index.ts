@@ -86,7 +86,8 @@ export type BootstrapStatusState =
   | "missing"
   | "installed"
   | "version-drifted"
-  | "unmanaged-conflict";
+  | "unmanaged-conflict"
+  | "unwritable-target";
 
 export type BootstrapVersionDrift = "older" | "newer" | "unknown";
 
@@ -121,6 +122,7 @@ export type BootstrapStatus = {
   versionDrift?: BootstrapVersionDrift;
   reason?: string;
   conflictPath?: string;
+  blockedPath?: string;
 };
 
 export type BootstrapAgentOptions = {
@@ -303,15 +305,17 @@ export async function readBootstrapAgentStatus(
 ): Promise<BootstrapStatus> {
   const target = bootstrapTarget(options);
   const detection = await detectBootstrapAgent(options);
-  const pathConflict = await bootstrapPathConflict(target);
-  if (pathConflict !== undefined) {
+  const pathIssue = await bootstrapPathIssue(target);
+  if (pathIssue !== undefined) {
     return createBootstrapStatus({
       ...target,
       detection,
-      state: "unmanaged-conflict",
+      state: pathIssue.state,
       managed: false,
-      reason: pathConflict.reason,
-      conflictPath: pathConflict.path,
+      reason: pathIssue.reason,
+      ...(pathIssue.state === "unmanaged-conflict"
+        ? { conflictPath: pathIssue.path }
+        : { blockedPath: pathIssue.path }),
     });
   }
 
@@ -421,6 +425,9 @@ export async function installBootstrapAgent(
   const dryRun = options.dryRun === true;
   const status = await readBootstrapAgentStatus(options);
   const result = createBootstrapLifecycleResult(options.agent, dryRun, status);
+  if (status.state === "unwritable-target") {
+    return result;
+  }
   if (status.state === "unmanaged-conflict") {
     result.conflicts.push({
       path: status.conflictPath ?? status.skillPath,
@@ -461,6 +468,9 @@ export async function uninstallBootstrapAgent(
   const dryRun = options.dryRun === true;
   const status = await readBootstrapAgentStatus(options);
   const result = createBootstrapLifecycleResult(options.agent, dryRun, status);
+  if (status.state === "unwritable-target") {
+    return result;
+  }
   if (status.state === "unmanaged-conflict") {
     result.conflicts.push({
       path: status.conflictPath ?? status.skillPath,
@@ -1104,6 +1114,7 @@ function createBootstrapStatus(options: {
   versionDrift?: BootstrapVersionDrift | undefined;
   reason?: string | undefined;
   conflictPath?: string | undefined;
+  blockedPath?: string | undefined;
 }): BootstrapStatus {
   return {
     agent: options.agent,
@@ -1121,6 +1132,7 @@ function createBootstrapStatus(options: {
     ...(options.versionDrift === undefined ? {} : { versionDrift: options.versionDrift }),
     ...(options.reason === undefined ? {} : { reason: options.reason }),
     ...(options.conflictPath === undefined ? {} : { conflictPath: options.conflictPath }),
+    ...(options.blockedPath === undefined ? {} : { blockedPath: options.blockedPath }),
   };
 }
 
@@ -1133,6 +1145,11 @@ function bootstrapNextSteps(state: BootstrapStatusState, agent: BootstrapAgent):
   }
   if (state === "unmanaged-conflict") {
     return ["Review the existing okf-harness-bootstrap skill before installing or uninstalling."];
+  }
+  if (state === "unwritable-target") {
+    return [
+      `Make the bootstrap target writable, then run okfh bootstrap repair --agents ${agent} --json.`,
+    ];
   }
   return [`Run okfh bootstrap repair --agents ${agent} --json to install or repair it.`];
 }
@@ -1176,9 +1193,13 @@ function parseVersionParts(version: string): number[] | undefined {
   return version.split(".").map((part) => Number.parseInt(part, 10));
 }
 
-async function bootstrapPathConflict(
+async function bootstrapPathIssue(
   target: BootstrapTarget,
-): Promise<AgentInstallConflict | undefined> {
+): Promise<
+  | (AgentInstallConflict & { state: "unmanaged-conflict" })
+  | (AgentInstallConflict & { state: "unwritable-target" })
+  | undefined
+> {
   for (const directory of [
     target.targetDirectory,
     target.skillsDirectory,
@@ -1186,10 +1207,32 @@ async function bootstrapPathConflict(
     path.join(target.skillDirectory, "references"),
   ]) {
     const entry = await lstatOptional(directory);
+    if (entry === "inaccessible") {
+      return {
+        state: "unwritable-target",
+        path: directory,
+        reason: "Bootstrap target path cannot be inspected.",
+      };
+    }
     if (entry === "blocked" || (entry !== undefined && !entry.isDirectory())) {
       return {
+        state: "unmanaged-conflict",
         path: directory,
         reason: "Existing bootstrap path is not a managed skill directory.",
+      };
+    }
+    if (entry === undefined) {
+      const writeIssue = await missingPathWriteIssue(directory);
+      if (writeIssue !== undefined) {
+        return writeIssue;
+      }
+      continue;
+    }
+    if (!(await canWriteDirectory(directory))) {
+      return {
+        state: "unwritable-target",
+        path: directory,
+        reason: "Bootstrap target directory is not readable and writable.",
       };
     }
   }
@@ -1197,15 +1240,93 @@ async function bootstrapPathConflict(
   for (const file of renderBootstrapAgent({ agent: target.agent }).files) {
     const absolutePath = path.join(target.targetDirectory, file.path);
     const entry = await lstatOptional(absolutePath);
+    if (entry === "inaccessible") {
+      return {
+        state: "unwritable-target",
+        path: absolutePath,
+        reason: "Bootstrap target file cannot be inspected.",
+      };
+    }
     if (entry === "blocked" || (entry !== undefined && !entry.isFile())) {
       return {
+        state: "unmanaged-conflict",
         path: absolutePath,
         reason: "Existing bootstrap path is not a regular managed file.",
+      };
+    }
+    if (entry !== undefined && !(await canWriteFile(absolutePath))) {
+      return {
+        state: "unwritable-target",
+        path: absolutePath,
+        reason: "Bootstrap target file is not readable and writable.",
       };
     }
   }
 
   return undefined;
+}
+
+async function missingPathWriteIssue(
+  filePath: string,
+): Promise<(AgentInstallConflict & { state: "unwritable-target" }) | undefined> {
+  let current = path.dirname(filePath);
+  while (true) {
+    const entry = await lstatOptional(current);
+    if (entry === "inaccessible") {
+      return {
+        state: "unwritable-target",
+        path: current,
+        reason: "Bootstrap target parent directory cannot be inspected.",
+      };
+    }
+    if (entry !== undefined && entry !== "blocked") {
+      if (!entry.isDirectory()) {
+        return {
+          state: "unwritable-target",
+          path: current,
+          reason: "Bootstrap target parent path is not a directory.",
+        };
+      }
+      if (!(await canWriteDirectory(current))) {
+        return {
+          state: "unwritable-target",
+          path: current,
+          reason: "Bootstrap target parent directory is not readable and writable.",
+        };
+      }
+      return undefined;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return undefined;
+    }
+    current = parent;
+  }
+}
+
+async function canWriteDirectory(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath, constants.R_OK | constants.W_OK | constants.X_OK);
+    return true;
+  } catch (error) {
+    if (isNodeError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function canWriteFile(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath, constants.R_OK | constants.W_OK);
+    return true;
+  } catch (error) {
+    if (isNodeError(error)) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 async function bootstrapRenderedFilesDrift(target: BootstrapTarget): Promise<string | undefined> {
@@ -1231,6 +1352,9 @@ async function lstatOptional(filePath: string) {
     }
     if (isNodeError(error) && error.code === "ENOTDIR") {
       return "blocked";
+    }
+    if (isNodeError(error) && (error.code === "EACCES" || error.code === "EPERM")) {
+      return "inaccessible";
     }
     throw error;
   }

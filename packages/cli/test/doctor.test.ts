@@ -1,6 +1,7 @@
 import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import type { BootstrapAgent, BootstrapStatus } from "@okf-harness/agent-pack";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type RunExecutable, runDoctor } from "../src/doctor/index.js";
 import { runCli } from "../src/index.js";
@@ -139,6 +140,41 @@ describe("@okf-harness/cli doctor", () => {
           id: "global-bootstrap-codex",
           status: "warn",
           message: expect.stringContaining("could not be read"),
+        }),
+      ]),
+    );
+  });
+
+  it("reports unwritable global bootstrap targets in doctor details", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const blockedPath = path.join(root, "home");
+
+    const result = await runDoctor({
+      startDir: root,
+      readBootstrapStatus: async ({ agent }) =>
+        fakeBootstrapStatus(
+          agent,
+          agent === "codex"
+            ? {
+                state: "unwritable-target",
+                blockedPath,
+                reason: "Bootstrap target parent directory is not writable.",
+              }
+            : { state: "installed" },
+        ),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "global-bootstrap-codex",
+          status: "warn",
+          message: expect.stringContaining("unwritable-target"),
+          details: expect.objectContaining({
+            blockedPath,
+            repairCommand: "okfh bootstrap repair --agents codex --json",
+          }),
         }),
       ]),
     );
@@ -376,4 +412,31 @@ async function useFakeDoctorEnv(): Promise<{
 async function writeExecutable(filePath: string, contents: string): Promise<void> {
   await writeFile(filePath, contents, "utf8");
   await chmod(filePath, 0o755);
+}
+
+function fakeBootstrapStatus(
+  agent: BootstrapAgent,
+  overrides: Partial<BootstrapStatus>,
+): BootstrapStatus {
+  const label = agent === "codex" ? "Codex" : "Claude Code";
+  const targetDirectory = path.join(tmpdir(), `okfh-${agent}`);
+  return {
+    agent,
+    skillName: "okf-harness-bootstrap",
+    targetDirectory,
+    skillDirectory: path.join(targetDirectory, "skills/okf-harness-bootstrap"),
+    skillPath: path.join(targetDirectory, "skills/okf-harness-bootstrap/SKILL.md"),
+    state: "installed",
+    expectedVersion: "0.0.0",
+    managed: true,
+    detection: {
+      agent,
+      label,
+      detected: true,
+      executable: { command: agent, detected: true, path: path.join(tmpdir(), agent) },
+      userStateDirectory: { path: path.join(tmpdir(), `.${agent}`), detected: true },
+    },
+    next: [`Run okfh bootstrap repair --agents ${agent} --json to install or repair it.`],
+    ...overrides,
+  };
 }

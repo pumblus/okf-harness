@@ -115,7 +115,7 @@ okfh bootstrap repair --agents codex --json
 okfh bootstrap uninstall --agents codex --json
 ```
 
-使用 `--agents codex`、`--agents claude` 或 `--agents all`。`status` 会报告 `missing`、`installed`、`version-drifted` 或 `unmanaged-conflict`。`install` 和 `repair` 会创建缺失的受管理文件，或替换发生漂移的受管理文件；遇到同名非受管理内容会拒绝覆盖。`uninstall` 只删除受管理的 bootstrap 文件，遇到同名非受管理内容也会拒绝删除。对 `install`、`repair` 或 `uninstall` 使用 `--dry-run --json` 可以查看计划写入或删除的文件，不实际修改文件系统。
+使用 `--agents codex`、`--agents claude` 或 `--agents all`。`status` 会报告 `missing`、`installed`、`version-drifted`、`unmanaged-conflict` 或 `unwritable-target`。`install` 和 `repair` 会创建缺失的受管理文件，或替换发生漂移的受管理文件；遇到同名非受管理内容会拒绝覆盖，遇到不可读或不可写的 bootstrap 目标会报告状态而不是抛出通用错误。`uninstall` 只删除受管理的 bootstrap 文件，遇到同名非受管理内容也会拒绝删除。对 `install`、`repair` 或 `uninstall` 使用 `--dry-run --json` 可以查看计划写入或删除的文件，不实际修改文件系统。
 
 ### status
 

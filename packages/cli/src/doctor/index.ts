@@ -352,6 +352,8 @@ async function checkGlobalBootstrap(
     details: {
       ...details,
       reason: status.reason ?? null,
+      blockedPath: status.blockedPath ?? null,
+      conflictPath: status.conflictPath ?? null,
       repairCommand: `okfh bootstrap repair --agents ${agent} --json`,
     },
   };

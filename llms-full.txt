@@ -824,7 +824,7 @@ okfh bootstrap repair --agents codex --json
 okfh bootstrap uninstall --agents codex --json
 ```
 
-Use `--agents codex`, `--agents claude`, or `--agents all`. `status` reports `missing`, `installed`, `version-drifted`, or `unmanaged-conflict`. `install` and `repair` create missing managed files or replace managed drift. They refuse unmanaged same-name content. `uninstall` removes only managed bootstrap files and also refuses unmanaged same-name content. Use `--dry-run --json` with `install`, `repair`, or `uninstall` to inspect planned writes or removals without changing files.
+Use `--agents codex`, `--agents claude`, or `--agents all`. `status` reports `missing`, `installed`, `version-drifted`, `unmanaged-conflict`, or `unwritable-target`. `install` and `repair` create missing managed files or replace managed drift. They refuse unmanaged same-name content and report unreadable or unwritable bootstrap targets instead of throwing. `uninstall` removes only managed bootstrap files and also refuses unmanaged same-name content. Use `--dry-run --json` with `install`, `repair`, or `uninstall` to inspect planned writes or removals without changing files.
 
 ##### status
 
