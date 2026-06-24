@@ -175,13 +175,26 @@ describe("@okf-harness/agent-pack", () => {
       expect(skill).not.toContain("references/graph.md");
     }
     expect(codexSkill).toContain('okf-harness-agent: "codex"');
-    expect(fileContents(codex.files, setupReferencePath)).toContain("$okf-harness");
-    expect(fileContents(codex.files, setupReferencePath)).toContain("--agents codex");
-    expect(claudeSkill).toContain('okf-harness-agent: "claude"');
-    expect(fileContents(claude.files, setupReferencePath)).toContain("/okf-harness");
-    expect(fileContents(claude.files, setupReferencePath)).toContain("--agents claude");
-
     const codexSetup = fileContents(codex.files, setupReferencePath);
+    const codexRepair = fileContents(codex.files, repairReferencePath);
+    expect(codexSetup).toContain("$okf-harness");
+    expect(codexSetup).toContain("--agents codex");
+    expect(codexSetup).not.toContain("--agents claude");
+    expect(codexSetup).not.toContain("--agents all");
+    expect(codexRepair).toContain("okfh agent install codex --workspace <workspace> --json");
+    expect(codexRepair).not.toContain("okfh agent install claude");
+    expect(codexRepair).not.toContain("okfh agent install all");
+    expect(claudeSkill).toContain('okf-harness-agent: "claude"');
+    const claudeSetup = fileContents(claude.files, setupReferencePath);
+    const claudeRepair = fileContents(claude.files, repairReferencePath);
+    expect(claudeSetup).toContain("/okf-harness");
+    expect(claudeSetup).toContain("--agents claude");
+    expect(claudeSetup).not.toContain("--agents codex");
+    expect(claudeSetup).not.toContain("--agents all");
+    expect(claudeRepair).toContain("okfh agent install claude --workspace <workspace> --json");
+    expect(claudeRepair).not.toContain("okfh agent install codex");
+    expect(claudeRepair).not.toContain("okfh agent install all");
+
     expect(codexSetup).toContain("Ask only for inputs that remain missing or ambiguous");
     expect(codexSetup).toContain("Honor explicit user paths");
     expect(codexSetup).toContain("Documents/OKF Harness");
@@ -202,7 +215,6 @@ describe("@okf-harness/agent-pack", () => {
     expect(codexDiscovery).toContain("If one workspace is discovered, select it");
     expect(codexDiscovery).toContain("If multiple workspaces match");
 
-    const codexRepair = fileContents(codex.files, repairReferencePath);
     expect(codexRepair).toContain("Repair only Codex unless");
     expect(codexRepair).toContain("redirect the user to `$okf-harness`");
     expect(codexRepair).toContain("data.refresh.commands");

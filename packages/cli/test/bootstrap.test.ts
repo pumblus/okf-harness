@@ -5,6 +5,88 @@ import { describe, expect, it } from "vitest";
 import { runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli bootstrap", () => {
+  it("drives the current-agent empty workspace setup path for Codex and Claude Code", async () => {
+    for (const scenario of [
+      {
+        agent: "codex",
+        bootstrapHome: "codexHome",
+        invocation: "$okf-harness",
+        skillPath: ".agents/skills/okf-harness/SKILL.md",
+        otherSkillPath: ".claude/skills/okf-harness/SKILL.md",
+      },
+      {
+        agent: "claude",
+        bootstrapHome: "claudeHome",
+        invocation: "/okf-harness",
+        skillPath: ".claude/skills/okf-harness/SKILL.md",
+        otherSkillPath: ".agents/skills/okf-harness/SKILL.md",
+      },
+    ] as const) {
+      await withFakeBootstrapEnv(async (paths) => {
+        const install = await runJsonCli([
+          "node",
+          "okfh",
+          "bootstrap",
+          "install",
+          "--agents",
+          scenario.agent,
+          "--json",
+        ]);
+        expect(install.exitCode).toBe(0);
+
+        const setupReference = await readFile(
+          path.join(
+            paths[scenario.bootstrapHome],
+            "skills/okf-harness-bootstrap/references/setup.md",
+          ),
+          "utf8",
+        );
+        expect(setupReference).toContain(`--agents ${scenario.agent}`);
+        expect(setupReference).toContain(scenario.invocation);
+        expect(setupReference).not.toContain("--agents all");
+
+        const workspace = path.join(paths.codexStateDirectory, `${scenario.agent}-workspace`);
+        const init = await runJsonCli([
+          "node",
+          "okfh",
+          "init",
+          workspace,
+          "--name",
+          "AI Research",
+          "--agents",
+          scenario.agent,
+          "--json",
+        ]);
+
+        expect(init).toMatchObject({
+          exitCode: 0,
+          stderr: "",
+          result: {
+            ok: true,
+            command: "init",
+            workspace,
+            data: {
+              git: { requested: false, initialized: false },
+              agents: {
+                requested: scenario.agent,
+                install: { adapter: scenario.agent, conflicts: [] },
+              },
+              refresh: {
+                agentClient: scenario.agent,
+                workspacePath: workspace,
+                message: expect.stringContaining(scenario.invocation),
+              },
+            },
+          },
+        });
+        await expect(stat(path.join(workspace, scenario.skillPath))).resolves.toBeDefined();
+        await expect(stat(path.join(workspace, scenario.otherSkillPath))).rejects.toMatchObject({
+          code: "ENOENT",
+        });
+      });
+    }
+  });
+
   it("installs, reports, and uninstalls the Codex global bootstrap skill", async () => {
     await withFakeCodexHome(async (codexHome) => {
       const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
