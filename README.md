@@ -49,6 +49,8 @@ You can run that command yourself, or ask your agent to check whether `okfh` is 
 
 Package installation best-effort installs managed global bootstrap entrypoints for detected Codex and Claude Code clients. If that cannot complete, package installation still succeeds and troubleshooting can use `okfh doctor --json`.
 
+After installation, the ordinary first-start flow is a prompt to your current agent, then a refresh into the workspace-local `okf-harness` entrypoint.
+
 The recommended parent folder is only a convention, not a hidden CLI default. On macOS or Linux, use `$HOME/Documents/OKF Harness`. On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness`. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.
 
 ## Start With Your Agent
@@ -180,7 +182,7 @@ okfh doctor --json
 
 ## Docs
 
-- [Workflows](docs/WORKFLOWS.md) explains the user-facing Claude Code and Codex flows.
+- [Workflows](docs/WORKFLOWS.md) explains the user-facing Claude Code and Codex flows, including the first-start check.
 - [CLI reference](docs/CLI.md) lists commands, options, and JSON behavior.
 - [Roadmap](docs/ROADMAP.md) shows the current focus and demand-ranked ideas.
 - [LLM context](llms.txt) gives AI tools a concise map of the public project docs.

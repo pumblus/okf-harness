@@ -49,6 +49,8 @@ npm install -g @okf-harness/cli
 
 包安装时会尽量为检测到的 Codex 和 Claude Code 安装受管理的全局引导入口（Global bootstrap entrypoint）。如果这一步没完成，包安装仍会成功，排查时可以运行 `okfh doctor --json`。
 
+安装后，普通首次启动流程是先向当前智能体发出提示词，然后按刷新指引进入工作区本地的 `okf-harness` 入口。
+
 推荐父目录只是一个约定，不是 CLI 隐式默认路径。macOS 或 Linux 使用 `$HOME/Documents/OKF Harness`。Windows PowerShell 使用 `$env:USERPROFILE\Documents\OKF Harness`。Command Prompt 使用 `%USERPROFILE%\Documents\OKF Harness`。
 
 ## 从你的智能体开始
@@ -180,7 +182,7 @@ okfh doctor --json
 
 ## 文档
 
-- [工作流](docs/zh-CN/WORKFLOWS.md)：面向用户的 Claude Code 和 Codex 操作流程
+- [工作流](docs/zh-CN/WORKFLOWS.md)：面向用户的 Claude Code 和 Codex 操作流程，也包含首次启动检查
 - [CLI 参考](docs/zh-CN/CLI.md)：命令、选项和 JSON 行为说明
 - [路线图](docs/zh-CN/ROADMAP.md)：当前重点和按需求排序的候选想法
 - [LLM 上下文](llms.txt)：给 AI 工具看的公开项目文档索引

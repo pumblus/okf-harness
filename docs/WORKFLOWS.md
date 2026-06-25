@@ -56,6 +56,14 @@ After setup, bootstrap should repair the workspace-local entrypoint for the curr
 
 Bootstrap is not the daily workflow. It should not synthesize wiki content, migrate non-empty non-workspace folders, write global root guidance files, or promise unsupported agent clients.
 
+To verify first start end to end:
+
+1. Install the CLI in a clean environment.
+2. Open Codex or Claude Code.
+3. Confirm `okf-harness-bootstrap` is discoverable in that agent.
+4. Use it to create one empty workspace for the current agent.
+5. Follow the refresh handoff and confirm the workspace-local `okf-harness` entrypoint is available from the workspace folder.
+
 ## Add A Source
 
 Codex:

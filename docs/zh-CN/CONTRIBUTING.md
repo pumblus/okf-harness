@@ -80,6 +80,16 @@ node packages/cli/dist/main.js check --workspace <workspace> --json
 
 CI 还会运行 `pnpm lint`。
 
+发布跟进前，还需运行：
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm smoke:tarball
+```
+
 ## 文档
 
 README 应面向用户、篇幅简短。命令参考放在 [docs/CLI.md](CLI.md)，用户工作流放在 [docs/WORKFLOWS.md](WORKFLOWS.md)，路线图想法放在 [docs/ROADMAP.md](ROADMAP.md)，术语放在 [CONTEXT.md](../../CONTEXT.md)，架构决策放在 [docs/adr](../adr)。

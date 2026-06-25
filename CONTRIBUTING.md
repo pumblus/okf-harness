@@ -78,6 +78,16 @@ node packages/cli/dist/main.js check --workspace <workspace> --json
 
 CI also runs `pnpm lint`.
 
+Before release follow-through, also run:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm smoke:tarball
+```
+
 ## Documentation
 
 README should stay user-facing and short. Put command references in [docs/CLI.md](docs/CLI.md), user workflows in [docs/WORKFLOWS.md](docs/WORKFLOWS.md), roadmap ideas in [docs/ROADMAP.md](docs/ROADMAP.md), glossary terms in [CONTEXT.md](CONTEXT.md), and architecture decisions in [docs/adr](docs/adr).
