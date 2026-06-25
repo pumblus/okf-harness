@@ -225,13 +225,19 @@ describe("@okf-harness/agent-pack", () => {
     const skill = fileContents(codex.files, "skills/okf-harness-bootstrap/SKILL.md");
 
     expect(skill).toContain("setup-plus-source");
-    expect(skill).toContain("Validate every required local source path before `okfh init`");
-    expect(skill).toContain("Missing or unreadable local source inputs stop setup");
+    expect(skill).toContain("Classify requested sources as local paths or URLs before setup");
+    expect(skill).toContain("setup-plus-source then additionally uses the registration");
+    expect(skill).toContain(
+      "Validate every required local source path with metadata/readability checks before `okfh init`",
+    );
+    expect(skill).toContain("missing, non-file, or unreadable local inputs stop setup");
+    expect(skill).toContain("Report all invalid local inputs before creating or selecting");
     expect(skill).toContain("URL sources are accepted without webpage fetching");
-    expect(skill).toContain("register each requested source and prepare an ingest plan");
+    expect(skill).toContain("register each accepted source and prepare an ingest plan");
+    expect(skill).toContain("returned `data.source.id`");
     expect(skill).toContain("okfh source add <source> --workspace <workspace> --json");
-    expect(skill).toContain("okfh ingest plan <source-id-or-path> --workspace <workspace> --json");
-    expect(skill).toContain("Do not read or write `wiki/` content");
+    expect(skill).toContain("okfh ingest plan <source-id> --workspace <workspace> --json");
+    expect(skill).toContain("Do not read raw source bodies or write `wiki/` content");
     expect(skill).toContain("Hand off wiki synthesis to `$okf-harness`");
   });
 

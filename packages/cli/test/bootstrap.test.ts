@@ -87,6 +87,125 @@ describe("@okf-harness/cli bootstrap", () => {
     }
   });
 
+  it("drives setup-plus-source through registration, ingest plans, and handoff", async () => {
+    await withFakeBootstrapEnv(async (paths) => {
+      const install = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "install",
+        "--agents",
+        "codex",
+        "--json",
+      ]);
+      expect(install.exitCode).toBe(0);
+
+      const skill = await readFile(
+        path.join(paths.codexHome, "skills/okf-harness-bootstrap/SKILL.md"),
+        "utf8",
+      );
+      expect(skill).toContain("setup-plus-source then additionally uses the registration");
+      expect(skill).toContain("Report all invalid local inputs before creating or selecting");
+      expect(skill).toContain("metadata/readability checks before `okfh init`");
+      expect(skill).toContain("okfh ingest plan <source-id> --workspace <workspace> --json");
+
+      const workspace = path.join(paths.codexStateDirectory, "source-workspace");
+      const localSource = path.join(paths.codexStateDirectory, "sources", "llm-wiki-paper.md");
+      await mkdir(path.dirname(localSource), { recursive: true });
+      await writeFile(localSource, "# LLM Wiki\n\nBootstrap source.\n", "utf8");
+
+      const init = await runJsonCli([
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "codex",
+        "--json",
+      ]);
+      expect(init).toMatchObject({
+        exitCode: 0,
+        stderr: "",
+        result: {
+          ok: true,
+          command: "init",
+          workspace,
+          data: {
+            refresh: {
+              agentClient: "codex",
+              message: expect.stringContaining("$okf-harness"),
+            },
+          },
+        },
+      });
+
+      for (const source of [localSource, "https://example.com/research/bootstrap"]) {
+        const added = await runJsonCli([
+          "node",
+          "okfh",
+          "source",
+          "add",
+          source,
+          "--workspace",
+          workspace,
+          "--json",
+        ]);
+        expect(added).toMatchObject({
+          exitCode: 0,
+          stderr: "",
+          result: {
+            ok: true,
+            command: "source add",
+            workspace,
+            data: { source: { id: expect.stringMatching(/^src_/) } },
+          },
+        });
+        const rawSource = await readFile(
+          path.join(workspace, added.result.data.source.path),
+          "utf8",
+        );
+        if (source.startsWith("https://")) {
+          expect(added.result.data.source.kind).toBe("url");
+          expect(rawSource).toContain(`URL: ${source}`);
+        } else {
+          expect(added.result.data.source.kind).toBe("file");
+          expect(rawSource).toBe("# LLM Wiki\n\nBootstrap source.\n");
+        }
+
+        const plan = await runJsonCli([
+          "node",
+          "okfh",
+          "ingest",
+          "plan",
+          added.result.data.source.id,
+          "--workspace",
+          workspace,
+          "--json",
+        ]);
+        expect(plan).toMatchObject({
+          exitCode: 0,
+          stderr: "",
+          result: {
+            ok: true,
+            command: "ingest plan",
+            workspace,
+            data: {
+              source: { id: added.result.data.source.id },
+              checklist: expect.arrayContaining([
+                expect.stringContaining("Read the full registered source"),
+              ]),
+            },
+          },
+        });
+        await expect(
+          stat(path.join(workspace, plan.result.data.recommendedReferencePath)),
+        ).rejects.toMatchObject({ code: "ENOENT" });
+      }
+    });
+  });
+
   it("installs, reports, and uninstalls the Codex global bootstrap skill", async () => {
     await withFakeCodexHome(async (codexHome) => {
       const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");

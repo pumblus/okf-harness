@@ -25,16 +25,17 @@ Bootstrap routes OKF Harness setup before a workspace-local `okf-harness` skill 
 
 ## Transitional Setup-Plus-Source
 
-- Validate every required local source path before `okfh init`. Missing or unreadable local source inputs stop setup; report all invalid local inputs before creating the workspace.
+- Route references cover workspace resolution or repair; setup-plus-source then additionally uses the registration and ingest-planning commands below before final handoff.
+- Classify requested sources as local paths or URLs before setup. Validate every required local source path with metadata/readability checks before `okfh init`; missing, non-file, or unreadable local inputs stop setup. Report all invalid local inputs before creating or selecting the workspace.
 - URL sources are accepted without webpage fetching or semantic validation in bootstrap.
-- After setup or workspace selection, register each requested source and prepare an ingest plan with deterministic CLI JSON:
+- After setup or workspace selection, register each accepted source and prepare an ingest plan from the returned `data.source.id` with deterministic CLI JSON:
 
 ```bash
 okfh source add <source> --workspace <workspace> --json
-okfh ingest plan <source-id-or-path> --workspace <workspace> --json
+okfh ingest plan <source-id> --workspace <workspace> --json
 ```
 
-- If source registration or ingest planning fails, stop and report the CLI JSON error. Do not read or write `wiki/` content.
+- If source registration or ingest planning fails, stop and report the CLI JSON error. Do not read raw source bodies or write `wiki/` content.
 - Hand off wiki synthesis to `{{workspaceInvocation}}` in a fresh workspace-local {{sessionName}}.
 
 ## Routes
