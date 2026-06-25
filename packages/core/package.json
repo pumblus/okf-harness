@@ -1,6 +1,6 @@
 {
   "name": "@okf-harness/core",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "OKF parsing, config, manifest, path safety, lint, search, graph, and source handling.",
   "license": "Apache-2.0",
   "type": "module",

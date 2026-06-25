@@ -142,7 +142,7 @@ Claude Code：
 ## 能做什么
 
 - 初始化本地 OKF Harness 工作区
-- 为工作区安装 Claude Code 和 Codex 的智能体指引文件
+- 为 Claude Code 或 Codex 安装工作区指引
 - 将文件和 URL 指针注册为原始资料
 - 生成整理计划（Ingest plan），让智能体据此更新 Wiki 并添加引用
 - 回答前从已整理的 Wiki 页面准备长度受控的证据摘要（Evidence Brief）

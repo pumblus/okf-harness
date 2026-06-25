@@ -167,7 +167,7 @@ The product stays narrow on purpose: local files, terminal-native commands, boun
 #### What It Does
 
 - Initializes a local OKF Harness workspace.
-- Installs Claude Code and Codex guidance into the workspace.
+- Installs workspace guidance for Claude Code or Codex.
 - Registers files and URL pointers as raw sources.
 - Produces ingest plans so an agent can update the wiki with citations.
 - Prepares bounded evidence briefs from synthesized wiki pages before answers.
