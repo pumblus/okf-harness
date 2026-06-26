@@ -57,6 +57,17 @@ describe("@okf-harness/agent-pack", () => {
     expect(claudeSkill).not.toContain("allowed-tools");
     expect(claudeSkill).not.toContain("disable-model-invocation");
     expect(codexSkill).toBe(claudeSkill);
+    for (const skill of [claudeSkill, codexSkill]) {
+      expect(skill).toContain("## First Useful Loop");
+      expect(skill).toContain(
+        "route the first useful loop through existing setup, ingest, check, and answer workflows",
+      );
+      expect(skill).toContain(
+        "first-loop blocker as the specific workflow step plus one concrete next action",
+      );
+      expect(skill).toContain("Normal answers use synthesized `wiki/` evidence");
+      expect(skill).toContain("The CLI does not synthesize wiki content");
+    }
     expect(claude.files.map((file) => file.contents).join("\n")).not.toContain("on macOS");
     expect(codex.files.map((file) => file.contents).join("\n")).not.toContain("on macOS");
 
@@ -82,6 +93,10 @@ describe("@okf-harness/agent-pack", () => {
       expect(answer).toContain("must not read `raw/` source bodies");
       expect(answer).toContain("at most one automatic follow-up `okfh read`");
       expect(answer).toContain("Evidence sufficiency and conflict judgment belong to the agent");
+      expect(answer).toContain("## First-Answer Check");
+      expect(answer).toContain("What is the source mainly about?");
+      expect(answer).toContain("What are its key conclusions?");
+      expect(answer).toContain("Where does the evidence come from?");
       expect(answer).toContain("answer directly first");
       expect(answer).not.toContain("okfh read index --workspace <workspace> --json");
     }

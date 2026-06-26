@@ -23,13 +23,21 @@ One Door routes OKF Harness workspace requests to exactly one internal workflow 
 6. After any wiki edit, run `okfh check --workspace <workspace> --json` and report the check status before broader cleanup advice.
 7. If files changed, run `git diff` and name the changed files before the final response.
 
+## First Useful Loop
+
+When the user asks to prove a workspace works with source material, route the first useful loop through existing setup, ingest, check, and answer workflows in the user's order. Normally this means setup or workspace selection, source registration and agent-owned wiki synthesis, workspace check, then the first-answer check from the Answer Workflow.
+
+If the loop cannot continue, report the first-loop blocker as the specific workflow step plus one concrete next action. Do not turn a first-loop blocker into broad cleanup, online search, alternate source selection, or extra product scope.
+
 ## Hard Rules
 
 - Do not use this skill for generic Markdown editing, ordinary repository maintenance, knowledge-base work outside an OKF Harness workspace, or repository dependency graphs.
 - Do not expose old workflow-specific skill names to users.
 - Do not create a workspace skeleton by hand; use `okfh init`.
 - Never edit `raw/sources/`; register corrected material as a new source.
+- Keep raw source reads inside ingest or explicit source-audit work. Normal answers use synthesized `wiki/` evidence.
 - Never invent source IDs, citations, dates, claims, or command output.
+- Do not invent a first-loop, onboarding, or answer CLI command. The CLI does not synthesize wiki content.
 - Do not add plugin, hook, Pi, OpenCode, Obsidian, GUI, MCP, or vector-search setup.
 
 ## Internal Workflows

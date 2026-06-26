@@ -29,6 +29,14 @@ None. This is a read-only workflow.
 3. Treat `okfh search` and `okfh read` as lower-level tools for retrieval debugging, candidate inspection, or explicit continuation cues. Use at most one automatic follow-up `okfh read` along a continuation cue. Completion: zero or one cue-following read has been used.
 4. Judge sufficiency and conflicts yourself. Evidence sufficiency and conflict judgment belong to the agent, not the CLI. Completion: answer directly first, then cite supporting concept paths and source IDs, and state evidence limits when evidence is weak, conflicting, truncated, citation-poor, missing, or limited to wiki synthesis.
 
+## First-Answer Check
+
+When answering the first useful loop, answer these three short questions from synthesized wiki evidence:
+
+1. What is the source mainly about?
+2. What are its key conclusions?
+3. Where does the evidence come from?
+
 ## Hard Boundaries
 
 - Do not run or hallucinate an `okfh query` command. No such command exists.
