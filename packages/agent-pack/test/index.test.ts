@@ -184,10 +184,16 @@ describe("@okf-harness/agent-pack", () => {
       expect(skill).toContain("references/discovery.md");
       expect(skill).toContain("references/repair.md");
       expect(skill).toContain("resolved `--workspace <path>`");
+      expect(skill).toContain("then stop with a fresh-session handoff");
+      expect(skill).toContain("first-loop blocker with one concrete next action");
+      expect(skill).toContain("Completion criterion");
       expect(skill).not.toContain("references/check.md");
       expect(skill).not.toContain("references/ingest.md");
       expect(skill).not.toContain("references/answer.md");
       expect(skill).not.toContain("references/graph.md");
+      expect(skill).not.toContain("## First-Answer Check");
+      expect(skill).not.toContain('okfh evidence "<question>"');
+      expect(skill).not.toContain("What is the source mainly about?");
     }
     expect(codexSkill).toContain('okf-harness-agent: "codex"');
     const codexSetup = fileContents(codex.files, setupReferencePath);
@@ -247,11 +253,19 @@ describe("@okf-harness/agent-pack", () => {
     );
     expect(skill).toContain("missing, non-file, or unreadable local inputs stop setup");
     expect(skill).toContain("Report all invalid local inputs before creating or selecting");
-    expect(skill).toContain("URL sources are accepted without webpage fetching");
+    expect(skill).toContain("URL sources are accepted as source pointers only");
+    expect(skill).toContain(
+      "Do not fetch, scrape, summarize, or imply webpage content was captured",
+    );
     expect(skill).toContain("register each accepted source and prepare an ingest plan");
     expect(skill).toContain("returned `data.source.id`");
     expect(skill).toContain("okfh source add <source> --workspace <workspace> --json");
     expect(skill).toContain("okfh ingest plan <source-id> --workspace <workspace> --json");
+    expect(skill).toContain(
+      "local source validation, source registration, or ingest planning fails",
+    );
+    expect(skill).toContain("first-loop blocker with one concrete next action");
+    expect(skill).toContain("successful ingest plan, and a fresh-session handoff");
     expect(skill).toContain("Do not read raw source bodies or write `wiki/` content");
     expect(skill).toContain("Hand off wiki synthesis to `$okf-harness`");
   });

@@ -107,7 +107,13 @@ describe("@okf-harness/cli bootstrap", () => {
       expect(skill).toContain("setup-plus-source then additionally uses the registration");
       expect(skill).toContain("Report all invalid local inputs before creating or selecting");
       expect(skill).toContain("metadata/readability checks before `okfh init`");
+      expect(skill).toContain("URL sources are accepted as source pointers only");
+      expect(skill).toContain("first-loop blocker with one concrete next action");
+      expect(skill).toContain("Completion criterion");
       expect(skill).toContain("okfh ingest plan <source-id> --workspace <workspace> --json");
+      expect(skill).not.toContain("## First-Answer Check");
+      expect(skill).not.toContain('okfh evidence "<question>"');
+      expect(skill).not.toContain("What is the source mainly about?");
 
       const workspace = path.join(paths.codexStateDirectory, "source-workspace");
       const localSource = path.join(paths.codexStateDirectory, "sources", "llm-wiki-paper.md");
@@ -169,6 +175,7 @@ describe("@okf-harness/cli bootstrap", () => {
         if (source.startsWith("https://")) {
           expect(added.result.data.source.kind).toBe("url");
           expect(rawSource).toContain(`URL: ${source}`);
+          expect(rawSource).not.toContain("Bootstrap source.");
         } else {
           expect(added.result.data.source.kind).toBe("file");
           expect(rawSource).toBe("# LLM Wiki\n\nBootstrap source.\n");
