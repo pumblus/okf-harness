@@ -166,6 +166,8 @@ okfh source add https://example.com/article --workspace "$HOME/Documents/OKF Har
 
 File sources are copied under `raw/sources/YYYY/MM/` and recorded in `.okfh/manifest.jsonl` with a SHA-256 hash. URL sources record the URL as a source pointer. The current CLI does not fetch webpage contents automatically.
 
+A URL source is not a webpage snapshot. If you need durable, reproducible evidence, save the webpage, PDF, or markdown content first, then register that saved file as a file source.
+
 Use `--dry-run` to see the planned source record without writing.
 
 ### source list

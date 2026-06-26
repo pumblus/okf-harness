@@ -91,7 +91,14 @@ export function registerSourceCommands(
             source: result.source,
           },
           warnings: [],
-          next: [`Run okfh ingest plan ${result.source.id} --workspace <path> --json.`],
+          next: [
+            ...(result.source.kind === "url"
+              ? [
+                  "URL sources are pointers only; save and register a file source when you need a durable webpage snapshot.",
+                ]
+              : []),
+            `Run okfh ingest plan ${result.source.id} --workspace <path> --json.`,
+          ],
         };
 
         writeResult(io, envelope, options.json);

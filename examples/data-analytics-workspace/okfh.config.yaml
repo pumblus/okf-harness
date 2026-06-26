@@ -1,0 +1,23 @@
+version: 0.1
+workspace:
+  name: Data Analytics
+  created_at: "2026-06-26T00:00:00.000Z"
+okf:
+  bundle_root: wiki
+  profile: okf-harness-default
+agents:
+  tier1:
+    claude: true
+    codex: true
+  tier2:
+    pi: false
+    opencode: false
+paths:
+  raw_inbox: raw/inbox
+  raw_sources: raw/sources
+  wiki_root: wiki
+  manifest: .okfh/manifest.jsonl
+safety:
+  raw_sources_immutable: true
+  require_git_checkpoint_before_agent_write: true
+  max_files_changed_per_ingest: 20
