@@ -89,6 +89,12 @@ okfh ingest plan <source-id-or-path> --workspace <workspace> --json
 
 原始资料不应在原位编辑。如果资料需要修正，注册一份新的来源。
 
+### 首个有效闭环
+
+首个有效闭环从本地资料开始。先注册一份本地文件，让智能体基于已注册来源整理 Wiki 页面，运行 `okfh check --workspace <workspace> --json`，然后做 first-answer check：这份来源主要讲什么、关键结论是什么、证据来自哪里。
+
+URL 来源只作为来源指针保存。OKF Harness 会记录 URL，但不会自动抓取网页内容。
+
 ## 提问
 
 Codex：

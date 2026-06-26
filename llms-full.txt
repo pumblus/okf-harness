@@ -607,6 +607,12 @@ Then the agent reads the registered raw source, writes or updates reference and 
 
 Raw sources should not be edited in place. If a source needs correction, register a new source.
 
+##### First Useful Loop
+
+A first useful loop starts with local source material. Register a local file, let the agent synthesize wiki pages from that registered source, run `okfh check --workspace <workspace> --json`, then ask the first-answer check: what the source is mainly about, what its key conclusions are, and where the evidence comes from.
+
+URL sources stay as source pointers. OKF Harness records the URL, but does not fetch webpage contents automatically.
+
 #### Ask A Question
 
 Codex:
