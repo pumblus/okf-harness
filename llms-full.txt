@@ -268,6 +268,18 @@ _Avoid_: alternate default tool channel, OS-specific command channel, user-facin
 The normal user experience where a person asks Claude Code, Codex, or another agent client to maintain an OKF Harness workspace with an agent-facing prompt rather than CLI commands. The prompt may use a stable workflow prefix such as `$okf-harness` or `/okf-harness`, but the person should not need to learn `okfh` command names for ordinary setup, ingest, check, query, or maintenance work.
 _Avoid_: CLI-first workflow, command tutorial, hidden app UI
 
+**First useful loop**:
+The first successful product journey where a person gets from a new or selected workspace to registered local source material, agent-synthesized wiki content, workspace check feedback, and one evidence-backed answer. It is not merely successful installation, an empty workspace, CLI-generated wiki content, or automatic webpage fetching.
+_Avoid_: onboarding completion, first install, empty setup, auto-ingest, web crawl
+
+**First-answer check**:
+A short default question set used to prove the first useful loop after local source material is synthesized. It asks one sentence each for what the source is about, its key conclusions, and where the evidence comes from.
+_Avoid_: full summary, report, benchmark question, broad review
+
+**First-loop blocker**:
+The specific step that prevents the first useful loop from completing, such as source registration, wiki synthesis, workspace check, or evidence-backed answering. It should be reported with one concrete next action rather than triggering automatic online search, source substitution, or broader scope.
+_Avoid_: generic error, automatic recovery, silent scope expansion
+
 **Explicit workflow invocation**:
 The recommended README entry style where a person uses the current agent client's OKF Harness prefix followed by ordinary language, such as `$okf-harness Add this PDF to my workspace...` in Codex or `/okf-harness Add this PDF to my workspace...` in Claude Code. It makes routing predictable without exposing CLI commands.
 _Avoid_: CLI command, hidden automatic routing, adapter jargon
