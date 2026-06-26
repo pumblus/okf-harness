@@ -29,10 +29,10 @@ importers:
   packages/cli:
     dependencies:
       '@okf-harness/agent-pack':
-        specifier: 0.5.1
+        specifier: 0.5.2
         version: link:../agent-pack
       '@okf-harness/core':
-        specifier: 0.5.1
+        specifier: 0.5.2
         version: link:../core
       commander:
         specifier: 4.1.1
