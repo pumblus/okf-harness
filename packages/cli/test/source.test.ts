@@ -271,6 +271,10 @@ describe("@okf-harness/cli source", () => {
             ),
           },
         },
+        next: [
+          expect.stringContaining("URL sources are pointers only"),
+          expect.stringContaining("okfh ingest plan"),
+        ],
       },
     });
     await expect(

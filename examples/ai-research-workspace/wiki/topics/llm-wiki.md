@@ -16,4 +16,4 @@ In this example, the raw source is [LLM Wiki Field Note](../references/llm-wiki-
 
 # Citations
 
-- ../references/llm-wiki-field-note.md
+- [LLM Wiki Field Note](../references/llm-wiki-field-note.md)

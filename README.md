@@ -184,10 +184,13 @@ okfh doctor --json
 
 - [Workflows](docs/WORKFLOWS.md) explains the user-facing Claude Code and Codex flows, including the first-start check.
 - [CLI reference](docs/CLI.md) lists commands, options, and JSON behavior.
+- [Harness profile](docs/HARNESS_PROFILE.md) describes the workspace conventions around the portable OKF bundle.
+- [Citations and provenance](docs/CITATIONS.md) describes the recommended evidence chain from wiki pages to registered sources.
 - [Roadmap](docs/ROADMAP.md) shows the current focus and demand-ranked ideas.
 - [LLM context](llms.txt) gives AI tools a concise map of the public project docs.
 - [Full LLM context](llms-full.txt) combines the public overview, terminology, workflows, CLI reference, roadmap, and package READMEs.
 - [Example workspace](examples/ai-research-workspace/README.md) gives a small lintable workspace.
+- [Data analytics example](examples/data-analytics-workspace/README.md) shows a compact dataset, table, metric, join-path, and reference-source workflow.
 - [Contributing](CONTRIBUTING.md) explains project scope and verification.
 - [Security](SECURITY.md) explains local data boundaries and reporting.
 

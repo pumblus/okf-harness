@@ -89,6 +89,8 @@ Then the agent reads the registered raw source, writes or updates reference and 
 
 Raw sources should not be edited in place. If a source needs correction, register a new source.
 
+URL sources are pointers only. `okfh source add <url>` does not fetch or preserve the webpage body. When a durable webpage snapshot is needed, save the webpage, PDF, or markdown content first, then register that saved file as source material.
+
 ## Ask A Question
 
 Codex:

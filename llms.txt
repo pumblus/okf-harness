@@ -20,6 +20,8 @@ OKF Harness is independent. It builds on Andrej Karpathy's LLM Wiki pattern and 
 - [Product terminology](https://raw.githubusercontent.com/pumblus/okf-harness/main/CONTEXT.md): glossary for OKF Harness, workspaces, source material, ingest, query, search, read, graph, and agent guidance.
 - [User workflows](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/WORKFLOWS.md): prefixed Claude Code and Codex workflows for setup, source registration, ingest, answer, check, graph, and adapter repair.
 - [CLI reference](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/CLI.md): `okfh` command contract, JSON envelope, workspace rules, and command options.
+- [Harness profile](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/HARNESS_PROFILE.md): workspace conventions around the portable OKF bundle.
+- [Citations and provenance](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/CITATIONS.md): recommended evidence chain from synthesized wiki pages to registered sources.
 
 ## Packages
 
@@ -31,6 +33,7 @@ OKF Harness is independent. It builds on Andrej Karpathy's LLM Wiki pattern and 
 
 - [Public roadmap](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/ROADMAP.md): current scope, demand-ranked ideas, and constraints for future product surfaces.
 - [Example workspace](https://github.com/pumblus/okf-harness/tree/main/examples/ai-research-workspace): small OKF Harness workspace with sample wiki content.
+- [Data analytics example](https://github.com/pumblus/okf-harness/tree/main/examples/data-analytics-workspace): compact dataset, table, metric, join-path, and reference-source workflow.
 - [Contributing](https://raw.githubusercontent.com/pumblus/okf-harness/main/CONTRIBUTING.md): contribution boundaries, development setup, and verification commands.
 - [Security](https://raw.githubusercontent.com/pumblus/okf-harness/main/SECURITY.md): local data boundaries, out-of-scope surfaces, and reporting contact.
 

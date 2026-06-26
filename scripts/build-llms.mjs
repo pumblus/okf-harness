@@ -12,6 +12,8 @@ const sourceFiles = [
   { title: "Product terminology", file: "CONTEXT.md" },
   { title: "User workflows", file: "docs/WORKFLOWS.md" },
   { title: "CLI reference", file: "docs/CLI.md" },
+  { title: "Harness profile", file: "docs/HARNESS_PROFILE.md" },
+  { title: "Citations and provenance", file: "docs/CITATIONS.md" },
   { title: "Public roadmap", file: "docs/ROADMAP.md" },
   { title: "CLI package README", file: "packages/cli/README.md" },
   { title: "Core package README", file: "packages/core/README.md" },
