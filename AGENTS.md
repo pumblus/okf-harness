@@ -60,7 +60,6 @@ Use a single-context domain documentation layout. See `docs/agents/domain.md`.
 
 - Before editing, check the current tree with `git status --short`.
 - Keep changes scoped to the current public scope or the user's explicit request.
-- Do not auto-commit, tag, push, publish, or create releases unless the user explicitly asks in the current turn.
 - Do not store API keys, tokens, or credentials in tracked files.
 - Do not edit generated raw source files in OKF Harness workspaces. `raw/sources/` is immutable by design.
 - Do not edit ignored `dist/` output by hand. Build it from source when package contents need verification.
@@ -77,7 +76,7 @@ Use a single-context domain documentation layout. See `docs/agents/domain.md`.
 - npm publish scope: publish only the scoped core, agent-pack, and CLI packages; never publish the root package or private workspace packages.
 - npm manifest rules: no `workspace:` protocol entries in publishable manifests; internal package dependencies must point at the exact same public package version; `pnpm-workspace.yaml` must link matching workspace packages locally; publishable packages must declare `engines.node >=22.0.0`, run `pnpm run build` from `prepublishOnly`, and keep `files` allowlists to `dist`, package metadata, package-local README files, and runtime assets explicitly required by the package such as `packages/agent-pack/templates`.
 - npm publish flow: publish from each package directory with `npm publish --access public` in dependency order: core, agent-pack, then cli; use the `latest` dist-tag; do not enable npm provenance unless the release workflow explicitly adopts and verifies it.
-- npm preflight: inspect package contents with the three `pnpm --filter <package> pack --dry-run --json` commands, then run `pnpm smoke:tarball` to install locally packed core, agent-pack, and cli tarballs into a fresh temp project and verify both `okfh doctor --json` and `okf-harness doctor --json`. Packaged smoke is also a required GitHub Actions CI gate on Linux, macOS, and Windows.
+- npm preflight: inspect package contents with the three `pnpm --filter <package> pack --dry-run --json` commands, then run `pnpm smoke:tarball` to install locally packed core, agent-pack, and cli tarballs into a fresh temp project and verify both `okfh doctor --json` and `okf-harness doctor --json`. Packaged smoke must exercise the packed tarballs through package-manager shims and remain a required GitHub Actions CI gate on Linux, macOS, and Windows.
 - npm post-publish proof: verify registry versions for the three published packages, then verify install from the registry with an `npx --package <cli-package> okfh doctor --json` smoke.
 
 ## Verification
