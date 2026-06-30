@@ -190,6 +190,13 @@ okfh ingest plan src_20260615_0001 --workspace "$HOME/Documents/OKF Harness/ai-r
 
 整理计划（Ingest plan）仅使用元数据。智能体在撰写 Wiki 内容之前必须读取来源正文。
 
+JSON 数据包含：
+
+- `recommendedReferencePath`：该注册来源对应的参考文档路径。
+- `candidateConcepts`：最多五个可能受该来源影响的现有非参考内容页。候选项包含 `id`、`path`、`type`、可选 `title` 和机械性的 `reason`，不包含置信度或语义相关性分数。
+- `suggestedNewConcept`：不适用时会省略。出现时，它是一个仅由元数据派生的 `Topic` 建议，包含 `title`、`path`、`type` 和 `reason`。CLI 不会创建该文件。
+- `nextStep`：一条可以交给智能体的面向人的下一步提示。
+
 ### search
 
 搜索 Wiki 中已整理的概念文档。不会搜索原始资料。

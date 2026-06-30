@@ -27,6 +27,10 @@ okfh check --workspace <workspace> --json
 
 ## Completion Condition
 
-The ingest plan is metadata-level guidance. It returns a recommended reference path, candidate concepts, and an agent checklist; it does not read source bodies, summarize content, extract claims, or synthesize wiki pages.
+The ingest plan is metadata-level guidance. It returns a recommended reference path, candidate concepts, an optional suggested new concept, a next step, and an agent checklist; it does not read source bodies, summarize content, extract claims, or synthesize wiki pages.
+
+Treat `candidateConcepts` as existing non-reference content pages to inspect after reading the source. Their reasons are mechanical metadata matches, not semantic evidence or confidence scores.
+
+Treat `suggestedNewConcept` as a proposed `Topic` path to confirm after reading the source. If it is omitted, do not infer a hidden suggestion. If it is present, the CLI has not created the file.
 
 If registration or planning fails, stop before wiki edits and report the failing command's JSON error. Otherwise, read the registered source material, update only bounded wiki files, run check, and finish with the registered source ID, changed wiki paths, check status, and unresolved questions.

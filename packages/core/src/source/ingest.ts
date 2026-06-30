@@ -21,7 +21,13 @@ export type IngestPlanCandidateConcept = {
   path: string;
   type: string;
   title?: string;
-  score: number;
+  reason: string;
+};
+
+export type IngestPlanSuggestedNewConcept = {
+  type: "Topic";
+  title: string;
+  path: string;
   reason: string;
 };
 
@@ -30,6 +36,8 @@ export type IngestPlanResult = {
   source: SourceManifestEntry;
   recommendedReferencePath: string;
   candidateConcepts: IngestPlanCandidateConcept[];
+  suggestedNewConcept?: IngestPlanSuggestedNewConcept;
+  nextStep: string;
   checklist: string[];
 };
 
@@ -54,8 +62,11 @@ export async function createIngestPlan(
 
   const scanResult = await scanConcepts(workspaceRoot, config);
   const sourceTokens = tokenizeSourceMetadata(source);
-  const candidateConcepts = scanResult.concepts
-    .filter((concept) => !concept.id.startsWith("references/"))
+  const suggestedTopic = suggestedTopicConcept(source);
+  const contentConcepts = scanResult.concepts.filter(
+    (concept) => !concept.id.startsWith("references/"),
+  );
+  const candidateConcepts = contentConcepts
     .map((concept) => {
       const conceptTokens = tokenize([
         concept.id,
@@ -64,41 +75,65 @@ export async function createIngestPlan(
         concept.tags.join(" "),
       ]);
       const matches = [...sourceTokens].filter((token) => conceptTokens.has(token));
+      const matchesSuggestedTopicPath = concept.workspacePath === suggestedTopic.path;
       return {
         concept,
         matches,
+        matchesSuggestedTopicPath,
       };
     })
-    .filter((candidate) => candidate.matches.length > 0)
-    .map(({ concept, matches }) => {
+    .filter((candidate) => candidate.matches.length > 0 || candidate.matchesSuggestedTopicPath)
+    .map(({ concept, matches, matchesSuggestedTopicPath }) => {
       const candidate: IngestPlanCandidateConcept = {
         id: concept.id,
         path: concept.workspacePath,
         type: concept.type,
-        score: matches.length,
-        reason: `metadata token match: ${matches.sort().join(", ")}`,
+        reason: candidateReason(matches, matchesSuggestedTopicPath),
       };
       if (concept.title !== undefined) {
         candidate.title = concept.title;
       }
-      return candidate;
+      return {
+        candidate,
+        rank: (matchesSuggestedTopicPath ? 1000 : 0) + matches.length,
+      };
     })
-    .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))
-    .slice(0, 10);
+    .sort(
+      (left, right) =>
+        right.rank - left.rank || left.candidate.id.localeCompare(right.candidate.id),
+    )
+    .slice(0, 5)
+    .map(({ candidate }) => candidate);
 
   const recommendedReferencePath =
     source.reference_concept ??
     `wiki/references/${safeSlug(referenceTitle(source)) || source.id}.md`;
+  const suggestedNewConcept =
+    candidateConcepts.length === 0
+      ? {
+          ...suggestedTopic,
+          reason: "metadata-derived Topic suggestion; confirm after reading the source.",
+        }
+      : undefined;
+  const nextStep = nextStepForIngestPlan(
+    source,
+    recommendedReferencePath,
+    candidateConcepts,
+    suggestedNewConcept,
+  );
 
   return {
     workspaceRoot,
     source,
     recommendedReferencePath,
     candidateConcepts,
+    ...(suggestedNewConcept === undefined ? {} : { suggestedNewConcept }),
+    nextStep,
     checklist: [
       `Read the full registered source at ${source.path} before writing wiki content.`,
       `Create or update exactly one reference document at ${recommendedReferencePath}.`,
       "Update only affected topic, entity, project, decision, or question concept documents.",
+      `If the planned or actual wiki edit would exceed ${config.safety.max_files_changed_per_ingest} wiki files, stop and ask the user before editing more files.`,
       "Preserve uncertainty and contradictions; do not invent claims or citations.",
       "Run okfh check --workspace <workspace> --json after wiki edits.",
     ],
@@ -120,6 +155,43 @@ function findRegisteredSource(
 
 function tokenizeSourceMetadata(source: SourceManifestEntry): Set<string> {
   return tokenize([source.id, source.original, source.path, source.title ?? ""]);
+}
+
+function candidateReason(matches: string[], matchesSuggestedTopicPath: boolean): string {
+  const reasons: string[] = [];
+  if (matchesSuggestedTopicPath) {
+    reasons.push("metadata-derived topic path already exists");
+  }
+  if (matches.length > 0) {
+    reasons.push(`metadata token match: ${matches.sort().join(", ")}`);
+  }
+  return reasons.join("; ");
+}
+
+function suggestedTopicConcept(
+  source: SourceManifestEntry,
+): Omit<IngestPlanSuggestedNewConcept, "reason"> {
+  const title = referenceTitle(source);
+  return {
+    type: "Topic",
+    title,
+    path: `wiki/topics/${safeSlug(title) || source.id}.md`,
+  };
+}
+
+function nextStepForIngestPlan(
+  source: SourceManifestEntry,
+  recommendedReferencePath: string,
+  candidateConcepts: IngestPlanCandidateConcept[],
+  suggestedNewConcept: IngestPlanSuggestedNewConcept | undefined,
+): string {
+  if (suggestedNewConcept !== undefined) {
+    return `Read ${source.path}, create or update ${recommendedReferencePath}, then confirm whether to create ${suggestedNewConcept.path}.`;
+  }
+  if (candidateConcepts.length > 0) {
+    return `Read ${source.path}, create or update ${recommendedReferencePath}, then update only the listed candidate concepts that the source actually affects.`;
+  }
+  return `Read ${source.path}, create or update ${recommendedReferencePath}, then update only affected content pages.`;
 }
 
 function tokenize(values: string[]): Set<string> {

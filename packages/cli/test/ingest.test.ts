@@ -6,44 +6,25 @@ import { runCli } from "../src/index.js";
 import { runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli ingest", () => {
-  it("creates a metadata-level ingest plan for a registered source", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
-    const workspace = path.join(root, "ai-research");
-    await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
-      {
-        writeOut: () => {},
-        writeErr: () => {},
-      },
-    );
+  it("returns capped metadata matches without reference documents or scores", async () => {
+    const { root, workspace } = await initTestWorkspace();
     await writeFile(
-      path.join(workspace, "wiki/topics/llm-wiki.md"),
-      "---\ntype: topic\ntitle: LLM Wiki\ntags: [llm, wiki]\n---\n# LLM Wiki\n",
+      path.join(workspace, "wiki/references/alpha-source.md"),
+      "---\ntype: Reference\ntitle: Alpha Source\ntags: [alpha]\n---\n# Alpha Source\n",
       "utf8",
     );
-    const sourcePath = path.join(root, "llm-wiki-paper.md");
+    for (const index of Array.from({ length: 6 }, (_, value) => value + 1)) {
+      await writeFile(
+        path.join(workspace, `wiki/topics/alpha-${index}.md`),
+        `---\ntype: Topic\ntitle: Alpha ${index}\ntags: [alpha]\n---\n# Alpha ${index}\n`,
+        "utf8",
+      );
+    }
+    const sourcePath = path.join(root, "alpha-source.md");
     await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
-    const added = await runJsonCli([
-      "node",
-      "okfh",
-      "source",
-      "add",
-      sourcePath,
-      "--workspace",
-      workspace,
-      "--json",
-    ]);
+    const added = await addSource(workspace, sourcePath);
 
-    const plan = await runJsonCli([
-      "node",
-      "okfh",
-      "ingest",
-      "plan",
-      added.result.data.source.id,
-      "--workspace",
-      workspace,
-      "--json",
-    ]);
+    const plan = await planIngest(workspace, added.result.data.source.id);
 
     expect(plan).toMatchObject({
       exitCode: 0,
@@ -57,21 +38,116 @@ describe("@okf-harness/cli ingest", () => {
             id: added.result.data.source.id,
             path: added.result.data.source.path,
           },
-          recommendedReferencePath: "wiki/references/llm-wiki-paper.md",
-          candidateConcepts: [
-            expect.objectContaining({
-              id: "topics/llm-wiki",
-              path: "wiki/topics/llm-wiki.md",
-              reason: expect.stringContaining("metadata"),
-            }),
-          ],
+          recommendedReferencePath: "wiki/references/alpha-source.md",
+          nextStep: expect.stringContaining("Read"),
           checklist: expect.arrayContaining([
             expect.stringContaining("Read the full registered source"),
+            expect.stringContaining("20 wiki files"),
             expect.stringContaining("Run okfh check --workspace <workspace> --json"),
           ]),
         },
         warnings: [],
+        next: [expect.stringContaining("Read")],
       },
     });
+    expect(plan.result.data.candidateConcepts).toHaveLength(5);
+    expect(plan.result.data.candidateConcepts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "topics/alpha-1",
+          path: "wiki/topics/alpha-1.md",
+          reason: expect.stringContaining("metadata"),
+        }),
+      ]),
+    );
+    expect(
+      plan.result.data.candidateConcepts.every((concept: { path: string }) =>
+        concept.path.startsWith("wiki/topics/"),
+      ),
+    ).toBe(true);
+    expect(plan.result.data.candidateConcepts[0]).not.toHaveProperty("score");
+    expect(plan.result.data).not.toHaveProperty("suggestedNewConcept");
+  });
+
+  it("suggests one metadata-derived Topic when no existing content page matches", async () => {
+    const { root, workspace } = await initTestWorkspace();
+    const sourcePath = path.join(root, "quantum-notes.md");
+    await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
+    const added = await addSource(workspace, sourcePath);
+
+    const plan = await planIngest(workspace, added.result.data.source.id);
+
+    expect(plan.result.data).toMatchObject({
+      candidateConcepts: [],
+      suggestedNewConcept: {
+        type: "Topic",
+        title: "quantum-notes",
+        path: "wiki/topics/quantum-notes.md",
+        reason: expect.stringContaining("metadata"),
+      },
+      nextStep: expect.stringContaining("wiki/topics/quantum-notes.md"),
+    });
+  });
+
+  it("returns an existing suggested path as a candidate instead of a duplicate suggestion", async () => {
+    const { root, workspace } = await initTestWorkspace();
+    await writeFile(
+      path.join(workspace, "wiki/topics/quantum-notes.md"),
+      "---\ntype: Topic\ntitle: Quantum Notes\ntags: []\n---\n# Quantum Notes\n",
+      "utf8",
+    );
+    const sourcePath = path.join(root, "quantum-notes.md");
+    await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
+    const added = await addSource(workspace, sourcePath);
+
+    const plan = await planIngest(workspace, added.result.data.source.id);
+
+    expect(plan.result.data.candidateConcepts).toEqual([
+      expect.objectContaining({
+        id: "topics/quantum-notes",
+        path: "wiki/topics/quantum-notes.md",
+        reason: expect.stringContaining("metadata-derived topic path already exists"),
+      }),
+    ]);
+    expect(plan.result.data).not.toHaveProperty("suggestedNewConcept");
   });
 });
+
+async function initTestWorkspace(): Promise<{ root: string; workspace: string }> {
+  const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+  const workspace = path.join(root, "ai-research");
+  await runCli(
+    ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+    {
+      writeOut: () => {},
+      writeErr: () => {},
+    },
+  );
+  return { root, workspace };
+}
+
+async function addSource(workspace: string, sourcePath: string): ReturnType<typeof runJsonCli> {
+  return runJsonCli([
+    "node",
+    "okfh",
+    "source",
+    "add",
+    sourcePath,
+    "--workspace",
+    workspace,
+    "--json",
+  ]);
+}
+
+async function planIngest(workspace: string, sourceId: string): ReturnType<typeof runJsonCli> {
+  return runJsonCli([
+    "node",
+    "okfh",
+    "ingest",
+    "plan",
+    sourceId,
+    "--workspace",
+    workspace,
+    "--json",
+  ]);
+}

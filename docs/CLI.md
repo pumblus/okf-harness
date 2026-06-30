@@ -190,6 +190,13 @@ okfh ingest plan src_20260615_0001 --workspace "$HOME/Documents/OKF Harness/ai-r
 
 The plan uses metadata only. The agent must read the source before writing semantic wiki content.
 
+JSON data includes:
+
+- `recommendedReferencePath`: the reference document path for the registered source.
+- `candidateConcepts`: up to five existing non-reference content pages that may be affected by the source. Candidates include `id`, `path`, `type`, optional `title`, and a mechanical `reason`; they do not include confidence or semantic relevance scores.
+- `suggestedNewConcept`: omitted when it does not apply. When present, it is one metadata-derived `Topic` suggestion with `title`, `path`, `type`, and `reason`. The CLI does not create the file.
+- `nextStep`: one person-facing handoff prompt for the agent.
+
 ### search
 
 Searches synthesized wiki concept documents. It does not search raw sources.

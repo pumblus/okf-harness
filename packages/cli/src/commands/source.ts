@@ -146,10 +146,12 @@ export function registerSourceCommands(
             source: result.source,
             recommendedReferencePath: result.recommendedReferencePath,
             candidateConcepts: result.candidateConcepts,
+            suggestedNewConcept: result.suggestedNewConcept,
+            nextStep: result.nextStep,
             checklist: result.checklist,
           },
           warnings: [],
-          next: ["Use the ingest plan as the Agent checklist before editing wiki files."],
+          next: [result.nextStep],
         };
 
         writeResult(io, envelope, options.json);
