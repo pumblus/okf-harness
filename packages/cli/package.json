@@ -1,6 +1,6 @@
 {
   "name": "@okf-harness/cli",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "The okfh command-line package for local OKF Harness workspaces.",
   "license": "Apache-2.0",
   "type": "module",
@@ -54,8 +54,8 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@okf-harness/agent-pack": "0.5.2",
-    "@okf-harness/core": "0.5.2",
+    "@okf-harness/agent-pack": "0.5.3",
+    "@okf-harness/core": "0.5.3",
     "commander": "4.1.1"
   }
 }

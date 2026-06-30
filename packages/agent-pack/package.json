@@ -1,6 +1,6 @@
 {
   "name": "@okf-harness/agent-pack",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Claude and Codex adapter renderers and shared skill templates.",
   "license": "Apache-2.0",
   "type": "module",
