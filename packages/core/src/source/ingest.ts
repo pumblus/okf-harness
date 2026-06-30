@@ -63,8 +63,12 @@ export async function createIngestPlan(
   const scanResult = await scanConcepts(workspaceRoot, config);
   const sourceTokens = tokenizeSourceMetadata(source);
   const suggestedTopic = suggestedTopicConcept(source);
+  const suggestedTopicPathExists = scanResult.files.some(
+    (file) => file.workspacePath === suggestedTopic.path,
+  );
   const contentConcepts = scanResult.concepts.filter(
-    (concept) => !concept.id.startsWith("references/"),
+    (concept) =>
+      !concept.id.startsWith("references/") && concept.type.trim().toLowerCase() !== "reference",
   );
   const candidateConcepts = contentConcepts
     .map((concept) => {
@@ -109,7 +113,7 @@ export async function createIngestPlan(
     source.reference_concept ??
     `wiki/references/${safeSlug(referenceTitle(source)) || source.id}.md`;
   const suggestedNewConcept =
-    candidateConcepts.length === 0
+    candidateConcepts.length === 0 && !suggestedTopicPathExists
       ? {
           ...suggestedTopic,
           reason: "metadata-derived Topic suggestion; confirm after reading the source.",

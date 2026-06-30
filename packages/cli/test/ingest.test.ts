@@ -9,8 +9,13 @@ describe("@okf-harness/cli ingest", () => {
   it("returns capped metadata matches without reference documents or scores", async () => {
     const { root, workspace } = await initTestWorkspace();
     await writeFile(
-      path.join(workspace, "wiki/references/alpha-source.md"),
-      "---\ntype: Reference\ntitle: Alpha Source\ntags: [alpha]\n---\n# Alpha Source\n",
+      path.join(workspace, "wiki/references/alpha-priority.md"),
+      "---\ntype: Reference\ntitle: Alpha Priority\ntags: [alpha]\n---\n# Alpha Priority\n",
+      "utf8",
+    );
+    await writeFile(
+      path.join(workspace, "wiki/topics/alpha-reference.md"),
+      "---\ntype: Reference\ntitle: Alpha Priority\ntags: [alpha, priority]\n---\n# Alpha Priority\n",
       "utf8",
     );
     for (const index of Array.from({ length: 6 }, (_, value) => value + 1)) {
@@ -20,7 +25,7 @@ describe("@okf-harness/cli ingest", () => {
         "utf8",
       );
     }
-    const sourcePath = path.join(root, "alpha-source.md");
+    const sourcePath = path.join(root, "alpha-priority.md");
     await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
     const added = await addSource(workspace, sourcePath);
 
@@ -38,7 +43,7 @@ describe("@okf-harness/cli ingest", () => {
             id: added.result.data.source.id,
             path: added.result.data.source.path,
           },
-          recommendedReferencePath: "wiki/references/alpha-source.md",
+          recommendedReferencePath: "wiki/references/alpha-priority.md",
           nextStep: expect.stringContaining("Read"),
           checklist: expect.arrayContaining([
             expect.stringContaining("Read the full registered source"),
@@ -63,6 +68,11 @@ describe("@okf-harness/cli ingest", () => {
     expect(
       plan.result.data.candidateConcepts.every((concept: { path: string }) =>
         concept.path.startsWith("wiki/topics/"),
+      ),
+    ).toBe(true);
+    expect(
+      plan.result.data.candidateConcepts.every(
+        (concept: { type: string }) => concept.type !== "Reference",
       ),
     ).toBe(true);
     expect(plan.result.data.candidateConcepts[0]).not.toHaveProperty("score");
@@ -109,6 +119,23 @@ describe("@okf-harness/cli ingest", () => {
         reason: expect.stringContaining("metadata-derived topic path already exists"),
       }),
     ]);
+    expect(plan.result.data).not.toHaveProperty("suggestedNewConcept");
+  });
+
+  it("does not suggest a duplicate new concept when the suggested path already exists", async () => {
+    const { root, workspace } = await initTestWorkspace();
+    await writeFile(
+      path.join(workspace, "wiki/topics/quantum-notes.md"),
+      "# Quantum Notes\n",
+      "utf8",
+    );
+    const sourcePath = path.join(root, "quantum-notes.md");
+    await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
+    const added = await addSource(workspace, sourcePath);
+
+    const plan = await planIngest(workspace, added.result.data.source.id);
+
+    expect(plan.result.data.candidateConcepts).toEqual([]);
     expect(plan.result.data).not.toHaveProperty("suggestedNewConcept");
   });
 });
