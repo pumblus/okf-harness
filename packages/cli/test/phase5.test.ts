@@ -33,7 +33,7 @@ describe("@okf-harness/cli answer workflow", () => {
             },
           },
           next: [
-            "Ask your agent to run the first-answer check from the synthesized wiki evidence.",
+            "Ask your agent to answer these questions from synthesized wiki evidence: what is the source mainly about, what are its key conclusions, and where does the evidence come from?",
           ],
         },
       });

@@ -130,9 +130,10 @@ describe("@okf-harness/agent-pack", () => {
     expect(fileContents(codex.files, referencePaths[1])).toContain(
       "None. If the user asks to fix findings, treat it as a combined request",
     );
-    expect(fileContents(codex.files, referencePaths[2])).toContain(
-      "If registration or planning fails, stop before wiki edits",
-    );
+    const ingestReference = fileContents(codex.files, referencePaths[2]);
+    expect(ingestReference).toContain("If registration or planning fails, stop before wiki edits");
+    expect(ingestReference).toContain("This limit is agent-enforced guidance");
+    expect(ingestReference).not.toContain("v0.3.2");
     expect(fileContents(codex.files, referencePaths[3])).toContain("No such command exists");
     expect(fileContents(codex.files, referencePaths[3])).toContain(
       'okfh evidence "<question>" --workspace <workspace> --json',

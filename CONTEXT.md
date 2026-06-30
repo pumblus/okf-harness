@@ -29,7 +29,7 @@ The first successful product journey where a person gets from a new or selected 
 _Avoid_: onboarding completion, first install, empty setup, auto-ingest, web crawl
 
 **First-answer check**:
-A short default question set used to prove the first useful loop after local source material is synthesized. It asks one sentence each for what the source is about, its key conclusions, and where the evidence comes from.
+A short default question set used to prove the first useful loop after local source material is synthesized. It asks one sentence each for what the source is about, its key conclusions, and where the evidence comes from; user-facing next-step prompts should spell out those questions instead of relying on the term alone.
 _Avoid_: full summary, report, benchmark question, broad review
 
 **First-loop blocker**:
@@ -161,7 +161,7 @@ The plain-language outcome of a workspace check: Ready, Needs attention, or Bloc
 _Avoid_: exit code, lint severity, raw issue list
 
 **Workspace next step**:
-A person-facing concrete next action OKF Harness reports for a workspace's current state, especially to help a person continue the first useful loop. It is based on local, deterministic workspace facts such as check status, registered sources, and synthesized wiki content; it gives agents an actionable handoff too, but the primary reader is a non-technical person, not a script or developer.
+A person-facing concrete next action OKF Harness reports for a workspace's current state, especially to help a person continue the first useful loop. It is based on local, deterministic workspace facts such as check status, registered sources, and synthesized wiki content, and should be phrased so the person can hand it to their agent as the next request.
 _Avoid_: state machine, onboarding progress, auto-fix, task list, semantic score
 
 **Harness priority**:

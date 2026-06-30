@@ -17,13 +17,14 @@ const NEXT_FIX_OKF_CONFORMANCE =
   "Ask your agent to fix OKF conformance before answering from this workspace.";
 const NEXT_HANDLE_CHECK_FINDINGS =
   "Ask your agent to handle the check findings before answering from this workspace.";
-const NEXT_ADD_LOCAL_SOURCE = "Ask your agent to add one local source file to this workspace.";
+const NEXT_ADD_LOCAL_SOURCE =
+  "Ask your agent to add one local source file, such as a PDF or Markdown note, to this workspace.";
 const NEXT_REPLACE_URL_POINTERS =
-  "URL sources are pointers only; ask your agent to add a local file or save the webpage content as a file.";
+  "Ask your agent to add a local source file or save the webpage content as a file; URL sources are pointers only.";
 const NEXT_UPDATE_WIKI =
-  "Ask your agent to update the wiki with citations from the local source, then run check.";
+  "Ask your agent to update the wiki with citations from the registered local source.";
 const NEXT_FIRST_ANSWER_CHECK =
-  "Ask your agent to run the first-answer check from the synthesized wiki evidence.";
+  "Ask your agent to answer these questions from synthesized wiki evidence: what is the source mainly about, what are its key conclusions, and where does the evidence come from?";
 
 export function registerWorkspaceCommands(
   program: Command,

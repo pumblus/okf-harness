@@ -23,7 +23,7 @@ okfh check --workspace <workspace> --json
 - `okfh source add` may register the source and write harness-managed source records.
 - Manual edits are limited to relevant wiki reference, topic, index, or log files.
 - Never edit `raw/sources/`; register corrected material as a new source.
-- If the planned or actual wiki edit would exceed `max_files_changed_per_ingest` from `okfh.config.yaml`, stop and ask the user before editing more files. In v0.3.2 this limit is agent-enforced guidance; the CLI does not enforce it yet.
+- If the planned or actual wiki edit would exceed `max_files_changed_per_ingest` from `okfh.config.yaml`, stop and ask the user before editing more files. This limit is agent-enforced guidance; the CLI does not enforce it yet.
 
 ## Completion Condition
 
