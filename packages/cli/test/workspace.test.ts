@@ -3,6 +3,21 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
+import { runJsonCli } from "./helpers.js";
+
+const NEXT_INITIALIZE_WORKSPACE =
+  "Ask your agent to initialize this folder as an OKF Harness workspace before continuing.";
+const NEXT_FIX_OKF_CONFORMANCE =
+  "Ask your agent to fix OKF conformance before answering from this workspace.";
+const NEXT_HANDLE_CHECK_FINDINGS =
+  "Ask your agent to handle the check findings before answering from this workspace.";
+const NEXT_ADD_LOCAL_SOURCE = "Ask your agent to add one local source file to this workspace.";
+const NEXT_REPLACE_URL_POINTERS =
+  "URL sources are pointers only; ask your agent to add a local file or save the webpage content as a file.";
+const NEXT_UPDATE_WIKI =
+  "Ask your agent to update the wiki with citations from the local source, then run check.";
+const NEXT_FIRST_ANSWER_CHECK =
+  "Ask your agent to run the first-answer check from the synthesized wiki evidence.";
 
 describe("@okf-harness/cli workspace", () => {
   it("reports workspace status as JSON", async () => {
@@ -54,6 +69,7 @@ describe("@okf-harness/cli workspace", () => {
         },
       },
       warnings: [],
+      next: [NEXT_ADD_LOCAL_SOURCE],
     });
   });
 
@@ -116,6 +132,7 @@ describe("@okf-harness/cli workspace", () => {
           okfVersion: "0.1",
         },
       },
+      next: [NEXT_HANDLE_CHECK_FINDINGS],
     });
     expect(result.data).not.toHaveProperty("okfConformance");
     expect(result.data).not.toHaveProperty("harnessLint");
@@ -177,7 +194,89 @@ describe("@okf-harness/cli workspace", () => {
         },
       },
       warnings: [],
+      next: [NEXT_ADD_LOCAL_SOURCE],
     });
+  });
+
+  it("returns the same next step for URL-only sources", async () => {
+    const { workspace } = await initWorkspace();
+    await runJsonCli([
+      "node",
+      "okfh",
+      "source",
+      "add",
+      "https://example.com/research/article",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+
+    await expectStatusAndCheckNext(workspace, NEXT_REPLACE_URL_POINTERS);
+  });
+
+  it("returns the same next step for local sources without concept documents", async () => {
+    const { root, workspace } = await initWorkspace();
+    const sourcePath = path.join(root, "paper.md");
+    await writeFile(sourcePath, "# Paper\n\nOriginal.\n", "utf8");
+    await runJsonCli([
+      "node",
+      "okfh",
+      "source",
+      "add",
+      sourcePath,
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+
+    await expectStatusAndCheckNext(workspace, NEXT_UPDATE_WIKI);
+  });
+
+  it("returns the same next step for ready workspaces with local sources and concepts", async () => {
+    await expectStatusAndCheckNext(
+      path.resolve("examples/ai-research-workspace"),
+      NEXT_FIRST_ANSWER_CHECK,
+    );
+  });
+
+  it("renders the status next step in human output", async () => {
+    const { workspace } = await initWorkspace();
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(["node", "okfh", "status", "--workspace", workspace], {
+      writeOut: (chunk) => {
+        stdout += chunk;
+      },
+      writeErr: (chunk) => {
+        stderr += chunk;
+      },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe("");
+    expect(stdout).toBe(`OK status\nNext: ${NEXT_ADD_LOCAL_SOURCE}\n`);
+  });
+
+  it("keeps failed status human output aligned with the exit code", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "not-a-workspace");
+    await mkdir(workspace);
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(["node", "okfh", "status", "--workspace", workspace], {
+      writeOut: (chunk) => {
+        stdout += chunk;
+      },
+      writeErr: (chunk) => {
+        stderr += chunk;
+      },
+    });
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toBe("");
+    expect(stdout).toBe(`FAILED status\nNext: ${NEXT_INITIALIZE_WORKSPACE}\n`);
   });
 
   it("renders concise human check output", async () => {
@@ -219,6 +318,7 @@ describe("@okf-harness/cli workspace", () => {
     expect(stdout).toContain("OKF version: 0.1");
     expect(stdout).toContain("OKF conformance: pass");
     expect(stdout).toContain("Harness lint: pass");
+    expect(stdout).toContain(`Next: ${NEXT_ADD_LOCAL_SOURCE}`);
   });
 
   it("keeps needs-attention checks successful for scripts", async () => {
@@ -281,6 +381,7 @@ describe("@okf-harness/cli workspace", () => {
           },
         },
       },
+      next: [NEXT_HANDLE_CHECK_FINDINGS],
     });
   });
 
@@ -309,6 +410,7 @@ describe("@okf-harness/cli workspace", () => {
     let stdout = "";
     let stderr = "";
 
+    const status = await runJsonCli(["node", "okfh", "status", "--workspace", workspace, "--json"]);
     const exitCode = await runCli(["node", "okfh", "check", "--workspace", workspace, "--json"], {
       writeOut: (chunk) => {
         stdout += chunk;
@@ -318,6 +420,15 @@ describe("@okf-harness/cli workspace", () => {
       },
     });
 
+    expect(status).toMatchObject({
+      exitCode: 1,
+      stderr: "",
+      result: {
+        ok: false,
+        command: "status",
+        next: [NEXT_FIX_OKF_CONFORMANCE],
+      },
+    });
     expect(exitCode).toBe(1);
     expect(stderr).toBe("");
     expect(JSON.parse(stdout)).toMatchObject({
@@ -330,6 +441,7 @@ describe("@okf-harness/cli workspace", () => {
           findings: [expect.objectContaining({ code: "LOG_INVALID_DATE_HEADING" })],
         },
       },
+      next: [NEXT_FIX_OKF_CONFORMANCE],
     });
   });
 
@@ -408,6 +520,75 @@ describe("@okf-harness/cli workspace", () => {
       error: {
         code: "WORKSPACE_NOT_INITIALIZED",
       },
+      next: [NEXT_INITIALIZE_WORKSPACE],
+    });
+  });
+
+  it("returns an initialization next step for uninitialized status JSON", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "not-a-workspace");
+    await mkdir(workspace);
+
+    const status = await runJsonCli(["node", "okfh", "status", "--workspace", workspace, "--json"]);
+
+    expect(status).toMatchObject({
+      exitCode: 1,
+      stderr: "",
+      result: {
+        ok: false,
+        command: "status",
+        workspace,
+        data: {
+          initialized: false,
+        },
+        next: [NEXT_INITIALIZE_WORKSPACE],
+      },
     });
   });
 });
+
+async function initWorkspace(): Promise<{ root: string; workspace: string }> {
+  const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+  const workspace = path.join(root, "ai-research");
+  await runCli(
+    [
+      "node",
+      "okfh",
+      "init",
+      workspace,
+      "--name",
+      "AI Research",
+      "--agents",
+      "none",
+      "--git",
+      "--json",
+    ],
+    {
+      writeOut: () => {},
+      writeErr: () => {},
+    },
+  );
+  return { root, workspace };
+}
+
+async function expectStatusAndCheckNext(workspace: string, expectedNext: string): Promise<void> {
+  const status = await runJsonCli(["node", "okfh", "status", "--workspace", workspace, "--json"]);
+  const check = await runJsonCli(["node", "okfh", "check", "--workspace", workspace, "--json"]);
+
+  expect(status).toMatchObject({
+    exitCode: 0,
+    stderr: "",
+    result: {
+      ok: true,
+      next: [expectedNext],
+    },
+  });
+  expect(check).toMatchObject({
+    exitCode: 0,
+    stderr: "",
+    result: {
+      ok: true,
+      next: [expectedNext],
+    },
+  });
+}

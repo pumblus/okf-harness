@@ -1,8 +1,29 @@
-import { checkLintResult, readWorkspaceStatus, resolveWorkspaceRoot } from "@okf-harness/core";
+import {
+  type CheckResult,
+  checkLintResult,
+  listSources,
+  readWorkspaceStatus,
+  resolveWorkspaceRoot,
+  type WorkspaceStatus,
+} from "@okf-harness/core";
 import type { Command } from "commander";
 import { writeValidationError } from "../errors/index.js";
 import { writeResult } from "../render/result.js";
 import type { CliIo, JsonEnvelope } from "../types.js";
+
+const NEXT_INITIALIZE_WORKSPACE =
+  "Ask your agent to initialize this folder as an OKF Harness workspace before continuing.";
+const NEXT_FIX_OKF_CONFORMANCE =
+  "Ask your agent to fix OKF conformance before answering from this workspace.";
+const NEXT_HANDLE_CHECK_FINDINGS =
+  "Ask your agent to handle the check findings before answering from this workspace.";
+const NEXT_ADD_LOCAL_SOURCE = "Ask your agent to add one local source file to this workspace.";
+const NEXT_REPLACE_URL_POINTERS =
+  "URL sources are pointers only; ask your agent to add a local file or save the webpage content as a file.";
+const NEXT_UPDATE_WIKI =
+  "Ask your agent to update the wiki with citations from the local source, then run check.";
+const NEXT_FIRST_ANSWER_CHECK =
+  "Ask your agent to run the first-answer check from the synthesized wiki evidence.";
 
 export function registerWorkspaceCommands(
   program: Command,
@@ -41,9 +62,7 @@ export function registerWorkspaceCommands(
           },
         },
         warnings: result.warnings,
-        next: result.initialized
-          ? ["Use okfh evidence to answer from bounded synthesized wiki evidence."]
-          : [],
+        next: [await workspaceNextStep(result, check)],
       };
 
       writeResult(io, envelope, options.json);
@@ -66,7 +85,7 @@ export function registerWorkspaceCommands(
           code: "WORKSPACE_NOT_INITIALIZED",
           message: "Workspace is not initialized. Run okfh init first.",
           workspace: workspaceStatus.workspaceRoot,
-          next: ["Run okfh init <workspace> --name <name> --agents <agent> --json first."],
+          next: [NEXT_INITIALIZE_WORKSPACE],
           json: options.json === true,
         });
         setExitCode(1);
@@ -80,9 +99,7 @@ export function registerWorkspaceCommands(
         workspace: workspaceRoot,
         data: check,
         warnings: [],
-        next: blocked
-          ? ["Fix OKF conformance findings, then rerun okfh check --workspace <path> --json."]
-          : [],
+        next: [await workspaceNextStep(workspaceStatus, check)],
       };
 
       writeResult(io, envelope, options.json);
@@ -113,4 +130,36 @@ export function registerWorkspaceCommands(
       writeResult(io, envelope, options.json);
       setExitCode(1);
     });
+}
+
+async function workspaceNextStep(
+  workspaceStatus: WorkspaceStatus,
+  check: CheckResult,
+): Promise<string> {
+  if (!workspaceStatus.initialized) {
+    return NEXT_INITIALIZE_WORKSPACE;
+  }
+
+  if (check.status === "blocked") {
+    return NEXT_FIX_OKF_CONFORMANCE;
+  }
+
+  if (check.status === "needs_attention") {
+    return NEXT_HANDLE_CHECK_FINDINGS;
+  }
+
+  const sources = (await listSources({ workspaceRoot: workspaceStatus.workspaceRoot })).sources;
+  if (sources.length === 0) {
+    return NEXT_ADD_LOCAL_SOURCE;
+  }
+
+  if (!sources.some((source) => source.kind === "file")) {
+    return NEXT_REPLACE_URL_POINTERS;
+  }
+
+  if (workspaceStatus.concepts === 0) {
+    return NEXT_UPDATE_WIKI;
+  }
+
+  return NEXT_FIRST_ANSWER_CHECK;
 }

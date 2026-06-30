@@ -32,7 +32,9 @@ describe("@okf-harness/cli answer workflow", () => {
               graph: "available",
             },
           },
-          next: ["Use okfh evidence to answer from bounded synthesized wiki evidence."],
+          next: [
+            "Ask your agent to run the first-answer check from the synthesized wiki evidence.",
+          ],
         },
       });
       const resolvedWorkspace = String(status.result.workspace);

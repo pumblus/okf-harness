@@ -39,7 +39,13 @@ function renderHumanResult(envelope: JsonEnvelope): string {
         );
       }
     }
-    return `${rows.join("\n")}\n`;
+    const next = envelope.next[0];
+    return `${rows.join("\n")}\n${next === undefined ? "" : `Next: ${next}\n`}`;
+  }
+
+  if (envelope.command === "status") {
+    const next = envelope.next[0];
+    return `${envelope.ok ? "OK" : "FAILED"} status\n${next === undefined ? "" : `Next: ${next}\n`}`;
   }
 
   if (envelope.command === "search") {

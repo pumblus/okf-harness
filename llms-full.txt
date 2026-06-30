@@ -404,6 +404,10 @@ _Avoid_: lint command, formatter, developer-only validation
 The plain-language outcome of a workspace check: Ready, Needs attention, or Blocked. Blocked is reserved for OKF conformance hard failures; serious Harness lint findings should be surfaced as Needs attention unless they also make the OKF bundle non-conformant.
 _Avoid_: exit code, lint severity, raw issue list
 
+**Workspace next step**:
+A person-facing concrete next action OKF Harness reports for a workspace's current state, especially to help a person continue the first useful loop. It is based on local, deterministic workspace facts such as check status, registered sources, and synthesized wiki content; it gives agents an actionable handoff too, but the primary reader is a non-technical person, not a script or developer.
+_Avoid_: state machine, onboarding progress, auto-fix, task list, semantic score
+
 **Harness priority**:
 The priority assigned to Harness lint findings inside a workspace check. High priority covers evidence integrity problems such as source drift, missing registered sources, or reference documents that cannot be tied to source records; medium priority covers maintenance gaps such as ordinary missing citations or missing index entries; low priority covers tolerated navigation or cleanup issues such as broken links.
 _Avoid_: check status, OKF conformance severity, raw issue code
