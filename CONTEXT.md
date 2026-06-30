@@ -180,6 +180,10 @@ _Avoid_: import, upload, summarize, auto-ingest
 A deterministic work plan that tells an agent how a raw source may relate to existing concept documents before synthesis begins. It is guidance for agent work, not source reading, a complete search result, or an automatic wiki rewrite.
 _Avoid_: search result, summary, source digest, auto-ingest output
 
+**Suggested new concept**:
+A proposed concept document named by an ingest plan from source metadata when registered source material does not clearly match an existing concept. It is a prompt for agent or user confirmation, not a file created by the CLI or a claim of source understanding.
+_Avoid_: auto-created concept, generated wiki page, semantic extraction
+
 **Query**:
 A user intent to get an answer from an OKF bundle by finding and reading relevant concept documents, then following cited reference documents when factual precision matters. Query is not an OKF Harness command or internal workflow, and it is not a raw-source discovery pass; registered source material that has not been synthesized into concept documents remains outside normal answers.
 _Avoid_: query command, agent workflow, raw-source search, RAG, auto-ingest
@@ -205,8 +209,8 @@ A selected, bounded wiki excerpt included in an evidence brief with provenance a
 _Avoid_: answer excerpt, confidence item, generated summary
 
 **Candidate concept**:
-A concept document surfaced as possibly relevant before its content is selected as evidence. A candidate concept can guide follow-up reads, but it is not itself evidence for an answer.
-_Avoid_: evidence item, answer excerpt, selected proof
+A concept document surfaced as possibly relevant before its content is selected as evidence or updated during ingest. In ingest planning, candidate concepts are existing content pages that may be affected by a source, not reference documents.
+_Avoid_: evidence item, answer excerpt, selected proof, reference document
 
 **Search result**:
 A candidate concept list that helps an agent decide which full concept documents to read. It may describe matched fields and hit counts, but it is not final evidence for an answer and should not be treated as a snippet-based search engine page.
