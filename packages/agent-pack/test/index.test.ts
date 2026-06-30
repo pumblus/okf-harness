@@ -64,6 +64,16 @@ describe("@okf-harness/agent-pack", () => {
     }
   });
 
+  it("checks supported adapters through shared render contracts", () => {
+    for (const adapter of agentAdapters) {
+      expectWorkspaceAdapterContract(adapter);
+    }
+
+    for (const agent of bootstrapAgents) {
+      expectBootstrapAgentContract(agent);
+    }
+  });
+
   it("renders discoverable layered skills and root guidance for Claude and Codex", () => {
     const claude = renderAgentAdapter({ adapter: "claude" });
     const codex = renderAgentAdapter({ adapter: "codex" });
@@ -598,6 +608,77 @@ function fileContents(files: Array<{ path: string; contents: string }>, path: st
     throw new Error(`Missing rendered file: ${path}`);
   }
   return file.contents;
+}
+
+function expectWorkspaceAdapterContract(adapter: (typeof agentAdapters)[number]): void {
+  const profile = adapterProfiles[adapter];
+  const rendered = renderAgentAdapter({ adapter });
+  const paths = new Set(rendered.files.map((file) => file.path));
+  const skillPath = `${profile.skillRoot}/${skillName}/SKILL.md`;
+
+  expect(rendered.adapter).toBe(adapter);
+  expect(paths.has(profile.rootGuidancePath)).toBe(true);
+  const rootGuidance = fileContents(rendered.files, profile.rootGuidancePath);
+  expect(rootGuidance).toContain("<!-- OKF Harness: start -->");
+  expect(rootGuidance).toContain("<!-- OKF Harness: end -->");
+  expect(rootGuidance).toContain(`${profile.routePrefix}${skillName}`);
+  expect(rootGuidance).toContain("okfh --json");
+
+  expect(paths.has(skillPath)).toBe(true);
+  const skill = fileContents(rendered.files, skillPath);
+  expect(skill).toContain(`name: ${skillName}`);
+  expect(skill).toMatch(/^description: .+Use when .+Do not use .+$/m);
+  expect(skill).toContain('okf-harness-managed: "true"');
+  expect(skill).toContain('okf-harness-entrypoint: "workspace"');
+
+  for (const templatePath of referenceTemplatePaths) {
+    const referencePath = `${profile.skillRoot}/${skillName}/references/${templatePath}`;
+    expect(paths.has(referencePath)).toBe(true);
+    expect(skill).toContain(`references/${templatePath}`);
+    const reference = fileContents(rendered.files, referencePath);
+    expect(reference).toContain("## Intent");
+    expect(reference).toContain("## Preconditions");
+    expect(reference).toContain("## Allowed Commands");
+    expect(reference).toContain("## Allowed Writes");
+    expect(reference).toContain("## Completion Condition");
+  }
+}
+
+function expectBootstrapAgentContract(agent: (typeof bootstrapAgents)[number]): void {
+  const profile = bootstrapAgentProfiles[agent];
+  const rendered = renderBootstrapAgent({ agent });
+  const paths = new Set(rendered.files.map((file) => file.path));
+  const skillPath = `skills/${bootstrapSkillName}/SKILL.md`;
+
+  expect(rendered.agent).toBe(agent);
+  expect(paths.has(skillPath)).toBe(true);
+  const skill = fileContents(rendered.files, skillPath);
+  expect(skill).toContain(`name: ${bootstrapSkillName}`);
+  expect(skill).toMatch(/^description: .+Use when .+Do not use .+$/m);
+  expect(skill).toContain(profile.label);
+  expect(skill).toContain('okf-harness-managed: "true"');
+  expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
+  expect(skill).toContain(`okf-harness-agent: "${agent}"`);
+
+  for (const templatePath of bootstrapReferenceTemplatePaths) {
+    const referencePath = `skills/${bootstrapSkillName}/references/${templatePath}`;
+    expect(paths.has(referencePath)).toBe(true);
+    expect(skill).toContain(`references/${templatePath}`);
+    const reference = fileContents(rendered.files, referencePath);
+    expect(reference).toContain("## Intent");
+    expect(reference).toContain("## Preconditions");
+    expect(reference).toContain("## Allowed Commands");
+    expect(reference).toContain("## Allowed Writes");
+    expect(reference).toContain("## Completion Condition");
+  }
+
+  const setup = fileContents(rendered.files, `skills/${bootstrapSkillName}/references/setup.md`);
+  const repair = fileContents(rendered.files, `skills/${bootstrapSkillName}/references/repair.md`);
+  expect(setup).toContain(`${profile.routePrefix}${skillName}`);
+  expect(setup).toContain(`--agents ${agent}`);
+  expect(setup).not.toContain("--agents all");
+  expect(repair).toContain(`okfh agent install ${agent} --workspace <workspace> --json`);
+  expect(repair).toContain(`${profile.routePrefix}${skillName}`);
 }
 
 function skillPaths(files: Array<{ path: string }>, root: string): string[] {
