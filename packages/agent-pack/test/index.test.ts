@@ -9,6 +9,16 @@ import {
   renderAgentAdapter,
   renderBootstrapAgent,
 } from "../src/index.js";
+import {
+  adapterProfiles,
+  agentAdapters,
+  bootstrapAgentProfiles,
+  bootstrapAgents,
+  bootstrapReferenceTemplatePaths,
+  bootstrapSkillName,
+  referenceTemplatePaths,
+  skillName,
+} from "../src/profiles.js";
 
 describe("@okf-harness/agent-pack", () => {
   it("exposes package metadata", () => {
@@ -16,6 +26,42 @@ describe("@okf-harness/agent-pack", () => {
       name: "@okf-harness/agent-pack",
       role: "agent-pack",
     });
+  });
+
+  it("keeps adapter and bootstrap profile contracts inspectable", () => {
+    expect(agentAdapters).toEqual(["claude", "codex"]);
+    expect(bootstrapAgents).toEqual(["codex", "claude"]);
+
+    for (const adapter of agentAdapters) {
+      const profile = adapterProfiles[adapter];
+      const rendered = renderAgentAdapter({ adapter });
+      expect(rendered.files.map((file) => file.path)).toEqual([
+        profile.rootGuidancePath,
+        `${profile.skillRoot}/${skillName}/SKILL.md`,
+        ...referenceTemplatePaths.map(
+          (templatePath) => `${profile.skillRoot}/${skillName}/references/${templatePath}`,
+        ),
+      ]);
+      expect(fileContents(rendered.files, profile.rootGuidancePath)).toContain(
+        `${profile.routePrefix}${skillName}`,
+      );
+    }
+
+    for (const agent of bootstrapAgents) {
+      const profile = bootstrapAgentProfiles[agent];
+      const rendered = renderBootstrapAgent({ agent });
+      expect(rendered.files.map((file) => file.path)).toEqual([
+        `skills/${bootstrapSkillName}/SKILL.md`,
+        ...bootstrapReferenceTemplatePaths.map(
+          (templatePath) => `skills/${bootstrapSkillName}/references/${templatePath}`,
+        ),
+      ]);
+      expect(fileContents(rendered.files, `skills/${bootstrapSkillName}/SKILL.md`)).toContain(
+        `okf-harness-agent: "${agent}"`,
+      );
+      expect(profile.command).toBe(agent);
+      expect(profile.description).toContain(profile.label);
+    }
   });
 
   it("renders discoverable layered skills and root guidance for Claude and Codex", () => {

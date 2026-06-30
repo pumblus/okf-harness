@@ -12,6 +12,19 @@ import {
 } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import type { AgentAdapter, BootstrapAgent } from "./profiles.js";
+import {
+  adapterProfiles,
+  agentAdapters,
+  bootstrapAgentProfiles,
+  bootstrapAgents,
+  bootstrapReferenceTemplatePaths,
+  bootstrapSkillName,
+  oldWorkflowSkillNames,
+  referenceTemplatePaths,
+  skillDescription,
+  skillName,
+} from "./profiles.js";
 
 export const packageInfo = {
   name: "@okf-harness/agent-pack",
@@ -20,10 +33,9 @@ export const packageInfo = {
 
 export type PackageInfo = typeof packageInfo;
 
-export type AgentAdapter = "claude" | "codex";
 export type AgentInstallTarget = AgentAdapter | "all";
-export type BootstrapAgent = "claude" | "codex";
-export const supportedBootstrapAgents: BootstrapAgent[] = ["codex", "claude"];
+export type { AgentAdapter, BootstrapAgent } from "./profiles.js";
+export const supportedBootstrapAgents: BootstrapAgent[] = [...bootstrapAgents];
 
 export type RenderedAgentFile = {
   path: string;
@@ -162,77 +174,6 @@ const packageVersion = JSON.parse(
 ) as { version: string };
 const managedBlockStart = "<!-- OKF Harness: start -->";
 const managedBlockEnd = "<!-- OKF Harness: end -->";
-const skillName = "okf-harness";
-const bootstrapSkillName = "okf-harness-bootstrap";
-const skillDescription =
-  "One Door workflow for OKF Harness workspaces. Use when the user asks to set up, check, ingest into, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, ordinary repository maintenance, knowledge-base tasks outside an OKF Harness workspace, repository dependency graphs, old workflow-specific skill names, or an `okfh query` command.";
-const referenceTemplatePaths = ["setup.md", "check.md", "ingest.md", "answer.md", "graph.md"];
-const bootstrapReferenceTemplatePaths = ["setup.md", "discovery.md", "repair.md"];
-const bootstrapAgentProfiles: Record<
-  BootstrapAgent,
-  {
-    command: string;
-    label: string;
-    routePrefix: string;
-    targetDirectoryEnv?: string;
-    targetDirectory: string;
-    stateDirectoryEnv: string;
-    stateDirectory: string;
-    sessionName: string;
-    compatibility: string;
-    description: string;
-  }
-> = {
-  codex: {
-    command: "codex",
-    label: "Codex",
-    routePrefix: "$",
-    targetDirectory: ".agents",
-    stateDirectoryEnv: "CODEX_HOME",
-    stateDirectory: ".codex",
-    sessionName: "Codex thread",
-    compatibility: "Designed for Codex with local shell command access. Requires the okfh CLI.",
-    description:
-      "Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Codex. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.",
-  },
-  claude: {
-    command: "claude",
-    label: "Claude Code",
-    routePrefix: "/",
-    targetDirectoryEnv: "CLAUDE_CONFIG_DIR",
-    targetDirectory: ".claude",
-    stateDirectoryEnv: "CLAUDE_CONFIG_DIR",
-    stateDirectory: ".claude",
-    sessionName: "Claude Code session",
-    compatibility:
-      "Designed for Claude Code with local shell command access. Requires the okfh CLI.",
-    description:
-      "Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Claude Code. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.",
-  },
-};
-const adapterProfiles: Record<
-  AgentAdapter,
-  {
-    rootGuidancePath: string;
-    routePrefix: string;
-    routeLabel: string;
-    skillRoot: string;
-  }
-> = {
-  claude: {
-    rootGuidancePath: "CLAUDE.md",
-    routePrefix: "/",
-    routeLabel: "Use the project skills for user-facing workflows:",
-    skillRoot: ".claude/skills",
-  },
-  codex: {
-    rootGuidancePath: "AGENTS.md",
-    routePrefix: "$",
-    routeLabel: "Use repo skills for workflows:",
-    skillRoot: ".agents/skills",
-  },
-};
-const allAdapters = Object.keys(adapterProfiles) as AgentAdapter[];
 
 export function renderAgentAdapter(options: RenderAgentAdapterOptions): RenderedAgentAdapter {
   const version = options.version ?? packageVersion.version;
@@ -545,13 +486,6 @@ async function planAgentAdapterWrites(
   }
 }
 
-const oldWorkflowSkillNames = [
-  "okf-harness-init",
-  "okf-harness-ingest",
-  "okf-harness-query",
-  "okf-harness-maintain",
-] as const;
-
 async function planOldWorkflowSkillCleanup(
   workspaceRoot: string,
   adapter: AgentAdapter,
@@ -606,11 +540,11 @@ ${managedBlockEnd}
 }
 
 function adaptersForTarget(target: AgentInstallTarget): AgentAdapter[] {
-  return target === "all" ? [...allAdapters] : [target];
+  return target === "all" ? [...agentAdapters] : [target];
 }
 
 function isRootGuidancePath(filePath: string): boolean {
-  return allAdapters.some((adapter) => adapterProfiles[adapter].rootGuidancePath === filePath);
+  return agentAdapters.some((adapter) => adapterProfiles[adapter].rootGuidancePath === filePath);
 }
 
 async function planRootGuidanceWrite(
