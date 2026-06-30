@@ -95,6 +95,8 @@ A first useful loop starts with local source material. Register a local file, le
 
 URL sources stay as source pointers. OKF Harness records the URL, but does not fetch webpage contents automatically.
 
+`okfh status` and `okfh check` can return a Workspace next step in JSON `next`, and human-readable output can show it as `Next: ...`. Treat that line as the next prompt for your agent in this loop: add one local source file, save webpage content as a local file instead of relying on a URL pointer, update the wiki with citations, handle check findings, or run the first-answer check. The CLI reports the step; it does not fetch pages, repair findings, score content quality, or synthesize wiki pages for you.
+
 ## Ask A Question
 
 Codex:

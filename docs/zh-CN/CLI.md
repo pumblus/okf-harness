@@ -58,6 +58,8 @@ npx --package @okf-harness/cli okfh doctor --json
 
 失败时使用同样的格式，`ok` 为 `false`，并附带 `error` 对象。智能体（Agent）指引应依赖这个 JSON 约定，而不是解析人类可读的终端输出。
 
+对于工作区的 `status` 和 `check`，`next` 会在可用时报告一个最高优先级的工作区下一步（Workspace next step）。这是面向人的下一步指引，用来告诉你接下来该让智能体做什么；它不是新命令、机器状态码或菜单。
+
 ## 命令
 
 ### doctor
@@ -119,13 +121,13 @@ okfh bootstrap uninstall --agents codex --json
 
 ### status
 
-报告工作区初始化状态、Wiki 文件数量、概念数量、简要 check 状态和可用能力。
+报告工作区初始化状态、Wiki 文件数量、概念数量、简要 check 状态、可用能力，以及现有 `next` 字段中的工作区下一步。
 
 ```bash
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-当前 CLI 可用能力包括 `evidence`、`search`、`read` 和 `graph`。没有 `okfh query` 命令。
+人类可读输出中如果有下一步，`status` 会把第一条显示为 `Next: ...`。当前 CLI 可用能力包括 `evidence`、`search`、`read` 和 `graph`。没有 `okfh query` 命令。
 
 ### check
 
@@ -142,6 +144,8 @@ okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 - `blocked`：OKF 合规失败，工作区不是 OKF 可读取状态。
 
 JSON 响应会在 `data.okfVersion` 中报告 OKF version，目前固定为 `0.1`。OKF 合规结果放在 `data.okfConformance`，Harness lint 结果放在 `data.harnessLint`。
+
+`check` 使用与 `status` 相同的工作区下一步判断，并通过现有顶层 `next` 字段报告。人类可读输出中如果有下一步，`check` 会把第一条显示为 `Next: ...`。
 
 `ready` 和 `needs_attention` 的顶层 `ok` 为 `true`，退出码为 `0`。`blocked` 的顶层 `ok` 为 `false`，退出码非 `0`。
 

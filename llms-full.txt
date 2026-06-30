@@ -617,6 +617,8 @@ A first useful loop starts with local source material. Register a local file, le
 
 URL sources stay as source pointers. OKF Harness records the URL, but does not fetch webpage contents automatically.
 
+`okfh status` and `okfh check` can return a Workspace next step in JSON `next`, and human-readable output can show it as `Next: ...`. Treat that line as the next prompt for your agent in this loop: add one local source file, save webpage content as a local file instead of relying on a URL pointer, update the wiki with citations, handle check findings, or run the first-answer check. The CLI reports the step; it does not fetch pages, repair findings, score content quality, or synthesize wiki pages for you.
+
 #### Ask A Question
 
 Codex:
@@ -799,6 +801,8 @@ Commands that support `--json` return the same envelope:
 
 Failures use the same shape with `ok: false` and an `error` object. Agent guidance should rely on this JSON contract rather than parsing human terminal output.
 
+For workspace `status` and `check`, `next` reports the top-priority Workspace next step when one is available. This is person-facing guidance for what to ask the agent to do next, not a new command, machine-readable state code, or menu.
+
 #### Commands
 
 ##### doctor
@@ -860,13 +864,13 @@ Use `--agents codex`, `--agents claude`, or `--agents all`. `status` reports `mi
 
 ##### status
 
-Reports workspace initialization, wiki file count, concept count, concise check state, and available capabilities.
+Reports workspace initialization, wiki file count, concept count, concise check state, available capabilities, and a Workspace next step through the existing `next` field.
 
 ```bash
 okfh status --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-In the current CLI, `evidence`, `search`, `read`, and `graph` are available. There is no `okfh query` command.
+When human-readable output has a next step, `status` shows the first one as `Next: ...`. In the current CLI, `evidence`, `search`, `read`, and `graph` are available. There is no `okfh query` command.
 
 ##### check
 
@@ -883,6 +887,8 @@ okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 - `blocked`: OKF conformance fails and the workspace is not OKF-readable.
 
 The JSON response reports the OKF version as `data.okfVersion`, currently `0.1`. It keeps OKF conformance in `data.okfConformance` and Harness lint in `data.harnessLint`.
+
+`check` uses the same Workspace next-step decision as `status` and reports it through the existing top-level `next` field. When human-readable output has a next step, `check` shows the first one as `Next: ...`.
 
 `ready` and `needs_attention` return top-level `ok: true` and exit `0`. `blocked` returns top-level `ok: false` and exits non-zero.
 

@@ -95,6 +95,8 @@ okfh ingest plan <source-id-or-path> --workspace <workspace> --json
 
 URL 来源只作为来源指针保存。OKF Harness 会记录 URL，但不会自动抓取网页内容。
 
+`okfh status` 和 `okfh check` 可以在 JSON 的 `next` 中返回工作区下一步，人类可读输出也可以把它显示为 `Next: ...`。把这行当作这个闭环里给智能体的下一条提示：添加一份本地来源文件、把网页内容保存成本地文件而不是只依赖 URL 指针、带引用更新 Wiki、处理 check 发现的问题，或执行 first-answer check。CLI 只报告下一步；它不会抓取网页、自动修复问题、给内容质量打语义分，或替你整理 Wiki 页面。
+
 ## 提问
 
 Codex：
