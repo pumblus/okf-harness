@@ -1,0 +1,53 @@
+{
+  "name": "@okf-harness/setup",
+  "version": "0.5.5",
+  "description": "Universal setup planner for local OKF Harness agent integrations.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "author": "Eric Zhou",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pumblus/okf-harness.git",
+    "directory": "packages/setup"
+  },
+  "bugs": {
+    "url": "https://github.com/pumblus/okf-harness/issues"
+  },
+  "keywords": [
+    "okf",
+    "open-knowledge-format",
+    "agent-skills",
+    "setup",
+    "claude-code",
+    "codex",
+    "opencode",
+    "macos",
+    "windows",
+    "linux"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "okf-harness-setup": "dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts src/main.ts --format esm --dts --clean",
+    "prepublishOnly": "pnpm run build"
+  }
+}

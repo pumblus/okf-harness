@@ -12,6 +12,7 @@ const publishablePackages = [
   { name: "@okf-harness/core", dir: "packages/core" },
   { name: "@okf-harness/agent-pack", dir: "packages/agent-pack" },
   { name: "@okf-harness/cli", dir: "packages/cli" },
+  { name: "@okf-harness/setup", dir: "packages/setup" },
 ];
 
 if (isDirectRun(import.meta.url, process.argv[1])) {
@@ -104,6 +105,21 @@ async function main() {
       "claude",
     );
     console.log("postinstall bootstrap passed");
+
+    const setupPlan = await runInstalledPackageBin(
+      installDir,
+      "@okf-harness/setup",
+      "okf-harness-setup",
+      ["--dry-run"],
+      { env: { ...bootstrapEnv, PATH: "" } },
+    );
+    if (
+      !setupPlan.stdout.includes("OKF Harness Setup plan") ||
+      !setupPlan.stdout.includes("Dry run: no network checks or filesystem writes.")
+    ) {
+      throw new Error(`setup dry-run smoke failed: ${setupPlan.stdout}`);
+    }
+    console.log("setup dry-run plan passed");
 
     for (const binName of ["okfh", "okf-harness"]) {
       const result = await runInstalledBin(installDir, binName, ["doctor", "--json"], {
@@ -296,17 +312,23 @@ async function main() {
 }
 
 function runInstalledBin(installDir, binName, args, options = {}) {
-  return installedCliBinPath(installDir, binName).then((binPath) =>
+  return runInstalledPackageBin(installDir, "@okf-harness/cli", binName, args, options);
+}
+
+function runInstalledPackageBin(installDir, packageName, binName, args, options = {}) {
+  return installedPackageBinPath(installDir, packageName, binName, "dist/main.js").then((binPath) =>
     run(process.execPath, [binPath, ...args], { cwd: installDir, env: options.env }),
   );
 }
 
-async function installedCliBinPath(installDir, binName) {
-  const packageRoot = path.join(installDir, "node_modules", "@okf-harness", "cli");
+async function installedPackageBinPath(installDir, packageName, binName, expectedTarget) {
+  const packageRoot = path.join(installDir, "node_modules", ...packageName.split("/"));
   const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
   const binTarget = packageJson.bin?.[binName];
-  if (binTarget !== "dist/main.js") {
-    throw new Error(`Installed CLI bin ${binName} points to ${JSON.stringify(binTarget)}`);
+  if (binTarget !== expectedTarget) {
+    throw new Error(
+      `Installed ${packageName} bin ${binName} points to ${JSON.stringify(binTarget)}`,
+    );
   }
   return path.join(packageRoot, binTarget);
 }

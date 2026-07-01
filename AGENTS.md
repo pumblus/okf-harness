@@ -8,15 +8,15 @@
 - Product terminology: `CONTEXT.md`.
 - Architecture decisions: `docs/adr/`.
 - Public roadmap: `docs/ROADMAP.md` and `docs/zh-CN/ROADMAP.md`.
-- Current public scope: CLI doctor/init/status/check/source/ingest/search/evidence/read/graph/agent install/bootstrap, retired lint compatibility, Claude/Codex adapter rendering, docs, npm metadata, CI tarball smoke, and one small example workspace.
+- Current public scope: CLI doctor/init/status/check/source/ingest/search/evidence/read/graph/agent install/bootstrap, setup dry-run planning, retired lint compatibility, Claude/Codex adapter rendering, docs, npm metadata, CI tarball smoke, and one small example workspace.
 
 ## Project Boundaries
 
 - OKF Harness is agent-first, local-first, terminal-native, and open source.
 - Runtime target: Node.js 22+, TypeScript, ESM, pnpm.
-- Current public scope supports Claude Code and Codex first. Pi and OpenCode are roadmap work.
+- Current runtime adapter support is Claude Code and Codex first. v0.6 setup planning may list Claude Code, Codex, OpenCode, Pi, Hermes Agent, and OpenClaw before their native integrations are implemented.
 - Out of scope for the current public scope: Obsidian runtime code, GUI, cloud sync, accounts, team permissions, vector databases, background daemons, automatic web crawling, silent bulk wiki rewrites, and private agent runtime.
-- The root package stays private. Publish only the scoped core, agent-pack, and CLI packages.
+- The root package stays private. Publish only the scoped core, agent-pack, CLI, and setup packages.
 - The core package must not depend on CLI, Agent, or other higher-level packages.
 - The agent-pack package renders shared templates for Claude and Codex adapters; do not maintain divergent manual skill copies.
 - The cli package connects core and agent-pack behavior through `okfh --json`.
@@ -26,6 +26,7 @@
 - `packages/core`: OKF parsing, config, manifest, path safety, lint, search, graph, source handling.
 - `packages/cli`: `okfh` command line entrypoint and commands.
 - `packages/agent-pack`: Claude/Codex adapter renderers and shared skill templates.
+- `packages/setup`: Universal setup package and local Setup plan generation.
 - `packages/core/src/workspace/index.ts`: generated OKF Harness workspace skeleton and workspace plan until a durable template directory exists.
 - `packages/core/test/fixtures/valid-workspace`: fixture workspace and sample sources used by core and CLI tests.
 
@@ -38,6 +39,7 @@
 - Agent skill or reference changes must use the `writing-great-skills` skill before editing `packages/agent-pack/templates/okf-harness/` or generated skill guidance.
 - `packages/cli/src/index.ts` owns the terminal-native command registration and connects core with agent-pack. Keep CLI output compatible with `okfh --json` and avoid alternate default tool channels. Keep rendering, option parsing, and error normalization in dedicated CLI modules when they grow beyond command wiring. Verify with `pnpm test packages/cli/test` and `pnpm typecheck`.
 - `packages/cli/test/bootstrap.test.ts` owns global bootstrap and adapter install contract coverage. Keep shared temp-workspace and JSON helpers in `packages/cli/test/helpers.ts`; split command-domain tests instead of growing one catch-all file. Verify with `pnpm test packages/cli/test`.
+- `packages/setup/src/index.ts` owns Universal setup dry-run planning. Keep it local-only by default: no network checks, no filesystem writes, and no native install execution in the first slice. Verify with `pnpm test packages/setup/test` and `pnpm typecheck`.
 - `pnpm-lock.yaml` owns dependency resolution state only. Do not hand-edit it; update it through pnpm when package manifests change, then verify with `pnpm install --frozen-lockfile` or the normal CI command set.
 
 ## Agent skills
@@ -73,12 +75,12 @@ Use a single-context domain documentation layout. See `docs/agents/domain.md`.
 - GitHub repository settings: verify GitHub auth, target repository state, git remote, current branch, and `HEAD`; keep Issues and GitHub Actions CI enabled; maintain canonical labels from `docs/agents/triage-labels.md`; use squash merge only; enable automatic deletion of merged head branches; keep Projects, Discussions, Wiki, and Dependabot disabled unless intentionally adopted.
 - Public leak gates: confirm `git ls-files docs/implementation.md docs/okf-harness-intro.html docs/okf-harness-intro.pdf` has no output, then scan tracked files for private paths, local URLs, ignored override files, and internal document references.
 - GitHub Release: use `vX.Y.Z` tags, attach no extra release assets, create no public `RELEASE.md`, and keep the Install section to the README global CLI install followed by `okfh doctor --json`.
-- npm scope and auth gates: verify `npm whoami`, the `okf-harness` npm organization, and package access before publishing; check registry versions for the core, agent-pack, and CLI packages to distinguish unpublished packages from permission errors.
-- npm publish scope: publish only the scoped core, agent-pack, and CLI packages; never publish the root package or private workspace packages.
+- npm scope and auth gates: verify `npm whoami`, the `okf-harness` npm organization, and package access before publishing; check registry versions for the core, agent-pack, CLI, and setup packages to distinguish unpublished packages from permission errors.
+- npm publish scope: publish only the scoped core, agent-pack, CLI, and setup packages; never publish the root package or private workspace packages.
 - npm manifest rules: no `workspace:` protocol entries in publishable manifests; internal package dependencies must point at the exact same public package version; `pnpm-workspace.yaml` must link matching workspace packages locally; publishable packages must declare `engines.node >=22.0.0`, run `pnpm run build` from `prepublishOnly`, and keep `files` allowlists to `dist`, package metadata, package-local README files, and runtime assets explicitly required by the package such as `packages/agent-pack/templates`.
-- npm publish flow: publish from each package directory with `npm publish --access public` in dependency order: core, agent-pack, then cli; use the `latest` dist-tag; do not enable npm provenance unless the release workflow explicitly adopts and verifies it.
-- npm preflight: inspect package contents with the three `pnpm --filter <package> pack --dry-run --json` commands, then run `pnpm smoke:tarball` to install locally packed core, agent-pack, and cli tarballs into a fresh temp project and verify both `okfh doctor --json` and `okf-harness doctor --json`. Packaged smoke must exercise the packed tarballs through package-manager shims and remain a required GitHub Actions CI gate on Linux, macOS, and Windows.
-- npm post-publish proof: verify registry versions for the three published packages, then verify install from the registry with an `npx --package <cli-package> okfh doctor --json` smoke.
+- npm publish flow: publish from each package directory with `npm publish --access public` in dependency order: core, agent-pack, cli, then setup; use the `latest` dist-tag; do not enable npm provenance unless the release workflow explicitly adopts and verifies it.
+- npm preflight: inspect package contents with the four `pnpm --filter <package> pack --dry-run --json` commands, then run `pnpm smoke:tarball` to install locally packed core, agent-pack, cli, and setup tarballs into a fresh temp project and verify both `okfh doctor --json` and `okf-harness doctor --json`. Packaged smoke must exercise the packed tarballs through package-manager shims and remain a required GitHub Actions CI gate on Linux, macOS, and Windows.
+- npm post-publish proof: verify registry versions for the four published packages, then verify install from the registry with an `npx --package <cli-package> okfh doctor --json` smoke and an `npx --package <setup-package> okf-harness-setup --dry-run` smoke.
 
 ## Verification
 
