@@ -31,6 +31,11 @@ export type RunSetupCommand = (
   options: { env: NodeJS.ProcessEnv; shell?: boolean | undefined },
 ) => Promise<SetupCommandResult>;
 
+export type SetupNativeInstallCommand = {
+  command: string;
+  args: string[];
+};
+
 export type SetupRuntimePlan = {
   state: "missing" | "current" | "older" | "newer" | "unknown";
   packageName: "@okf-harness/cli";
@@ -72,6 +77,7 @@ type SetupAgentProfile = {
   supportLevel: "native-supported";
   defaultSelected: boolean;
   nativeInstall: string;
+  nativeInstallCommands: readonly SetupNativeInstallCommand[];
 };
 
 export type SetupAgentPlan = {
@@ -83,6 +89,7 @@ export type SetupAgentPlan = {
   optIn: boolean;
   command: string;
   nativeInstall: string;
+  nativeInstallCommands: readonly SetupNativeInstallCommand[];
   installLaterCommand: string;
   executablePath?: string;
 };
@@ -116,6 +123,10 @@ const setupAgentProfiles: readonly SetupAgentProfile[] = [
     supportLevel: "native-supported",
     defaultSelected: true,
     nativeInstall: "okf-harness@okf-harness from the Claude Code marketplace",
+    nativeInstallCommands: [
+      { command: "claude", args: ["plugin", "marketplace", "add", "pumblus/okf-harness"] },
+      { command: "claude", args: ["plugin", "install", "okf-harness@okf-harness"] },
+    ],
   },
   {
     id: "codex",
@@ -124,6 +135,13 @@ const setupAgentProfiles: readonly SetupAgentProfile[] = [
     supportLevel: "native-supported",
     defaultSelected: true,
     nativeInstall: "okf-harness@okf-harness from the Codex marketplace",
+    nativeInstallCommands: [
+      {
+        command: "codex",
+        args: ["plugin", "marketplace", "add", "pumblus/okf-harness", "--json"],
+      },
+      { command: "codex", args: ["plugin", "add", "okf-harness@okf-harness", "--json"] },
+    ],
   },
   {
     id: "opencode",
@@ -132,6 +150,9 @@ const setupAgentProfiles: readonly SetupAgentProfile[] = [
     supportLevel: "native-supported",
     defaultSelected: true,
     nativeInstall: "opencode plugin @pumblus/okf-harness --global",
+    nativeInstallCommands: [
+      { command: "opencode", args: ["plugin", "@pumblus/okf-harness", "--global"] },
+    ],
   },
   {
     id: "pi",
@@ -140,6 +161,7 @@ const setupAgentProfiles: readonly SetupAgentProfile[] = [
     supportLevel: "native-supported",
     defaultSelected: true,
     nativeInstall: "pi install npm:@pumblus/okf-harness",
+    nativeInstallCommands: [{ command: "pi", args: ["install", "npm:@pumblus/okf-harness"] }],
   },
   {
     id: "hermes",
@@ -148,6 +170,10 @@ const setupAgentProfiles: readonly SetupAgentProfile[] = [
     supportLevel: "native-supported",
     defaultSelected: true,
     nativeInstall: "pumblus/okf-harness/okf-harness from the Hermes skill tap",
+    nativeInstallCommands: [
+      { command: "hermes", args: ["skills", "tap", "add", "pumblus/okf-harness"] },
+      { command: "hermes", args: ["skills", "install", "pumblus/okf-harness/okf-harness"] },
+    ],
   },
   {
     id: "openclaw",
@@ -156,6 +182,9 @@ const setupAgentProfiles: readonly SetupAgentProfile[] = [
     supportLevel: "native-supported",
     defaultSelected: false,
     nativeInstall: "@pumblus/okf-harness from the OpenClaw native skill registry",
+    nativeInstallCommands: [
+      { command: "openclaw", args: ["skills", "install", "@pumblus/okf-harness", "--global"] },
+    ],
   },
 ];
 
@@ -229,6 +258,22 @@ export async function runSetup(
         stderr: stderr.join(""),
       };
     }
+
+    const nativeInstallExitCode = await installSelectedNativeIntegrations({
+      env,
+      io: { ...io, writeOut, writeErr },
+      parsed,
+      plan,
+      runCommand,
+      runtimePlatform,
+    });
+    if (nativeInstallExitCode !== 0) {
+      return {
+        exitCode: nativeInstallExitCode,
+        stdout: stdout.join(""),
+        stderr: stderr.join(""),
+      };
+    }
   }
 
   return { exitCode: 0, stdout: stdout.join(""), stderr: stderr.join("") };
@@ -256,6 +301,7 @@ async function createSetupPlan(
         optIn: !profile.defaultSelected,
         command: profile.command,
         nativeInstall: profile.nativeInstall,
+        nativeInstallCommands: profile.nativeInstallCommands,
         installLaterCommand: `npx @okf-harness/setup@latest --agents ${profile.id}`,
         ...(executablePath === undefined ? {} : { executablePath }),
       };
@@ -311,7 +357,10 @@ export function renderSetupPlan(plan: SetupPlan): string {
       const checkbox = agent.selected ? "[x]" : "[ ]";
       const state = agent.selected ? "selected" : agent.optIn ? "opt-in" : "available";
       lines.push(`${checkbox} ${agent.label} - ${agent.supportLevel} - detected - ${state}`);
-      lines.push(`  Native install: ${agent.nativeInstall}`);
+      lines.push("  Native install commands:");
+      for (const command of agent.nativeInstallCommands) {
+        lines.push(`  - ${commandToString(command)}`);
+      }
       if (agent.id === "openclaw") {
         lines.push("  Safety note: OpenClaw requires explicit opt-in before installation.");
       }
@@ -429,6 +478,106 @@ async function installRuntimeAndVerify(options: {
   }
 
   return verifyRuntime(options);
+}
+
+type NativeInstallFailure = {
+  agent: SetupAgentPlan;
+  command: SetupNativeInstallCommand;
+};
+
+async function installSelectedNativeIntegrations(options: {
+  env: NodeJS.ProcessEnv;
+  io: Required<Pick<SetupIo, "writeOut" | "writeErr">> & Pick<SetupIo, "readLine">;
+  parsed: SetupArgs;
+  plan: SetupPlan;
+  runCommand: RunSetupCommand;
+  runtimePlatform: NodeJS.Platform | string;
+}): Promise<number> {
+  const agents = options.plan.agents.filter((agent) => agent.selected);
+  if (agents.length === 0) {
+    return 0;
+  }
+
+  if (!options.parsed.yes && agents.some((agent) => agent.id === "openclaw")) {
+    options.io.writeOut(
+      "OpenClaw safety note: install only native skills you trust; review them before enabling.\n",
+    );
+  }
+
+  const shouldInstall =
+    options.parsed.yes ||
+    (await confirmYes(options.io, "Install selected native integrations? [Y/n] "));
+  if (!shouldInstall) {
+    options.io.writeOut("Native integration installation skipped.\n");
+    return 0;
+  }
+
+  const successfulAgents: SetupAgentPlan[] = [];
+  const failures: NativeInstallFailure[] = [];
+  for (const agent of agents) {
+    let failed = false;
+    for (const installCommand of agent.nativeInstallCommands) {
+      options.io.writeOut(`Installing ${agent.label}: ${commandToString(installCommand)}\n`);
+      try {
+        await options.runCommand(installCommand.command, installCommand.args, {
+          env: options.env,
+          shell: shouldUseNativeInstallShell(options.runtimePlatform),
+        });
+      } catch (error) {
+        failed = true;
+        failures.push({ agent, command: installCommand });
+        writeNativeInstallCommandFailure(options.io.writeErr, agent, installCommand, error);
+        break;
+      }
+    }
+    if (!failed) {
+      successfulAgents.push(agent);
+    }
+  }
+
+  writeNativeInstallSummary(options.io.writeOut, successfulAgents, failures);
+  return failures.length === 0 ? 0 : 1;
+}
+
+function writeNativeInstallCommandFailure(
+  writeErr: (chunk: string) => void,
+  agent: SetupAgentPlan,
+  command: SetupNativeInstallCommand,
+  error: unknown,
+): void {
+  writeErr(`Native integration failed: ${agent.label}\n`);
+  writeErr(`Command: ${commandToString(command)}\n`);
+  const details = commandErrorDetails(error);
+  if (details.length > 0) {
+    writeErr(`Details: ${details}\n`);
+  }
+}
+
+function writeNativeInstallSummary(
+  writeOut: (chunk: string) => void,
+  successfulAgents: SetupAgentPlan[],
+  failures: NativeInstallFailure[],
+): void {
+  writeOut("Native integration summary\n");
+  writeOut(
+    `Successful integrations: ${
+      successfulAgents.length === 0
+        ? "None"
+        : successfulAgents.map((agent) => agent.label).join(", ")
+    }\n`,
+  );
+  if (failures.length === 0) {
+    writeOut("Failed integrations: None\n");
+    return;
+  }
+  writeOut("Failed integrations:\n");
+  for (const failure of failures) {
+    writeOut(`- ${failure.agent.label} failed at ${commandToString(failure.command)}\n`);
+    writeOut("  Retry commands:\n");
+    for (const command of failure.agent.nativeInstallCommands) {
+      writeOut(`  - ${commandToString(command)}\n`);
+    }
+  }
 }
 
 async function verifyRuntime(options: {
@@ -663,6 +812,10 @@ function shouldUseWindowsShell(
   executable: string,
 ): boolean {
   return runtimePlatform === "win32" && ["npm", "okfh"].includes(executable);
+}
+
+function shouldUseNativeInstallShell(runtimePlatform: NodeJS.Platform | string): boolean {
+  return runtimePlatform === "win32";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

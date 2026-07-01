@@ -98,6 +98,201 @@ describe("@okf-harness/setup", () => {
     expect(explicit.stdout).toContain("[x] OpenClaw - native-supported - detected - selected");
   });
 
+  it("installs auto-selected native integrations without OpenClaw", async () => {
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-setup-bin-"));
+    await writeFakeExecutable(bin, "codex");
+    await writeFakeExecutable(bin, "openclaw");
+    const runs: Array<{ command: string; args: string[] }> = [];
+
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--agents", "auto", "--yes"],
+      captureIo(),
+      {
+        env: { PATH: bin },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          runs.push({ command, args });
+          if (command === "npm" && args[0] === "ls") {
+            return {
+              stdout: JSON.stringify({
+                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+              }),
+              stderr: "",
+            };
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
+              stderr: "",
+            };
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(runs).toEqual([
+      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
+      { command: "okfh", args: ["doctor", "--json"] },
+      { command: "codex", args: ["plugin", "marketplace", "add", "pumblus/okf-harness", "--json"] },
+      { command: "codex", args: ["plugin", "add", "okf-harness@okf-harness", "--json"] },
+    ]);
+    expect(result.stdout).toContain("Native integration summary");
+    expect(result.stdout).toContain("Successful integrations: Codex");
+    expect(result.stdout).not.toContain("Installing OpenClaw");
+    expect(result.stderr).toBe("");
+  });
+
+  it("continues native integration installation after one agent fails", async () => {
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-setup-bin-"));
+    await writeFakeExecutable(bin, "claude");
+    await writeFakeExecutable(bin, "codex");
+    const runs: Array<{ command: string; args: string[] }> = [];
+
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--agents", "claude,codex", "--yes"],
+      captureIo(),
+      {
+        env: { PATH: bin },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          runs.push({ command, args });
+          if (command === "npm" && args[0] === "ls") {
+            return {
+              stdout: JSON.stringify({
+                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+              }),
+              stderr: "",
+            };
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
+              stderr: "",
+            };
+          }
+          if (
+            command === "claude" &&
+            args.join(" ") === "plugin marketplace add pumblus/okf-harness"
+          ) {
+            throw Object.assign(new Error("marketplace failed"), { stderr: "network unavailable" });
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(runs).toEqual([
+      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
+      { command: "okfh", args: ["doctor", "--json"] },
+      { command: "claude", args: ["plugin", "marketplace", "add", "pumblus/okf-harness"] },
+      { command: "codex", args: ["plugin", "marketplace", "add", "pumblus/okf-harness", "--json"] },
+      { command: "codex", args: ["plugin", "add", "okf-harness@okf-harness", "--json"] },
+    ]);
+    expect(result.stdout).toContain("Successful integrations: Codex");
+    expect(result.stdout).toContain("Failed integrations");
+    expect(result.stdout).toContain(
+      "Claude Code failed at claude plugin marketplace add pumblus/okf-harness",
+    );
+    expect(result.stdout).toContain("Retry commands:");
+    expect(result.stdout).toContain("claude plugin marketplace add pumblus/okf-harness");
+    expect(result.stdout).toContain("claude plugin install okf-harness@okf-harness");
+    expect(result.stderr).toContain("Native integration failed: Claude Code");
+    expect(result.stderr).toContain("network unavailable");
+  });
+
+  it("installs explicitly selected OpenClaw with --yes", async () => {
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-setup-bin-"));
+    await writeFakeExecutable(bin, "openclaw");
+    const runs: Array<{ command: string; args: string[] }> = [];
+    let prompted = false;
+
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--agents", "openclaw", "--yes"],
+      {
+        ...captureIo(),
+        readLine: async () => {
+          prompted = true;
+          return "n";
+        },
+      },
+      {
+        env: { PATH: bin },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          runs.push({ command, args });
+          if (command === "npm" && args[0] === "ls") {
+            return {
+              stdout: JSON.stringify({
+                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+              }),
+              stderr: "",
+            };
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
+              stderr: "",
+            };
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(prompted).toBe(false);
+    expect(runs).toContainEqual({
+      command: "openclaw",
+      args: ["skills", "install", "@pumblus/okf-harness", "--global"],
+    });
+    expect(result.stdout).toContain("Successful integrations: OpenClaw");
+  });
+
+  it("shows an extra OpenClaw safety note before interactive native install", async () => {
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-setup-bin-"));
+    await writeFakeExecutable(bin, "openclaw");
+    let prompt = "";
+
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--agents", "openclaw"],
+      {
+        ...captureIo(),
+        readLine: async (question: string) => {
+          prompt = question;
+          return "y";
+        },
+      },
+      {
+        env: { PATH: bin },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          if (command === "npm" && args[0] === "ls") {
+            return {
+              stdout: JSON.stringify({
+                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+              }),
+              stderr: "",
+            };
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
+              stderr: "",
+            };
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("OpenClaw safety note:");
+    expect(prompt).toBe("Install selected native integrations? [Y/n] ");
+  });
+
   it("installs a missing global runtime and verifies it with doctor", async () => {
     const runs: Array<{ command: string; args: string[] }> = [];
     const result = await runSetup(
