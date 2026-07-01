@@ -496,6 +496,14 @@ _Avoid_: developer, CLI user, Obsidian user
 The user-facing client where a person talks to an agent, such as a desktop app or terminal interface. OKF Harness workflows should feel consistent across agent clients, with differences only where a client has different capabilities.
 _Avoid_: agent, model, runtime
 
+**Supported agent set**:
+The agent clients OKF Harness actively considers for installation, native integration, documentation, and compatibility checks in a release. For the v0.6 planning context this set includes Claude Code, Codex, OpenCode, Pi, Hermes Agent, and OpenClaw.
+_Avoid_: all agents, model providers, future integrations
+
+**Agent integration support level**:
+The release-specific support status for installing OKF Harness into an agent client. Levels are `native-supported`, `manual-supported`, `install-later`, and `unsupported`; default setup selection is a separate behavior so a native-supported integration can still require explicit opt-in.
+_Avoid_: quality score, model support, runtime compatibility
+
 **Agent guidance**:
 The workspace instructions and configuration that tell an agent how to operate OKF Harness safely and consistently. Agent guidance is product workflow metadata, not knowledge content.
 _Avoid_: schema, documentation, wiki content
@@ -503,6 +511,54 @@ _Avoid_: schema, documentation, wiki content
 **Agent adapter**:
 The rendered set of agent guidance files for a specific agent client, such as Claude Code or Codex. An adapter translates shared OKF Harness workflows into the conventions that client can discover and use.
 _Avoid_: agent client, plugin, integration
+
+**Harness runtime install**:
+The installation of the local OKF Harness command runtime that agent clients ultimately use for deterministic workspace operations. It is the shared capability layer behind agent-facing setup, not the primary product story for ordinary agent-first users.
+_Avoid_: agent install, plugin install, onboarding
+
+**Universal setup**:
+The broad setup path for people who use multiple agent clients or do not know which agent integration they need. It detects supported agent clients, prepares the shared Harness runtime, and offers agent integrations without making the person choose a technical package first.
+_Avoid_: CLI install, native plugin, workspace setup
+
+**Setup plan**:
+A user-readable proposal produced by universal setup before it writes agent integrations or workspace files. It names the detected agent clients, the selected integrations, the required runtime checks, and the files or directories that would change.
+_Avoid_: hidden install, onboarding state, CLI dry run
+
+**Interactive agent selection**:
+The universal setup step where OKF Harness automatically detects supported agent clients on the machine, then asks the person which detected or supported agent integrations to install. Detection is automatic; choosing where OKF Harness is installed remains explicit.
+_Avoid_: silent auto-install, manual agent discovery, adapter prompt
+
+**Undetected agent option**:
+A supported agent client shown by universal setup even when it is not present on the machine. Selecting it should return the OKF Harness install command to run after that agent client is installed, not explain how to install the agent client or create speculative files for software the person has not installed.
+_Avoid_: hidden bootstrap, placeholder integration, preinstall
+
+**Native agent integration**:
+A host-specific distribution path, such as a plugin, extension, skill package, or package manager entry, that makes OKF Harness discoverable inside one agent client. It may prepare or verify the shared Harness runtime, but it should not replace the runtime contract.
+_Avoid_: Harness runtime, custom agent runtime, adapter
+
+**Native install command**:
+The concrete command or short command sequence that installs an OKF Harness native agent integration through the agent client's own plugin, extension, skill, or package mechanism. Universal setup should show this command before running it so the person can audit what will change.
+_Avoid_: hidden write, runtime command, workspace command
+
+**Bootstrap invocation example**:
+The exact user-facing phrase or command form a person should use in an agent client to start OKF Harness before a workspace exists. It is agent-specific and should only be shown when the invocation form has been verified for that client.
+_Avoid_: generic slash command, CLI command, assumed prefix
+
+**Manual integration option**:
+A detected supported agent client that OKF Harness cannot safely install through a stable native channel in the current release. Universal setup may show it as detected, but it should not preselect it or write integration files without a clear manual instruction path.
+_Avoid_: broken native install, silent fallback, speculative adapter
+
+**Installer script**:
+A convenience wrapper for universal setup that reduces copy-paste friction on a specific operating system. It should delegate product behavior to OKF Harness setup logic rather than becoming a separate implementation of agent detection or workspace management.
+_Avoid_: package manager, agent integration, runtime
+
+**Resolved setup version**:
+The concrete OKF Harness setup version selected by a latest or version-pinned installer path at runtime. Installer output should show this version before making changes so the person can audit what release is being installed.
+_Avoid_: hidden latest, package range, release promise
+
+**Recommended install path**:
+The default install path shown first to ordinary users. For OKF Harness v0.6 planning, this is the operating-system installer script that launches universal setup; single-agent native install paths remain available below it for users who already know their preferred agent client.
+_Avoid_: only install path, CLI install, advanced install
 
 **Agent skill**:
 A discoverable workflow instruction inside an agent adapter. The current user-facing skill is the unified `okf-harness` entrypoint, while setup, check, ingest, answer, and graph remain internal workflows.
