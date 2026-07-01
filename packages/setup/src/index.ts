@@ -28,7 +28,7 @@ export type SetupCommandResult = {
 export type RunSetupCommand = (
   command: string,
   args: string[],
-  options: { env: NodeJS.ProcessEnv; shell?: boolean | undefined },
+  options: { cwd?: string | undefined; env: NodeJS.ProcessEnv; shell?: boolean | undefined },
 ) => Promise<SetupCommandResult>;
 
 export type SetupNativeInstallCommand = {
@@ -243,7 +243,7 @@ export async function runSetup(
   writeOut(renderSetupPlan(plan));
 
   if (!parsed.dryRun) {
-    const runtimeExitCode = await installRuntimeAndVerify({
+    const runtimeResult = await installRuntime({
       env,
       io: { ...io, writeOut, writeErr },
       parsed,
@@ -251,9 +251,9 @@ export async function runSetup(
       runCommand,
       runtimePlatform,
     });
-    if (runtimeExitCode !== 0) {
+    if (runtimeResult.exitCode !== 0) {
       return {
-        exitCode: runtimeExitCode,
+        exitCode: runtimeResult.exitCode,
         stdout: stdout.join(""),
         stderr: stderr.join(""),
       };
@@ -273,6 +273,22 @@ export async function runSetup(
         stdout: stdout.join(""),
         stderr: stderr.join(""),
       };
+    }
+
+    if (runtimeResult.verify) {
+      const verifyExitCode = await verifyRuntime({
+        env,
+        io: { ...io, writeOut, writeErr },
+        runCommand,
+        runtimePlatform,
+      });
+      if (verifyExitCode !== 0) {
+        return {
+          exitCode: verifyExitCode,
+          stdout: stdout.join(""),
+          stderr: stderr.join(""),
+        };
+      }
     }
   }
 
@@ -427,14 +443,19 @@ function renderRuntimeLine(runtime: SetupRuntimePlan): string {
   return `Runtime: ${runtime.state};${current} target ${runtime.packageName}@${runtime.targetVersion}`;
 }
 
-async function installRuntimeAndVerify(options: {
+type RuntimeInstallResult = {
+  exitCode: number;
+  verify: boolean;
+};
+
+async function installRuntime(options: {
   env: NodeJS.ProcessEnv;
   io: Required<Pick<SetupIo, "writeOut" | "writeErr">> & Pick<SetupIo, "readLine">;
   parsed: SetupArgs;
   plan: SetupPlan;
   runCommand: RunSetupCommand;
   runtimePlatform: NodeJS.Platform | string;
-}): Promise<number> {
+}): Promise<RuntimeInstallResult> {
   const runtime = options.plan.runtime;
   if (runtime.state === "older") {
     options.io.writeOut(
@@ -444,7 +465,7 @@ async function installRuntimeAndVerify(options: {
       options.parsed.yes || (await confirmYes(options.io, "Update global okfh runtime? [Y/n] "));
     if (!shouldUpdate) {
       options.io.writeOut("Runtime update skipped.\n");
-      return 0;
+      return { exitCode: 0, verify: false };
     }
   }
 
@@ -467,7 +488,7 @@ async function installRuntimeAndVerify(options: {
         installCommand,
         error,
       );
-      return 1;
+      return { exitCode: 1, verify: false };
     }
   }
 
@@ -477,12 +498,13 @@ async function installRuntimeAndVerify(options: {
     );
   }
 
-  return verifyRuntime(options);
+  return { exitCode: 0, verify: true };
 }
 
 type NativeInstallFailure = {
   agent: SetupAgentPlan;
   command: SetupNativeInstallCommand;
+  completedCommands: SetupNativeInstallCommand[];
 };
 
 async function installSelectedNativeIntegrations(options: {
@@ -516,16 +538,23 @@ async function installSelectedNativeIntegrations(options: {
   const failures: NativeInstallFailure[] = [];
   for (const agent of agents) {
     let failed = false;
+    const completedCommands: SetupNativeInstallCommand[] = [];
     for (const installCommand of agent.nativeInstallCommands) {
       options.io.writeOut(`Installing ${agent.label}: ${commandToString(installCommand)}\n`);
+      const shell = shouldUseNativeInstallShell(options.runtimePlatform, agent.executablePath);
+      const executable = agent.executablePath ?? installCommand.command;
+      const command = shell ? path.basename(executable) : executable;
+      const cwd = shell ? path.dirname(executable) : undefined;
       try {
-        await options.runCommand(installCommand.command, installCommand.args, {
+        await options.runCommand(command, installCommand.args, {
+          ...(cwd === undefined ? {} : { cwd }),
           env: options.env,
-          shell: shouldUseNativeInstallShell(options.runtimePlatform),
+          shell,
         });
+        completedCommands.push(installCommand);
       } catch (error) {
         failed = true;
-        failures.push({ agent, command: installCommand });
+        failures.push({ agent, command: installCommand, completedCommands });
         writeNativeInstallCommandFailure(options.io.writeErr, agent, installCommand, error);
         break;
       }
@@ -573,8 +602,16 @@ function writeNativeInstallSummary(
   writeOut("Failed integrations:\n");
   for (const failure of failures) {
     writeOut(`- ${failure.agent.label} failed at ${commandToString(failure.command)}\n`);
-    writeOut("  Retry commands:\n");
-    for (const command of failure.agent.nativeInstallCommands) {
+    if (failure.completedCommands.length > 0) {
+      writeOut("  Completed before failure:\n");
+      for (const command of failure.completedCommands) {
+        writeOut(`  - ${commandToString(command)}\n`);
+      }
+    }
+    writeOut("  Retry from failed command:\n");
+    for (const command of failure.agent.nativeInstallCommands.slice(
+      failure.completedCommands.length,
+    )) {
       writeOut(`  - ${commandToString(command)}\n`);
     }
   }
@@ -797,9 +834,10 @@ function isPermissionError(error: unknown): boolean {
 async function runCommandDefault(
   command: string,
   args: string[],
-  options: { env: NodeJS.ProcessEnv; shell?: boolean | undefined },
+  options: { cwd?: string | undefined; env: NodeJS.ProcessEnv; shell?: boolean | undefined },
 ): Promise<SetupCommandResult> {
   const { stdout, stderr } = await execFileAsync(command, args, {
+    cwd: options.cwd,
     env: options.env,
     shell: options.shell === true,
     windowsHide: true,
@@ -814,8 +852,15 @@ function shouldUseWindowsShell(
   return runtimePlatform === "win32" && ["npm", "okfh"].includes(executable);
 }
 
-function shouldUseNativeInstallShell(runtimePlatform: NodeJS.Platform | string): boolean {
-  return runtimePlatform === "win32";
+function shouldUseNativeInstallShell(
+  runtimePlatform: NodeJS.Platform | string,
+  executablePath: string | undefined,
+): boolean {
+  return (
+    runtimePlatform === "win32" &&
+    executablePath !== undefined &&
+    [".bat", ".cmd"].includes(path.extname(executablePath).toLowerCase())
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
