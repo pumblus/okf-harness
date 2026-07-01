@@ -26,6 +26,7 @@
     "test": "vitest run",
     "lint": "biome check package.json biome.json tsconfig.json tsconfig.base.json vitest.config.ts scripts/*.mjs packages/*/*.mjs packages/*/package.json packages/*/tsconfig.json packages/*/src packages/*/test && pnpm docs:llms:check",
     "format": "biome format --write package.json biome.json tsconfig.json tsconfig.base.json vitest.config.ts scripts/*.mjs packages/*/*.mjs packages/*/package.json packages/*/tsconfig.json packages/*/src packages/*/test",
+    "smoke:marketplace": "node scripts/smoke-marketplace-plugins.mjs",
     "smoke:tarball": "node scripts/smoke-npm-tarballs.mjs"
   },
   "keywords": [

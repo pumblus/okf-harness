@@ -1,3 +1,15 @@
+---
+name: okf-harness-bootstrap
+description: Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Codex. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.
+license: Apache-2.0
+compatibility: Designed for Codex with local shell command access. Requires the okfh CLI.
+metadata:
+  okf-harness-version: "0.5.5"
+  okf-harness-managed: "true"
+  okf-harness-entrypoint: "bootstrap"
+  okf-harness-agent: "codex"
+---
+
 # OKF Harness Bootstrap
 
 Bootstrap routes OKF Harness setup before a workspace-local `okf-harness` skill exists.
@@ -5,7 +17,7 @@ Bootstrap routes OKF Harness setup before a workspace-local `okf-harness` skill 
 ## Required Behavior
 
 1. Classify the request as setup, discovery, repair, or an explicit combination of those.
-2. If the current directory is already an OKF Harness workspace, do not create a nested workspace; repair {{agentLabel}} support and hand off to a fresh workspace session.
+2. If the current directory is already an OKF Harness workspace, do not create a nested workspace; repair Codex support and hand off to a fresh workspace session.
 3. Load only the reference needed for the current route.
 4. If `okfh` is missing, stop and tell the user to run `npm install -g @okf-harness/cli`, then `okfh doctor --json`; do not create workspaces or edit files until runtime setup is fixed.
 5. Run harness operations through local-shell `okfh --json` commands and read their JSON before deciding the next step.
@@ -38,7 +50,7 @@ okfh ingest plan <source-id> --workspace <workspace> --json
 
 - If local source validation, source registration, or ingest planning fails, report that step as the first-loop blocker with one concrete next action, then stop before wiki edits.
 - Completion criterion: every accepted source has a successful registration result, a successful ingest plan, and a fresh-session handoff. Do not read raw source bodies or write `wiki/` content.
-- Hand off wiki synthesis to `{{workspaceInvocation}}` in a fresh workspace-local {{sessionName}}.
+- Hand off wiki synthesis to `$okf-harness` in a fresh workspace-local Codex thread.
 
 ## Routes
 

@@ -1,0 +1,25 @@
+{
+  "name": "okf-harness",
+  "owner": {
+    "name": "Eric Zhou"
+  },
+  "description": "Claude Code marketplace for the OKF Harness native bootstrap integration.",
+  "version": "0.5.5",
+  "plugins": [
+    {
+      "name": "okf-harness",
+      "source": "./plugins/claude/okf-harness",
+      "displayName": "OKF Harness",
+      "description": "Adds the okf-harness-bootstrap skill for creating, finding, selecting, or repairing OKF Harness workspaces. Requires okfh; first use gives setup guidance if the runtime is missing.",
+      "version": "0.5.5",
+      "author": {
+        "name": "Eric Zhou"
+      },
+      "homepage": "https://github.com/pumblus/okf-harness#readme",
+      "repository": "https://github.com/pumblus/okf-harness",
+      "license": "Apache-2.0",
+      "keywords": ["okf", "llm-wiki", "agent-skills", "claude-code"],
+      "category": "productivity"
+    }
+  ]
+}

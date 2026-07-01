@@ -1,0 +1,14 @@
+{
+  "name": "okf-harness",
+  "displayName": "OKF Harness",
+  "version": "0.5.5",
+  "description": "Adds the okf-harness-bootstrap skill for creating, finding, selecting, or repairing OKF Harness workspaces. Requires okfh; first use gives setup guidance if the runtime is missing.",
+  "author": {
+    "name": "Eric Zhou"
+  },
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": "https://github.com/pumblus/okf-harness",
+  "license": "Apache-2.0",
+  "keywords": ["okf", "llm-wiki", "agent-skills", "claude-code"],
+  "skills": "./skills/"
+}

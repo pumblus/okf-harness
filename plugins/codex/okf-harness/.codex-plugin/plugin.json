@@ -1,0 +1,24 @@
+{
+  "name": "okf-harness",
+  "version": "0.5.5",
+  "description": "Adds the okf-harness-bootstrap skill for creating, finding, selecting, or repairing OKF Harness workspaces. Requires okfh; first use gives setup guidance if the runtime is missing.",
+  "author": {
+    "name": "Eric Zhou",
+    "url": "https://github.com/pumblus/okf-harness"
+  },
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": "https://github.com/pumblus/okf-harness",
+  "license": "Apache-2.0",
+  "keywords": ["okf", "llm-wiki", "agent-skills", "codex"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "OKF Harness",
+    "shortDescription": "Bootstrap local OKF Harness workspaces from Codex.",
+    "longDescription": "Adds the okf-harness-bootstrap skill for creating, finding, selecting, or repairing OKF Harness workspaces. Requires okfh; first use gives setup guidance if the runtime is missing.",
+    "developerName": "OKF Harness",
+    "category": "Productivity",
+    "capabilities": ["Write"],
+    "websiteURL": "https://github.com/pumblus/okf-harness",
+    "defaultPrompt": ["$okf-harness-bootstrap Set up a workspace for my notes."]
+  }
+}
