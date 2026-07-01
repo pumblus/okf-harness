@@ -447,7 +447,7 @@ async function verifyRuntime(options: {
   } catch (error) {
     const doctor = parseDoctorEnvelope(commandStdout(error));
     if (doctor !== undefined && !hasBlockingDoctorFailure(doctor)) {
-      reportWorkspaceDoctorWarnings(options.io.writeOut, doctor);
+      reportSetupDoctorWarnings(options.io.writeOut, doctor);
       options.io.writeOut("Runtime verification passed: okfh doctor --json\n");
       return 0;
     }
@@ -465,7 +465,7 @@ async function verifyRuntime(options: {
     options.io.writeErr("Runtime verification failed: okfh doctor --json did not return JSON.\n");
     return 1;
   }
-  reportWorkspaceDoctorWarnings(options.io.writeOut, doctor);
+  reportSetupDoctorWarnings(options.io.writeOut, doctor);
   if (hasBlockingDoctorFailure(doctor)) {
     options.io.writeErr(
       "Runtime verification failed: okfh doctor --json reported runtime failures.\n",
@@ -476,9 +476,15 @@ async function verifyRuntime(options: {
   return 0;
 }
 
-function reportWorkspaceDoctorWarnings(writeOut: (chunk: string) => void, doctor: unknown): void {
+function reportSetupDoctorWarnings(writeOut: (chunk: string) => void, doctor: unknown): void {
   for (const check of doctorChecks(doctor)) {
-    if (check.id.startsWith("workspace-") && (check.status === "warn" || check.status === "fail")) {
+    if (check.status !== "warn" && check.status !== "fail") {
+      continue;
+    }
+    if (check.id === "runtime-git") {
+      writeOut(`Doctor setup warning: ${check.message}\n`);
+    }
+    if (check.id.startsWith("workspace-")) {
       writeOut(`Doctor workspace warning: ${check.message}\n`);
     }
   }
@@ -486,14 +492,18 @@ function reportWorkspaceDoctorWarnings(writeOut: (chunk: string) => void, doctor
 
 function hasBlockingDoctorFailure(doctor: unknown): boolean {
   const checks = doctorChecks(doctor);
-  if (checks.some((check) => check.status === "fail" && !check.id.startsWith("workspace-"))) {
+  if (checks.some((check) => check.status === "fail" && !isSetupNonBlockingDoctorCheck(check))) {
     return true;
   }
-  const hasWorkspaceProblem = checks.some(
+  const hasNonBlockingProblem = checks.some(
     (check) =>
-      check.id.startsWith("workspace-") && (check.status === "warn" || check.status === "fail"),
+      isSetupNonBlockingDoctorCheck(check) && (check.status === "warn" || check.status === "fail"),
   );
-  return doctorOk(doctor) === false && !hasWorkspaceProblem;
+  return doctorOk(doctor) === false && !hasNonBlockingProblem;
+}
+
+function isSetupNonBlockingDoctorCheck(check: { id: string }): boolean {
+  return check.id === "runtime-git" || check.id.startsWith("workspace-");
 }
 
 function doctorOk(doctor: unknown): boolean | undefined {
@@ -524,8 +534,11 @@ function runtimeInstallCommand(targetVersion: string): { command: string; args: 
 }
 
 async function confirmYes(io: SetupIo, prompt: string): Promise<boolean> {
-  const answer = (await io.readLine?.(prompt))?.trim().toLowerCase();
-  return answer === undefined || answer === "" || answer === "y" || answer === "yes";
+  if (io.readLine === undefined) {
+    return false;
+  }
+  const answer = (await io.readLine(prompt)).trim().toLowerCase();
+  return answer === "" || answer === "y" || answer === "yes";
 }
 
 function parseInstalledRuntimeVersion(stdout: string): string | undefined {

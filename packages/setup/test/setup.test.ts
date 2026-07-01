@@ -184,6 +184,33 @@ describe("@okf-harness/setup", () => {
     expect(result.stderr).toBe("");
   });
 
+  it("does not update an older global runtime when no prompt reader is available", async () => {
+    const runs: Array<{ command: string; args: string[] }> = [];
+    const result = await runSetup(["node", "okf-harness-setup", "--runtime-only"], captureIo(), {
+      env: { PATH: "" },
+      nodeVersion: "v22.0.0",
+      runCommand: async (command, args) => {
+        runs.push({ command, args });
+        if (command === "npm" && args[0] === "ls") {
+          return {
+            stdout: JSON.stringify({
+              dependencies: { "@okf-harness/cli": { version: "0.5.4" } },
+            }),
+            stderr: "",
+          };
+        }
+        return { stdout: "", stderr: "" };
+      },
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Runtime update skipped.");
+    expect(runs).toEqual([
+      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
+    ]);
+    expect(result.stderr).toBe("");
+  });
+
   it("reports global runtime permission failures without sudo", async () => {
     const runs: Array<{ command: string; args: string[] }> = [];
     const result = await runSetup(
@@ -265,6 +292,50 @@ describe("@okf-harness/setup", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Doctor workspace warning: workspace is not initialized");
+    expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
+    expect(result.stderr).toBe("");
+  });
+
+  it("reports missing git doctor failures without failing setup", async () => {
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
+      captureIo(),
+      {
+        env: { PATH: "" },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          if (command === "npm" && args[0] === "ls") {
+            return {
+              stdout: JSON.stringify({
+                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+              }),
+              stderr: "",
+            };
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({
+                ok: false,
+                data: {
+                  checks: [
+                    {
+                      id: "runtime-git",
+                      status: "fail",
+                      message: "git executable was not found.",
+                    },
+                  ],
+                },
+              }),
+              stderr: "",
+            };
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Doctor setup warning: git executable was not found.");
     expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
     expect(result.stderr).toBe("");
   });
