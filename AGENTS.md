@@ -60,6 +60,7 @@ Use a single-context domain documentation layout. See `docs/agents/domain.md`.
 
 - Before editing, check the current tree with `git status --short`.
 - Keep changes scoped to the current public scope or the user's explicit request.
+- Do not auto-commit, tag, push, publish, create releases, or close public issues unless the user explicitly asks in the current turn.
 - Do not store API keys, tokens, or credentials in tracked files.
 - Do not edit generated raw source files in OKF Harness workspaces. `raw/sources/` is immutable by design.
 - Do not edit ignored `dist/` output by hand. Build it from source when package contents need verification.

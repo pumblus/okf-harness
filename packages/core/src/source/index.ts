@@ -422,6 +422,17 @@ function parseManifestEntry(
     sha256: String(row.sha256),
     added_at: String(row.added_at),
   };
+  if (
+    typeof row.reference_concept === "string" &&
+    row.reference_concept.trim().length > 0 &&
+    !isSafeReferenceConceptPath(row.reference_concept, config)
+  ) {
+    return {
+      ok: false,
+      message: "Manifest reference_concept must be a safe reference document path.",
+    };
+  }
+
   for (const optional of ["mime", "title", "reference_concept", "notes"] as const) {
     if (typeof row[optional] === "string" && row[optional].trim().length > 0) {
       entry[optional] = String(row[optional]);
@@ -441,6 +452,23 @@ function isSafeRawSourcePath(input: string, config: WorkspaceConfig): boolean {
     return false;
   }
   return rawPath === config.paths.raw_sources || rawPath.startsWith(`${config.paths.raw_sources}/`);
+}
+
+function isSafeReferenceConceptPath(input: string, config: WorkspaceConfig): boolean {
+  const referencePath = toPosixPath(input);
+  if (
+    referencePath.startsWith("/") ||
+    referencePath.includes("\\") ||
+    referencePath.includes("\0") ||
+    !referencePath.endsWith(".md")
+  ) {
+    return false;
+  }
+  const segments = referencePath.split("/");
+  if (segments.some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
+    return false;
+  }
+  return referencePath.startsWith(`${config.paths.wiki_root}/references/`);
 }
 
 function parseHttpUrl(input: string): URL | undefined {

@@ -138,6 +138,38 @@ describe("@okf-harness/cli ingest", () => {
     expect(plan.result.data.candidateConcepts).toEqual([]);
     expect(plan.result.data).not.toHaveProperty("suggestedNewConcept");
   });
+
+  it("rejects unsafe reference concept paths before publishing an ingest plan", async () => {
+    const { root, workspace } = await initTestWorkspace();
+    const sourcePath = path.join(root, "unsafe-reference.md");
+    await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
+    const added = await addSource(workspace, sourcePath);
+    await writeFile(
+      path.join(workspace, ".okfh/manifest.jsonl"),
+      `${JSON.stringify({
+        ...added.result.data.source,
+        reference_concept: "../../AGENTS.md",
+      })}\n`,
+      "utf8",
+    );
+
+    const plan = await planIngest(workspace, added.result.data.source.id);
+    const error = JSON.parse(plan.stderr);
+
+    expect(plan).toMatchObject({
+      exitCode: 5,
+      stdout: "",
+    });
+    expect(error).toMatchObject({
+      ok: false,
+      command: "ingest plan",
+      error: {
+        code: "MANIFEST_INVALID",
+        message: "Source manifest contains invalid rows.",
+      },
+    });
+    expect(plan.stderr).not.toContain("../../AGENTS.md");
+  });
 });
 
 async function initTestWorkspace(): Promise<{ root: string; workspace: string }> {
