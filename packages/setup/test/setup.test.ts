@@ -97,6 +97,208 @@ describe("@okf-harness/setup", () => {
     );
     expect(explicit.stdout).toContain("[x] OpenClaw - native-supported - detected - selected");
   });
+
+  it("installs a missing global runtime and verifies it with doctor", async () => {
+    const runs: Array<{ command: string; args: string[] }> = [];
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
+      captureIo(),
+      {
+        env: { PATH: "" },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          runs.push({ command, args });
+          if (command === "npm" && args.join(" ") === "ls -g @okf-harness/cli --json --depth=0") {
+            throw Object.assign(new Error("missing"), { code: "ENOENT" });
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({
+                ok: true,
+                data: { summary: { fail: 0 }, checks: [] },
+                warnings: [],
+              }),
+              stderr: "",
+            };
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Runtime: missing");
+    expect(result.stdout).toContain("Installing runtime: npm install -g @okf-harness/cli@0.5.5");
+    expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
+    expect(runs).toEqual([
+      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
+      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.5.5"] },
+      { command: "okfh", args: ["doctor", "--json"] },
+    ]);
+    expect(result.stderr).toBe("");
+  });
+
+  it("asks before updating an older global runtime and defaults to yes", async () => {
+    const runs: Array<{ command: string; args: string[] }> = [];
+    let prompt = "";
+    const io = {
+      ...captureIo(),
+      readLine: async (question: string) => {
+        prompt = question;
+        return "";
+      },
+    };
+
+    const result = await runSetup(["node", "okf-harness-setup", "--runtime-only"], io, {
+      env: { PATH: "" },
+      nodeVersion: "v22.0.0",
+      runCommand: async (command, args) => {
+        runs.push({ command, args });
+        if (command === "npm" && args[0] === "ls") {
+          return {
+            stdout: JSON.stringify({
+              dependencies: { "@okf-harness/cli": { version: "0.5.4" } },
+            }),
+            stderr: "",
+          };
+        }
+        if (command === "okfh" && args.join(" ") === "doctor --json") {
+          return {
+            stdout: JSON.stringify({ data: { checks: [] } }),
+            stderr: "",
+          };
+        }
+        return { stdout: "", stderr: "" };
+      },
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Runtime: older; current 0.5.4, target @okf-harness/cli@0.5.5");
+    expect(result.stdout).toContain("Runtime update available: current 0.5.4, target 0.5.5.");
+    expect(prompt).toBe("Update global okfh runtime? [Y/n] ");
+    expect(runs).toEqual([
+      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
+      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.5.5"] },
+      { command: "okfh", args: ["doctor", "--json"] },
+    ]);
+    expect(result.stderr).toBe("");
+  });
+
+  it("reports global runtime permission failures without sudo", async () => {
+    const runs: Array<{ command: string; args: string[] }> = [];
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
+      captureIo(),
+      {
+        env: { PATH: "" },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          runs.push({ command, args });
+          if (command === "npm" && args[0] === "ls") {
+            throw Object.assign(new Error("missing"), { code: "ENOENT" });
+          }
+          if (command === "npm" && args[0] === "install") {
+            throw Object.assign(new Error("EACCES: permission denied, mkdir '/usr/local/lib'"), {
+              code: "EACCES",
+            });
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(
+      "Runtime installation failed: npm install -g @okf-harness/cli@0.5.5",
+    );
+    expect(result.stderr).toContain("Use a user-writable npm global prefix");
+    expect(result.stderr).toContain("npm install -g @okf-harness/cli@0.5.5");
+    expect(result.stderr).not.toContain("sudo");
+    expect(runs).toEqual([
+      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
+      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.5.5"] },
+    ]);
+  });
+
+  it("reports workspace doctor warnings without failing setup", async () => {
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
+      captureIo(),
+      {
+        env: { PATH: "" },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          if (command === "npm" && args[0] === "ls") {
+            return {
+              stdout: JSON.stringify({
+                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+              }),
+              stderr: "",
+            };
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({
+                ok: false,
+                data: {
+                  checks: [
+                    {
+                      id: "runtime-okfh",
+                      status: "pass",
+                      message: "runtime ok",
+                    },
+                    {
+                      id: "workspace-status",
+                      status: "fail",
+                      message: "workspace is not initialized",
+                    },
+                  ],
+                },
+              }),
+              stderr: "",
+            };
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Doctor workspace warning: workspace is not initialized");
+    expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
+    expect(result.stderr).toBe("");
+  });
+
+  it("fails setup when doctor reports an unclassified failure", async () => {
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
+      captureIo(),
+      {
+        env: { PATH: "" },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          if (command === "npm" && args[0] === "ls") {
+            return {
+              stdout: JSON.stringify({
+                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+              }),
+              stderr: "",
+            };
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({ ok: false, data: { checks: [] } }),
+              stderr: "",
+            };
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Runtime verification failed");
+  });
 });
 
 function captureIo(): {

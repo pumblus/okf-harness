@@ -1,6 +1,9 @@
+import { execFile } from "node:child_process";
 import { constants, readFileSync } from "node:fs";
 import { access, stat } from "node:fs/promises";
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
+import { promisify } from "node:util";
 
 export const packageInfo = {
   name: "@okf-harness/setup",
@@ -14,11 +17,33 @@ export type SetupAgentId = "claude" | "codex" | "opencode" | "pi" | "hermes" | "
 export type SetupIo = {
   writeOut: (chunk: string) => void;
   writeErr: (chunk: string) => void;
+  readLine?: (prompt: string) => Promise<string>;
+};
+
+export type SetupCommandResult = {
+  stdout: string;
+  stderr: string;
+};
+
+export type RunSetupCommand = (
+  command: string,
+  args: string[],
+  options: { env: NodeJS.ProcessEnv; shell?: boolean | undefined },
+) => Promise<SetupCommandResult>;
+
+export type SetupRuntimePlan = {
+  state: "missing" | "current" | "older" | "newer" | "unknown";
+  packageName: "@okf-harness/cli";
+  targetVersion: string;
+  installCommand: string;
+  currentVersion?: string;
 };
 
 export type RunSetupOptions = {
   env?: NodeJS.ProcessEnv;
   nodeVersion?: string;
+  runtimePlatform?: NodeJS.Platform | string;
+  runCommand?: RunSetupCommand;
 };
 
 export type SetupRunResult = {
@@ -70,12 +95,15 @@ export type SetupPlan = {
   verifyRemote: boolean;
   yes: boolean;
   warnings: string[];
+  runtime: SetupRuntimePlan;
   agents: SetupAgentPlan[];
 };
 
+const execFileAsync = promisify(execFile);
 const packageVersion = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { version: string };
+const runtimePackageName = "@okf-harness/cli";
 
 const invalidAgentsMessage =
   "Setup agents must be: auto, claude, codex, opencode, pi, hermes, openclaw.";
@@ -136,6 +164,14 @@ export async function runSetup(
   io: SetupIo = {
     writeOut: (chunk) => process.stdout.write(chunk),
     writeErr: (chunk) => process.stderr.write(chunk),
+    readLine: async (prompt) => {
+      const readline = createInterface({ input: process.stdin, output: process.stdout });
+      try {
+        return await readline.question(prompt);
+      } finally {
+        readline.close();
+      }
+    },
   },
   options: RunSetupOptions = {},
 ): Promise<SetupRunResult> {
@@ -156,6 +192,9 @@ export async function runSetup(
     return { exitCode: 1, stdout: stdout.join(""), stderr: stderr.join("") };
   }
 
+  const env = options.env ?? process.env;
+  const runtimePlatform = options.runtimePlatform ?? process.platform;
+  const runCommand = options.runCommand ?? runCommandDefault;
   const nodeVersion = options.nodeVersion ?? process.version;
   const nodeMajor = parseNodeMajorVersion(nodeVersion);
   if (nodeMajor === undefined || nodeMajor < 22) {
@@ -167,16 +206,41 @@ export async function runSetup(
 
   const plan = await createSetupPlan({
     ...parsed,
-    env: options.env ?? process.env,
+    env,
     nodeVersion,
+    runCommand,
+    runtimePlatform,
   });
   writeOut(renderSetupPlan(plan));
+
+  if (!parsed.dryRun) {
+    const runtimeExitCode = await installRuntimeAndVerify({
+      env,
+      io: { ...io, writeOut, writeErr },
+      parsed,
+      plan,
+      runCommand,
+      runtimePlatform,
+    });
+    if (runtimeExitCode !== 0) {
+      return {
+        exitCode: runtimeExitCode,
+        stdout: stdout.join(""),
+        stderr: stderr.join(""),
+      };
+    }
+  }
 
   return { exitCode: 0, stdout: stdout.join(""), stderr: stderr.join("") };
 }
 
 async function createSetupPlan(
-  options: SetupArgs & { env: NodeJS.ProcessEnv; nodeVersion: string },
+  options: SetupArgs & {
+    env: NodeJS.ProcessEnv;
+    nodeVersion: string;
+    runCommand: RunSetupCommand;
+    runtimePlatform: NodeJS.Platform | string;
+  },
 ): Promise<SetupPlan> {
   const agents = await Promise.all(
     setupAgentProfiles.map(async (profile): Promise<SetupAgentPlan> => {
@@ -205,6 +269,7 @@ async function createSetupPlan(
     runtimeOnly: options.runtimeOnly,
     verifyRemote: options.verifyRemote,
     yes: options.yes,
+    runtime: await createRuntimePlan(options),
     warnings:
       git === undefined
         ? [
@@ -220,6 +285,7 @@ export function renderSetupPlan(plan: SetupPlan): string {
     "OKF Harness Setup plan",
     `Resolved setup version: ${plan.setupVersion}`,
     `Node.js: ${plan.nodeVersion} (meets >=22)`,
+    renderRuntimeLine(plan.runtime),
     plan.dryRun
       ? "Dry run: no network checks or filesystem writes."
       : "Plan: no filesystem writes until installation is confirmed.",
@@ -263,6 +329,331 @@ export function renderSetupPlan(plan: SetupPlan): string {
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+async function createRuntimePlan(options: {
+  env: NodeJS.ProcessEnv;
+  runCommand: RunSetupCommand;
+  runtimePlatform: NodeJS.Platform | string;
+}): Promise<SetupRuntimePlan> {
+  const targetVersion = packageVersion.version;
+  const installCommand = commandToString(runtimeInstallCommand(targetVersion));
+  try {
+    const result = await options.runCommand(
+      "npm",
+      ["ls", "-g", runtimePackageName, "--json", "--depth=0"],
+      {
+        env: options.env,
+        shell: shouldUseWindowsShell(options.runtimePlatform, "npm"),
+      },
+    );
+    const currentVersion = parseInstalledRuntimeVersion(result.stdout);
+    if (currentVersion === undefined) {
+      return { state: "missing", packageName: runtimePackageName, targetVersion, installCommand };
+    }
+    const comparison = compareVersions(currentVersion, targetVersion);
+    if (comparison === undefined) {
+      return {
+        state: "unknown",
+        packageName: runtimePackageName,
+        targetVersion,
+        installCommand,
+        currentVersion,
+      };
+    }
+    return {
+      state: comparison < 0 ? "older" : comparison > 0 ? "newer" : "current",
+      packageName: runtimePackageName,
+      targetVersion,
+      installCommand,
+      currentVersion,
+    };
+  } catch {
+    return { state: "missing", packageName: runtimePackageName, targetVersion, installCommand };
+  }
+}
+
+function renderRuntimeLine(runtime: SetupRuntimePlan): string {
+  const current = runtime.currentVersion === undefined ? "" : ` current ${runtime.currentVersion},`;
+  return `Runtime: ${runtime.state};${current} target ${runtime.packageName}@${runtime.targetVersion}`;
+}
+
+async function installRuntimeAndVerify(options: {
+  env: NodeJS.ProcessEnv;
+  io: Required<Pick<SetupIo, "writeOut" | "writeErr">> & Pick<SetupIo, "readLine">;
+  parsed: SetupArgs;
+  plan: SetupPlan;
+  runCommand: RunSetupCommand;
+  runtimePlatform: NodeJS.Platform | string;
+}): Promise<number> {
+  const runtime = options.plan.runtime;
+  if (runtime.state === "older") {
+    options.io.writeOut(
+      `Runtime update available: current ${runtime.currentVersion}, target ${runtime.targetVersion}.\n`,
+    );
+    const shouldUpdate =
+      options.parsed.yes || (await confirmYes(options.io, "Update global okfh runtime? [Y/n] "));
+    if (!shouldUpdate) {
+      options.io.writeOut("Runtime update skipped.\n");
+      return 0;
+    }
+  }
+
+  if (runtime.state === "missing" || runtime.state === "older") {
+    const installCommand = runtimeInstallCommand(runtime.targetVersion);
+    options.io.writeOut(
+      `${runtime.state === "older" ? "Updating" : "Installing"} runtime: ${commandToString(
+        installCommand,
+      )}\n`,
+    );
+    try {
+      await options.runCommand(installCommand.command, installCommand.args, {
+        env: options.env,
+        shell: shouldUseWindowsShell(options.runtimePlatform, installCommand.command),
+      });
+    } catch (error) {
+      writeRuntimeCommandFailure(
+        options.io.writeErr,
+        "Runtime installation failed",
+        installCommand,
+        error,
+      );
+      return 1;
+    }
+  }
+
+  if (runtime.state === "unknown") {
+    options.io.writeOut(
+      `Runtime installation skipped: installed ${runtime.packageName} version ${runtime.currentVersion} could not be compared with ${runtime.targetVersion}.\n`,
+    );
+  }
+
+  return verifyRuntime(options);
+}
+
+async function verifyRuntime(options: {
+  env: NodeJS.ProcessEnv;
+  io: Required<Pick<SetupIo, "writeOut" | "writeErr">>;
+  runCommand: RunSetupCommand;
+  runtimePlatform: NodeJS.Platform | string;
+}): Promise<number> {
+  const doctorCommand = { command: "okfh", args: ["doctor", "--json"] };
+  let result: SetupCommandResult;
+  try {
+    result = await options.runCommand(doctorCommand.command, doctorCommand.args, {
+      env: options.env,
+      shell: shouldUseWindowsShell(options.runtimePlatform, doctorCommand.command),
+    });
+  } catch (error) {
+    const doctor = parseDoctorEnvelope(commandStdout(error));
+    if (doctor !== undefined && !hasBlockingDoctorFailure(doctor)) {
+      reportWorkspaceDoctorWarnings(options.io.writeOut, doctor);
+      options.io.writeOut("Runtime verification passed: okfh doctor --json\n");
+      return 0;
+    }
+    writeRuntimeCommandFailure(
+      options.io.writeErr,
+      "Runtime verification failed",
+      doctorCommand,
+      error,
+    );
+    return 1;
+  }
+
+  const doctor = parseDoctorEnvelope(result.stdout);
+  if (doctor === undefined) {
+    options.io.writeErr("Runtime verification failed: okfh doctor --json did not return JSON.\n");
+    return 1;
+  }
+  reportWorkspaceDoctorWarnings(options.io.writeOut, doctor);
+  if (hasBlockingDoctorFailure(doctor)) {
+    options.io.writeErr(
+      "Runtime verification failed: okfh doctor --json reported runtime failures.\n",
+    );
+    return 1;
+  }
+  options.io.writeOut("Runtime verification passed: okfh doctor --json\n");
+  return 0;
+}
+
+function reportWorkspaceDoctorWarnings(writeOut: (chunk: string) => void, doctor: unknown): void {
+  for (const check of doctorChecks(doctor)) {
+    if (check.id.startsWith("workspace-") && (check.status === "warn" || check.status === "fail")) {
+      writeOut(`Doctor workspace warning: ${check.message}\n`);
+    }
+  }
+}
+
+function hasBlockingDoctorFailure(doctor: unknown): boolean {
+  const checks = doctorChecks(doctor);
+  if (checks.some((check) => check.status === "fail" && !check.id.startsWith("workspace-"))) {
+    return true;
+  }
+  const hasWorkspaceProblem = checks.some(
+    (check) =>
+      check.id.startsWith("workspace-") && (check.status === "warn" || check.status === "fail"),
+  );
+  return doctorOk(doctor) === false && !hasWorkspaceProblem;
+}
+
+function doctorOk(doctor: unknown): boolean | undefined {
+  return isRecord(doctor) && typeof doctor.ok === "boolean" ? doctor.ok : undefined;
+}
+
+function doctorChecks(doctor: unknown): Array<{ id: string; status: string; message: string }> {
+  if (!isRecord(doctor) || !isRecord(doctor.data) || !Array.isArray(doctor.data.checks)) {
+    return [];
+  }
+  return doctor.data.checks.flatMap((check) => {
+    if (!isRecord(check)) {
+      return [];
+    }
+    return typeof check.id === "string" &&
+      typeof check.status === "string" &&
+      typeof check.message === "string"
+      ? [{ id: check.id, status: check.status, message: check.message }]
+      : [];
+  });
+}
+
+function runtimeInstallCommand(targetVersion: string): { command: string; args: string[] } {
+  return {
+    command: "npm",
+    args: ["install", "-g", `${runtimePackageName}@${targetVersion}`],
+  };
+}
+
+async function confirmYes(io: SetupIo, prompt: string): Promise<boolean> {
+  const answer = (await io.readLine?.(prompt))?.trim().toLowerCase();
+  return answer === undefined || answer === "" || answer === "y" || answer === "yes";
+}
+
+function parseInstalledRuntimeVersion(stdout: string): string | undefined {
+  try {
+    const parsed = JSON.parse(stdout) as unknown;
+    if (!isRecord(parsed) || !isRecord(parsed.dependencies)) {
+      return undefined;
+    }
+    const runtime = parsed.dependencies[runtimePackageName];
+    return isRecord(runtime) && typeof runtime.version === "string" ? runtime.version : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseDoctorEnvelope(stdout: string): unknown | undefined {
+  try {
+    return JSON.parse(stdout) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function compareVersions(left: string, right: string): number | undefined {
+  const leftParts = versionParts(left);
+  const rightParts = versionParts(right);
+  if (leftParts === undefined || rightParts === undefined) {
+    return undefined;
+  }
+  for (let index = 0; index < leftParts.length; index += 1) {
+    const leftPart = leftParts[index] ?? 0;
+    const rightPart = rightParts[index] ?? 0;
+    if (leftPart !== rightPart) {
+      return leftPart - rightPart;
+    }
+  }
+  return 0;
+}
+
+function versionParts(version: string): [number, number, number] | undefined {
+  const match = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(version);
+  if (match === null) {
+    return undefined;
+  }
+  return [
+    Number.parseInt(match[1] ?? "", 10),
+    Number.parseInt(match[2] ?? "", 10),
+    Number.parseInt(match[3] ?? "", 10),
+  ];
+}
+
+function writeRuntimeCommandFailure(
+  writeErr: (chunk: string) => void,
+  label: string,
+  command: { command: string; args: string[] },
+  error: unknown,
+): void {
+  writeErr(`${label}: ${commandToString(command)}\n`);
+  const details = commandErrorDetails(error);
+  if (details.length > 0) {
+    writeErr(`Details: ${details}\n`);
+  }
+  if (isPermissionError(error)) {
+    writeErr(
+      `Next: Use a user-writable npm global prefix, then run ${commandToString(command)} yourself.\n`,
+    );
+  }
+}
+
+function commandToString(command: { command: string; args: string[] }): string {
+  return [command.command, ...command.args].join(" ");
+}
+
+function commandStdout(error: unknown): string {
+  return typeof error === "object" &&
+    error !== null &&
+    "stdout" in error &&
+    typeof error.stdout === "string"
+    ? error.stdout
+    : "";
+}
+
+function commandErrorDetails(error: unknown): string {
+  if (error instanceof Error) {
+    const output = [commandStdout(error), commandStderr(error)].filter(Boolean).join("\n").trim();
+    return output.length > 0 ? `${error.message}\n${output}` : error.message;
+  }
+  return String(error);
+}
+
+function commandStderr(error: unknown): string {
+  return typeof error === "object" &&
+    error !== null &&
+    "stderr" in error &&
+    typeof error.stderr === "string"
+    ? error.stderr
+    : "";
+}
+
+function isPermissionError(error: unknown): boolean {
+  const details = commandErrorDetails(error).toLowerCase();
+  return (
+    details.includes("eacces") || details.includes("eperm") || details.includes("permission denied")
+  );
+}
+
+async function runCommandDefault(
+  command: string,
+  args: string[],
+  options: { env: NodeJS.ProcessEnv; shell?: boolean | undefined },
+): Promise<SetupCommandResult> {
+  const { stdout, stderr } = await execFileAsync(command, args, {
+    env: options.env,
+    shell: options.shell === true,
+    windowsHide: true,
+  });
+  return { stdout: String(stdout), stderr: String(stderr) };
+}
+
+function shouldUseWindowsShell(
+  runtimePlatform: NodeJS.Platform | string,
+  executable: string,
+): boolean {
+  return runtimePlatform === "win32" && ["npm", "okfh"].includes(executable);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseSetupArgs(args: string[]): SetupArgs | { error: string } {

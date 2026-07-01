@@ -10,6 +10,6 @@ Try the local setup plan:
 npx @okf-harness/setup --dry-run
 ```
 
-The first setup slice is local-only by default: it checks Node.js 22+, detects supported agent clients on `PATH`, prints detected install choices, and shows install-later commands for undetected agents without network checks or filesystem writes.
+Setup checks Node.js 22+, detects supported agent clients on `PATH`, installs or updates the shared global `okfh` runtime when needed, verifies it with `okfh doctor --json`, and keeps `--dry-run` local-only with no network checks or filesystem writes.
 
 For project overview, workflows, and security notes, see the [main repository README](https://github.com/pumblus/okf-harness#readme).
