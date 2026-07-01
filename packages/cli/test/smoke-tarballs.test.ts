@@ -10,7 +10,7 @@ describe("npm tarball smoke helpers", () => {
     expect(resolveLocalBinPath(installDir, "okfh", "win32")).toBe(okfhShim);
     expect(shouldRunWithShell("pnpm", "win32")).toBe(true);
     expect(shouldRunWithShell("npm", "win32")).toBe(true);
-    expect(shouldRunWithShell(okfhShim, "win32")).toBe(false);
+    expect(shouldRunWithShell(okfhShim, "win32")).toBe(true);
     expect(shouldRunWithShell("pnpm", "darwin")).toBe(false);
   });
 });

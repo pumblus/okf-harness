@@ -30,7 +30,7 @@ export function shouldRunWithShell(command, runtimePlatform = process.platform) 
     return false;
   }
   const executable = path.basename(command).toLowerCase();
-  return executable === "npm" || executable === "pnpm";
+  return executable === "npm" || executable === "pnpm" || executable.endsWith(".cmd");
 }
 
 async function main() {
@@ -111,7 +111,7 @@ async function main() {
       "@okf-harness/setup",
       "okf-harness-setup",
       ["--dry-run"],
-      { env: { ...bootstrapEnv, PATH: "" } },
+      { env: { ...bootstrapEnv, PATH: path.dirname(process.execPath) } },
     );
     if (
       !setupPlan.stdout.includes("OKF Harness Setup plan") ||
@@ -316,12 +316,13 @@ function runInstalledBin(installDir, binName, args, options = {}) {
 }
 
 function runInstalledPackageBin(installDir, packageName, binName, args, options = {}) {
-  return installedPackageBinPath(installDir, packageName, binName, "dist/main.js").then((binPath) =>
-    run(process.execPath, [binPath, ...args], { cwd: installDir, env: options.env }),
+  return assertInstalledPackageBinTarget(installDir, packageName, binName, "dist/main.js").then(
+    () =>
+      run(resolveLocalBinPath(installDir, binName), args, { cwd: installDir, env: options.env }),
   );
 }
 
-async function installedPackageBinPath(installDir, packageName, binName, expectedTarget) {
+async function assertInstalledPackageBinTarget(installDir, packageName, binName, expectedTarget) {
   const packageRoot = path.join(installDir, "node_modules", ...packageName.split("/"));
   const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
   const binTarget = packageJson.bin?.[binName];
@@ -330,7 +331,6 @@ async function installedPackageBinPath(installDir, packageName, binName, expecte
       `Installed ${packageName} bin ${binName} points to ${JSON.stringify(binTarget)}`,
     );
   }
-  return path.join(packageRoot, binTarget);
 }
 
 function run(command, args, options) {

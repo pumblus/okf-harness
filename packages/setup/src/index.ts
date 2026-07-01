@@ -175,7 +175,7 @@ export async function runSetup(
   return { exitCode: 0, stdout: stdout.join(""), stderr: stderr.join("") };
 }
 
-export async function createSetupPlan(
+async function createSetupPlan(
   options: SetupArgs & { env: NodeJS.ProcessEnv; nodeVersion: string },
 ): Promise<SetupPlan> {
   const agents = await Promise.all(
