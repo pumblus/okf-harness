@@ -121,6 +121,17 @@ okfh doctor --json
 - Use the release title/body template from the root `AGENTS.md`.
 - Ensure the release body states important non-goals and unchanged boundaries when they matter.
 
+Installer asset commands for v0.6.0 and later:
+
+```bash
+gh release upload "v{version}" install.sh install.ps1 --clobber
+tmpdir="$(mktemp -d)"
+gh release download "v{version}" --pattern "install.*" --dir "$tmpdir"
+shasum -a 256 install.sh install.ps1 "$tmpdir/install.sh" "$tmpdir/install.ps1"
+```
+
+The downloaded asset hashes must match the repository script hashes. After the short installer URLs are configured, also confirm `https://okf-harness.dev/install.sh` and `https://okf-harness.dev/install.ps1` serve the same release assets before claiming the latest installer path is live.
+
 ## Final release proof
 
 Before saying the release is done, separate the evidence layers:

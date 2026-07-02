@@ -138,6 +138,7 @@ async function main() {
       console.log(`packed ${packageInfo.name}: ${path.basename(tarballPath)}`);
     }
 
+    await assertInstallerScripts();
     await runOpenCodePluginInstallSmoke(tempRoot, path.join(repoRoot, nativeIntegrationPackageDir));
     await runPiInstallSmoke(tempRoot);
     await assertHermesTapSkill();
@@ -470,6 +471,25 @@ function assertPackedPackageContents(packageInfo, packedPackage) {
       throw new Error(`${nativeIntegrationPackageName} tarball should not include ${forbidden}`);
     }
   }
+}
+
+async function assertInstallerScripts() {
+  const scripts = [
+    ["install.sh", await readFile(path.join(repoRoot, "install.sh"), "utf8")],
+    ["install.ps1", await readFile(path.join(repoRoot, "install.ps1"), "utf8")],
+  ];
+  for (const [filename, contents] of scripts) {
+    if (!contents.includes("@okf-harness/setup@latest")) {
+      throw new Error(`${filename} must delegate to @okf-harness/setup@latest`);
+    }
+    if (
+      /\b(?:brew|apt|yum|dnf|nvm|winget|choco|scoop)\b/i.test(contents) ||
+      /\bokfh\b|workspace|bootstrap|plugin|codex|claude|opencode|hermes|openclaw/i.test(contents)
+    ) {
+      throw new Error(`${filename} must stay a thin setup launcher`);
+    }
+  }
+  console.log("installer release asset sources passed");
 }
 
 async function assertNativeIntegrationPackage(installDir) {
