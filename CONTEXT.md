@@ -8,6 +8,10 @@ OKF Harness is the product context for an agent-first, local-first, terminal-nat
 A local harness for maintaining OKF bundles through Claude Code, Codex, and future coding agents. It builds on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing). It is an independent project around the format, not the OKF specification itself, an official implementation, a standalone knowledge-base application, or an Obsidian plugin.
 _Avoid_: OKF app, Obsidian plugin, private agent runtime
 
+**Public homepage**:
+The first browser entry at `okf-harness.dev` that orients a new visitor, states the product boundary, and points to install, docs, and repository paths. It is a trusted first entry, not the full documentation site, installer implementation, release source, or product application.
+_Avoid_: docs site, installer site, product app, full product website
+
 **Harness**:
 The deterministic support layer around an OKF bundle that gives agents reliable tools for setup, source registration, planning, validation, search, graph generation, and integration. It supports agent work but does not replace the agent or become a knowledge-base application.
 _Avoid_: framework, platform, agent runtime
