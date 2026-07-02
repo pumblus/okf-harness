@@ -7,6 +7,7 @@ import {
   type BootstrapAgent,
   readBootstrapAgentStatus,
   supportedBootstrapAgents,
+  supportedNativeIntegrationProfiles,
 } from "@okf-harness/agent-pack";
 import {
   GIT_CHECKPOINT_POLICY_NOT_ENFORCED,
@@ -80,14 +81,6 @@ export type RunExecutable = (
 type ReadBootstrapStatus = typeof readBootstrapAgentStatus;
 
 const execFileAsync = promisify(execFile);
-const nativeIntegrationProfiles = [
-  { id: "claude", label: "Claude Code", command: "claude" },
-  { id: "codex", label: "Codex", command: "codex" },
-  { id: "opencode", label: "OpenCode", command: "opencode" },
-  { id: "pi", label: "Pi", command: "pi" },
-  { id: "hermes", label: "Hermes Agent", command: "hermes" },
-  { id: "openclaw", label: "OpenClaw", command: "openclaw" },
-] as const;
 const requiredSkillFiles = [
   "okf-harness/SKILL.md",
   "okf-harness/references/setup.md",
@@ -128,7 +121,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
   }
 
   const nativeIntegrationChecks = await Promise.all(
-    nativeIntegrationProfiles.map((profile) => checkNativeIntegration(profile, env)),
+    supportedNativeIntegrationProfiles.map((profile) => checkNativeIntegration(profile, env)),
   );
   const legacyBootstrapFallbackChecks = await Promise.all(
     supportedBootstrapAgents.map((agent) => checkGlobalBootstrap(agent, readBootstrapStatus)),
@@ -418,7 +411,7 @@ async function checkGlobalBootstrap(
 }
 
 async function checkNativeIntegration(
-  profile: (typeof nativeIntegrationProfiles)[number],
+  profile: (typeof supportedNativeIntegrationProfiles)[number],
   env: NodeJS.ProcessEnv,
 ): Promise<DoctorCheck> {
   const executablePath = await findExecutable(profile.command, env);

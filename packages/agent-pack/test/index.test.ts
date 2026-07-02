@@ -8,6 +8,7 @@ import {
   packageInfo,
   renderAgentAdapter,
   renderBootstrapAgent,
+  supportedNativeIntegrationProfiles,
 } from "../src/index.js";
 import {
   adapterProfiles,
@@ -62,6 +63,34 @@ describe("@okf-harness/agent-pack", () => {
       expect(profile.command).toBe(agent);
       expect(profile.description).toContain(profile.label);
     }
+  });
+
+  it("exposes one native integration catalog for setup and doctor", () => {
+    expect(supportedNativeIntegrationProfiles.map((profile) => profile.id)).toEqual([
+      "claude",
+      "codex",
+      "opencode",
+      "pi",
+      "hermes",
+      "openclaw",
+    ]);
+    expect(supportedNativeIntegrationProfiles.find((profile) => profile.id === "codex")).toEqual(
+      expect.objectContaining({
+        label: "Codex",
+        command: "codex",
+        defaultSelected: true,
+        nativeInstallCommands: [
+          {
+            command: "codex",
+            args: ["plugin", "marketplace", "add", "pumblus/okf-harness", "--json"],
+          },
+          { command: "codex", args: ["plugin", "add", "okf-harness@okf-harness", "--json"] },
+        ],
+      }),
+    );
+    expect(
+      supportedNativeIntegrationProfiles.find((profile) => profile.id === "openclaw"),
+    ).toMatchObject({ defaultSelected: false });
   });
 
   it("checks supported adapters through shared render contracts", () => {

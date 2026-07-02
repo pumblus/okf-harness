@@ -1,3 +1,5 @@
+import { nativeIntegrationProfile } from "./integrations.js";
+
 export const agentAdapters = ["claude", "codex"] as const;
 export type AgentAdapter = (typeof agentAdapters)[number];
 export type AgentInstallTarget = AgentAdapter | "all";
@@ -60,10 +62,13 @@ export type BootstrapAgentProfile = {
   description: string;
 };
 
+const codexIntegration = nativeIntegrationProfile("codex");
+const claudeIntegration = nativeIntegrationProfile("claude");
+
 export const bootstrapAgentProfiles: Record<BootstrapAgent, BootstrapAgentProfile> = {
   codex: {
-    command: "codex",
-    label: "Codex",
+    command: codexIntegration.command,
+    label: codexIntegration.label,
     routePrefix: "$",
     targetDirectory: ".agents",
     stateDirectoryEnv: "CODEX_HOME",
@@ -74,8 +79,8 @@ export const bootstrapAgentProfiles: Record<BootstrapAgent, BootstrapAgentProfil
       "Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Codex. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.",
   },
   claude: {
-    command: "claude",
-    label: "Claude Code",
+    command: claudeIntegration.command,
+    label: claudeIntegration.label,
     routePrefix: "/",
     targetDirectoryEnv: "CLAUDE_CONFIG_DIR",
     targetDirectory: ".claude",

@@ -46,6 +46,9 @@
   "files": [
     "dist"
   ],
+  "dependencies": {
+    "@okf-harness/agent-pack": "0.6.0"
+  },
   "scripts": {
     "build": "tsup src/index.ts src/main.ts --format esm --dts --clean",
     "prepublishOnly": "pnpm run build"

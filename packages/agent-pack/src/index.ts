@@ -12,6 +12,14 @@ import {
 } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+
+export type {
+  NativeInstallCommand,
+  NativeIntegrationId,
+  NativeIntegrationProfile,
+} from "./integrations.js";
+export { supportedNativeIntegrationProfiles } from "./integrations.js";
+
 import type { AgentAdapter, BootstrapAgent } from "./profiles.js";
 import {
   adapterProfiles,

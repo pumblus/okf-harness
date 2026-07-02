@@ -56,7 +56,11 @@ importers:
 
   packages/native-integration: {}
 
-  packages/setup: {}
+  packages/setup:
+    dependencies:
+      '@okf-harness/agent-pack':
+        specifier: 0.6.0
+        version: link:../agent-pack
 
 packages:
 
