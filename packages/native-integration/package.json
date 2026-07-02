@@ -1,0 +1,54 @@
+{
+  "name": "@pumblus/okf-harness",
+  "version": "0.5.5",
+  "description": "Pi and OpenCode native bootstrap integration for OKF Harness.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "author": "Eric Zhou",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pumblus/okf-harness.git",
+    "directory": "packages/native-integration"
+  },
+  "bugs": {
+    "url": "https://github.com/pumblus/okf-harness/issues"
+  },
+  "keywords": [
+    "okf",
+    "open-knowledge-format",
+    "llm-wiki",
+    "agent-skills",
+    "pi",
+    "pi-package",
+    "opencode"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/opencode.js",
+  "types": "./dist/opencode.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/opencode.d.ts",
+      "import": "./dist/opencode.js"
+    }
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md"
+  ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  },
+  "scripts": {
+    "build": "tsup src/opencode.ts --format esm --dts --clean",
+    "prepublishOnly": "pnpm run build"
+  }
+}

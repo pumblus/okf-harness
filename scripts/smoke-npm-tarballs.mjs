@@ -7,12 +7,15 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
+const nativeIntegrationPackageName = "@pumblus/okf-harness";
+const nativeIntegrationPackageDir = "packages/native-integration";
 
 const publishablePackages = [
   { name: "@okf-harness/core", dir: "packages/core" },
   { name: "@okf-harness/agent-pack", dir: "packages/agent-pack" },
   { name: "@okf-harness/cli", dir: "packages/cli" },
   { name: "@okf-harness/setup", dir: "packages/setup" },
+  { name: nativeIntegrationPackageName, dir: nativeIntegrationPackageDir },
 ];
 
 if (isDirectRun(import.meta.url, process.argv[1])) {
@@ -33,6 +36,42 @@ export function shouldRunWithShell(command, runtimePlatform = process.platform) 
   return executable === "npm" || executable === "pnpm" || executable.endsWith(".cmd");
 }
 
+export function buildNativeHostSmokeEnv(baseEnv, paths) {
+  const env = {};
+  for (const key of [
+    "PATH",
+    "Path",
+    "SystemRoot",
+    "ComSpec",
+    "COMSPEC",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "NPM_CONFIG_REGISTRY",
+  ]) {
+    if (baseEnv[key] !== undefined) {
+      env[key] = baseEnv[key];
+    }
+  }
+
+  env.HOME = paths.home;
+  env.USERPROFILE = paths.home;
+  env.XDG_CACHE_HOME = paths.xdgCacheHome;
+  env.XDG_CONFIG_HOME = paths.xdgConfigHome;
+  env.XDG_DATA_HOME = paths.xdgDataHome;
+  if (paths.opencodeConfigDir !== undefined) {
+    env.OPENCODE_CONFIG_DIR = paths.opencodeConfigDir;
+  }
+  return env;
+}
+
 async function main() {
   const tempRoot = await mkdtemp(path.join(tmpdir(), "okfh-tarball-smoke-"));
   const packDir = path.join(tempRoot, "packs");
@@ -46,10 +85,14 @@ async function main() {
     await mkdir(installDir, { recursive: true });
 
     console.log("building workspace");
-    await run("pnpm", ["--recursive", "--filter", "@okf-harness/*", "build"], {
-      cwd: repoRoot,
-      stdio: "inherit",
-    });
+    await run(
+      "pnpm",
+      ["--recursive", "--filter", "@okf-harness/*", "--filter", "@pumblus/okf-harness", "build"],
+      {
+        cwd: repoRoot,
+        stdio: "inherit",
+      },
+    );
 
     await writeFile(
       path.join(installDir, "package.json"),
@@ -77,20 +120,26 @@ async function main() {
         cwd: packageDir,
       });
       const packOutput = JSON.parse(result.stdout);
-      const filename = packOutput[0]?.filename;
+      const packedPackage = packOutput[0];
+      const filename = packedPackage?.filename;
       if (typeof filename !== "string" || filename.length === 0) {
         throw new Error(`npm pack did not return a tarball filename for ${packageInfo.name}`);
       }
+      assertPackedPackageContents(packageInfo, packedPackage);
       const tarballPath = path.isAbsolute(filename) ? filename : path.join(packDir, filename);
       tarballs.push(tarballPath);
       console.log(`packed ${packageInfo.name}: ${path.basename(tarballPath)}`);
     }
+
+    await runOpenCodePluginInstallSmoke(tempRoot, path.join(repoRoot, nativeIntegrationPackageDir));
+    await runPiInstallSmoke(tempRoot);
 
     console.log("installing local tarballs");
     await run("npm", ["install", "--no-audit", "--no-fund", ...tarballs], {
       cwd: installDir,
       env: bootstrapEnv,
     });
+    await assertNativeIntegrationPackage(installDir);
     const agentPackVersion = await installedPackageVersion(installDir, "@okf-harness/agent-pack");
     await assertGeneratedSkill(
       path.join(bootstrapCodexSkillRoot, "skills/okf-harness-bootstrap/SKILL.md"),
@@ -383,6 +432,232 @@ async function installedPackageVersion(installDir, packageName) {
     throw new Error(`Installed package version missing for ${packageName}`);
   }
   return packageJson.version;
+}
+
+function assertPackedPackageContents(packageInfo, packedPackage) {
+  if (packageInfo.name !== nativeIntegrationPackageName) {
+    return;
+  }
+
+  const files = new Set((packedPackage.files ?? []).map((file) => file.path));
+  for (const expected of [
+    "package.json",
+    "README.md",
+    "dist/opencode.js",
+    "dist/opencode.d.ts",
+    "skills/okf-harness-bootstrap/SKILL.md",
+  ]) {
+    if (!files.has(expected)) {
+      throw new Error(`${nativeIntegrationPackageName} tarball missing ${expected}`);
+    }
+  }
+  for (const forbidden of [
+    "src/opencode.ts",
+    "test/package.test.ts",
+    "skills/okf-harness/SKILL.md",
+  ]) {
+    if (files.has(forbidden)) {
+      throw new Error(`${nativeIntegrationPackageName} tarball should not include ${forbidden}`);
+    }
+  }
+}
+
+async function assertNativeIntegrationPackage(installDir) {
+  const packageRoot = path.join(installDir, "node_modules", "@pumblus", "okf-harness");
+  const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
+  if (packageJson.bin !== undefined) {
+    throw new Error(`${nativeIntegrationPackageName} must not publish CLI bins`);
+  }
+  if (packageJson.scripts?.postinstall !== undefined) {
+    throw new Error(`${nativeIntegrationPackageName} must not run postinstall hooks`);
+  }
+  if (packageJson.pi?.skills?.[0] !== "./skills") {
+    throw new Error(`${nativeIntegrationPackageName} missing Pi skills declaration`);
+  }
+
+  const skillFiles = await listFiles(path.join(packageRoot, "skills"));
+  if (JSON.stringify(skillFiles) !== JSON.stringify(["okf-harness-bootstrap/SKILL.md"])) {
+    throw new Error(
+      `${nativeIntegrationPackageName} exposes unexpected skills: ${skillFiles.join(", ")}`,
+    );
+  }
+
+  const skill = await readFile(
+    path.join(packageRoot, "skills/okf-harness-bootstrap/SKILL.md"),
+    "utf8",
+  );
+  for (const expected of [
+    "name: okf-harness-bootstrap",
+    'okf-harness-entrypoint: "bootstrap"',
+    "npm install -g @okf-harness/cli",
+    "Do not install, update, or replace the runtime",
+  ]) {
+    if (!skill.includes(expected)) {
+      throw new Error(`@pumblus/okf-harness skill missing ${expected}`);
+    }
+  }
+
+  const opencodeConfigDir = path.join(installDir, "opencode-config");
+  const pluginUrl = pathToFileURL(path.join(packageRoot, "dist/opencode.js")).href;
+  await run(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      [
+        `const mod = await import(${JSON.stringify(pluginUrl)});`,
+        'if (typeof mod.default !== "function") throw new Error("missing default plugin export");',
+        "const hooks = await mod.default();",
+        'if (!hooks || typeof hooks !== "object") throw new Error("plugin did not return hooks object");',
+      ].join("\n"),
+    ],
+    {
+      cwd: installDir,
+      env: buildNativeHostSmokeEnv(process.env, {
+        home: path.join(installDir, "opencode-home"),
+        xdgCacheHome: path.join(installDir, "opencode-cache"),
+        xdgConfigHome: path.join(installDir, "opencode-xdg-config"),
+        xdgDataHome: path.join(installDir, "opencode-data"),
+        opencodeConfigDir,
+      }),
+    },
+  );
+  const syncedSkill = await readFile(
+    path.join(opencodeConfigDir, "skills/okf-harness-bootstrap/SKILL.md"),
+    "utf8",
+  );
+  if (!syncedSkill.includes("name: okf-harness-bootstrap")) {
+    throw new Error("OpenCode plugin did not sync the global bootstrap skill");
+  }
+  console.log("native integration package contents passed");
+}
+
+async function runOpenCodePluginInstallSmoke(tempRoot, localPluginSpec) {
+  if (!(await commandExists("opencode"))) {
+    console.log("opencode CLI not found; skipped OpenCode plugin install smoke");
+    return;
+  }
+
+  const home = path.join(tempRoot, "opencode-home");
+  const xdgConfigHome = path.join(tempRoot, "opencode-xdg-config");
+  const xdgCacheHome = path.join(tempRoot, "opencode-xdg-cache");
+  const xdgDataHome = path.join(tempRoot, "opencode-xdg-data");
+  const opencodeConfigDir = path.join(tempRoot, "opencode-config");
+  await mkdir(home, { recursive: true });
+  await mkdir(xdgConfigHome, { recursive: true });
+  await mkdir(xdgCacheHome, { recursive: true });
+  await mkdir(xdgDataHome, { recursive: true });
+  await mkdir(opencodeConfigDir, { recursive: true });
+
+  const registrySmoke = process.env.OKFH_OPENCODE_REGISTRY_SMOKE === "1";
+  const published =
+    registrySmoke || (await isPublishedPackageVersion(nativeIntegrationPackageName));
+  const pluginSpec = published ? nativeIntegrationPackageName : localPluginSpec;
+  await run("opencode", ["plugin", pluginSpec, "--global"], {
+    cwd: tempRoot,
+    env: buildNativeHostSmokeEnv(process.env, {
+      home,
+      xdgCacheHome,
+      xdgConfigHome,
+      xdgDataHome,
+      opencodeConfigDir,
+    }),
+  });
+
+  const configText = await readFirstExistingFile([
+    path.join(opencodeConfigDir, "opencode.json"),
+    path.join(opencodeConfigDir, "opencode.jsonc"),
+    path.join(opencodeConfigDir, "config.json"),
+    path.join(xdgConfigHome, "opencode/opencode.json"),
+    path.join(xdgConfigHome, "opencode/opencode.jsonc"),
+    path.join(xdgConfigHome, "opencode/config.json"),
+    path.join(home, ".config/opencode/opencode.json"),
+    path.join(home, ".config/opencode/opencode.jsonc"),
+    path.join(home, ".config/opencode/config.json"),
+  ]);
+  if (!configText.includes(pluginSpec)) {
+    throw new Error(`OpenCode global config missing ${pluginSpec}: ${configText}`);
+  }
+  if (!published) {
+    console.log(
+      `opencode local plugin install smoke passed; registry smoke gap: run opencode plugin ${nativeIntegrationPackageName} --global after the package version is published.`,
+    );
+    return;
+  }
+  console.log("opencode registry plugin install smoke passed");
+}
+
+async function isPublishedPackageVersion(packageName) {
+  const packageJson = JSON.parse(
+    await readFile(path.join(repoRoot, nativeIntegrationPackageDir, "package.json"), "utf8"),
+  );
+  try {
+    const result = await run("npm", ["view", `${packageName}@${packageJson.version}`, "version"], {
+      cwd: repoRoot,
+    });
+    return result.stdout.trim() === packageJson.version;
+  } catch {
+    return false;
+  }
+}
+
+async function runPiInstallSmoke(tempRoot) {
+  if (!(await commandExists("pi"))) {
+    console.log(
+      "pi CLI not found; manual release checklist gap: run pi install npm:@pumblus/okf-harness before release.",
+    );
+    return;
+  }
+  if (
+    process.env.OKFH_PI_REGISTRY_SMOKE !== "1" &&
+    !(await isPublishedPackageVersion(nativeIntegrationPackageName))
+  ) {
+    throw new Error(
+      `pi CLI found but ${nativeIntegrationPackageName} is not published at the current version; run pi install npm:${nativeIntegrationPackageName} after publishing.`,
+    );
+  }
+
+  const home = path.join(tempRoot, "pi-home");
+  const xdgConfigHome = path.join(tempRoot, "pi-xdg-config");
+  const xdgCacheHome = path.join(tempRoot, "pi-xdg-cache");
+  const xdgDataHome = path.join(tempRoot, "pi-xdg-data");
+  await mkdir(home, { recursive: true });
+  await mkdir(xdgConfigHome, { recursive: true });
+  await mkdir(xdgCacheHome, { recursive: true });
+  await mkdir(xdgDataHome, { recursive: true });
+  await run("pi", ["install", `npm:${nativeIntegrationPackageName}`], {
+    cwd: tempRoot,
+    env: buildNativeHostSmokeEnv(process.env, {
+      home,
+      xdgCacheHome,
+      xdgConfigHome,
+      xdgDataHome,
+    }),
+  });
+  console.log("pi package install smoke passed");
+}
+
+async function commandExists(command) {
+  try {
+    await run(command, ["--version"], { cwd: repoRoot });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readFirstExistingFile(files) {
+  for (const file of files) {
+    try {
+      return await readFile(file, "utf8");
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error(`None of the expected config files exist: ${files.join(", ")}`);
 }
 
 async function assertGeneratedSkill(

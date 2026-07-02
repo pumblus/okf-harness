@@ -54,6 +54,8 @@ importers:
         specifier: ^25.9.3
         version: 25.9.3
 
+  packages/native-integration: {}
+
   packages/setup: {}
 
 packages:

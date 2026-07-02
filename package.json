@@ -19,7 +19,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "pnpm --recursive --filter '@okf-harness/*' build",
+    "build": "pnpm --recursive --filter '@okf-harness/*' --filter '@pumblus/okf-harness' build",
     "docs:llms": "node scripts/build-llms.mjs",
     "docs:llms:check": "node scripts/build-llms.mjs --check",
     "typecheck": "tsc --noEmit -p tsconfig.json",
