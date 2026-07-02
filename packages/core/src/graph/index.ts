@@ -3,7 +3,11 @@ import path from "node:path";
 import { loadWorkspaceConfig } from "../config/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
 import { okfDocumentView } from "../okf/document.js";
-import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
+import {
+  parseBareReferenceTargets,
+  parseMarkdownLinks,
+  resolveOkfLinkTarget,
+} from "../okf/links.js";
 
 export const GRAPH_WRITE_FAILED = "GRAPH_WRITE_FAILED" as const;
 
@@ -153,7 +157,10 @@ function graphEdgesFromFiles(
     const body = okfDocumentView(file).body;
     const targets = [
       ...parseMarkdownLinks(body).map((link) => ({ target: link.target, kind: "link" as const })),
-      ...bareReferenceTargets(body).map((target) => ({ target, kind: "citation" as const })),
+      ...parseBareReferenceTargets(body).map((reference) => ({
+        target: reference.target,
+        kind: "citation" as const,
+      })),
     ];
 
     for (const target of targets) {
@@ -196,12 +203,6 @@ function graphEdgesFromFiles(
     missingTargets,
     issues,
   };
-}
-
-function bareReferenceTargets(markdown: string): string[] {
-  return [...markdown.matchAll(/(^|\s)(\/?(?:wiki\/)?references\/[^\s)]+\.md)\b/gm)]
-    .map((match) => match[2])
-    .filter((target): target is string => target !== undefined);
 }
 
 function backlinksFromEdges(edges: GraphEdge[]): Record<string, string[]> {

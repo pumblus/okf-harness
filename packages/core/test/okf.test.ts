@@ -4,6 +4,7 @@ import { loadWorkspaceConfig } from "../src/config/index.js";
 import { conceptIdFromPath, scanConcepts } from "../src/okf/concepts.js";
 import { okfDocumentView } from "../src/okf/document.js";
 import { parseMarkdownFrontmatter } from "../src/okf/frontmatter.js";
+import { parseBareReferenceTargets } from "../src/okf/links.js";
 import { copyValidWorkspace, validWorkspaceFixture } from "./helpers.js";
 
 describe("OKF markdown parsing", () => {
@@ -103,5 +104,19 @@ describe("OKF concept scanning", () => {
     expect(result.concepts.find((concept) => concept.id === "topics/heading-only")?.title).toBe(
       undefined,
     );
+  });
+});
+
+describe("OKF link parsing", () => {
+  it("finds bare reference document targets with line numbers", () => {
+    expect(
+      parseBareReferenceTargets(
+        "See /references/source.md\nand wiki/references/other.md\nskip topics/not-reference.md\nthen references/local.md\n",
+      ),
+    ).toEqual([
+      { target: "/references/source.md", line: 1 },
+      { target: "wiki/references/other.md", line: 2 },
+      { target: "references/local.md", line: 4 },
+    ]);
   });
 });

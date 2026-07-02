@@ -4,7 +4,11 @@ import { TextDecoder } from "node:util";
 import { loadWorkspaceConfig } from "../config/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
 import { type OkfDocumentView, okfDocumentView } from "../okf/document.js";
-import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
+import {
+  parseBareReferenceTargets,
+  parseMarkdownLinks,
+  resolveOkfLinkTarget,
+} from "../okf/links.js";
 import { readSourceManifest, type SourceManifestEntry } from "../source/index.js";
 
 export const INVALID_TARGET = "INVALID_TARGET" as const;
@@ -482,21 +486,17 @@ function parseCitations(
     }
   }
 
-  const bareReferenceTargets = [
-    ...citationMarkdown.matchAll(/(^|\s)(\/?(?:wiki\/)?references\/[^\s)]+\.md)\b/gm),
-  ];
-  for (const match of bareReferenceTargets) {
-    const target = match[2];
-    if (target === undefined || linkedTargets.has(target)) {
+  for (const reference of parseBareReferenceTargets(citationMarkdown)) {
+    if (linkedTargets.has(reference.target)) {
       continue;
     }
-    const conceptId = resolveOkfLinkTarget(target, file.bundlePath);
+    const conceptId = resolveOkfLinkTarget(reference.target, file.bundlePath);
     const exists = conceptId !== undefined && conceptIds.has(conceptId);
     const citation: ReadCitation = {
       kind: "reference",
-      target,
+      target: reference.target,
       exists,
-      line: citationRange.startLine + lineNumberAtOffset(citationMarkdown, match.index ?? 0) - 1,
+      line: citationRange.startLine + reference.line - 1,
     };
     if (conceptId !== undefined) {
       citation.conceptId = conceptId;
@@ -506,7 +506,7 @@ function parseCitations(
       citationIssues.push({
         code: "BROKEN_CITATION_REFERENCE",
         line: citation.line,
-        message: `Citation reference does not resolve: ${target}`,
+        message: `Citation reference does not resolve: ${reference.target}`,
       });
     }
   }

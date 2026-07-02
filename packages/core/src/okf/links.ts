@@ -7,6 +7,11 @@ export type MarkdownLink = {
   line: number;
 };
 
+export type BareReferenceTarget = {
+  target: string;
+  line: number;
+};
+
 export function parseMarkdownLinks(markdown: string): MarkdownLink[] {
   const links: MarkdownLink[] = [];
   const lines = markdown.split(/\r?\n/);
@@ -28,6 +33,15 @@ export function parseMarkdownLinks(markdown: string): MarkdownLink[] {
   });
 
   return links;
+}
+
+export function parseBareReferenceTargets(markdown: string): BareReferenceTarget[] {
+  return markdown.split(/\r?\n/).flatMap((line, index) =>
+    [...line.matchAll(/(^|\s)(\/?(?:wiki\/)?references\/[^\s)]+\.md)\b/g)]
+      .map((match) => match[2])
+      .filter((target): target is string => target !== undefined)
+      .map((target) => ({ target, line: index + 1 })),
+  );
 }
 
 export function resolveOkfLinkTarget(target: string, fromBundlePath: string): string | undefined {
