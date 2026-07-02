@@ -250,12 +250,18 @@ function run(
   options: { env: NodeJS.ProcessEnv },
 ): Promise<{ code: number; stderr: string; stdout: string }> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, {
-      env: options.env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
     let stdout = "";
     let stderr = "";
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(command, args, {
+        env: options.env,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (error) {
+      resolve({ code: 1, stderr: error instanceof Error ? error.message : String(error), stdout });
+      return;
+    }
     child.stdout?.on("data", (chunk) => {
       stdout += chunk;
     });
