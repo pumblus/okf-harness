@@ -4,14 +4,14 @@
     "name": "Eric Zhou"
   },
   "description": "Claude Code marketplace for the OKF Harness native bootstrap integration.",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "plugins": [
     {
       "name": "okf-harness",
       "source": "./plugins/claude/okf-harness",
       "displayName": "OKF Harness",
       "description": "Adds the okf-harness-bootstrap skill for creating, finding, selecting, or repairing OKF Harness workspaces. Requires okfh; first use gives setup guidance if the runtime is missing.",
-      "version": "0.5.5",
+      "version": "0.6.0",
       "author": {
         "name": "Eric Zhou"
       },

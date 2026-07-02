@@ -4,7 +4,7 @@ description: Bootstrap OKF Harness before a workspace exists. Use when the user 
 license: Apache-2.0
 compatibility: Designed for Codex with local shell command access. Requires the okfh CLI.
 metadata:
-  okf-harness-version: "0.5.5"
+  okf-harness-version: "0.6.0"
   okf-harness-managed: "true"
   okf-harness-entrypoint: "bootstrap"
   okf-harness-agent: "codex"

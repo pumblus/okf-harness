@@ -1,6 +1,6 @@
 {
   "name": "@pumblus/okf-harness",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "description": "Pi, OpenCode, and OpenClaw native bootstrap integration for OKF Harness.",
   "license": "Apache-2.0",
   "type": "module",

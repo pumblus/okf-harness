@@ -115,7 +115,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -172,7 +172,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -220,7 +220,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -284,7 +284,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -329,7 +329,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -380,7 +380,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -426,7 +426,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -477,11 +477,11 @@ describe("@okf-harness/setup", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Runtime: missing");
-    expect(result.stdout).toContain("Installing runtime: npm install -g @okf-harness/cli@0.5.5");
+    expect(result.stdout).toContain("Installing runtime: npm install -g @okf-harness/cli@0.6.0");
     expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
     expect(runs).toEqual([
       { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
-      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.5.5"] },
+      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.6.0"] },
       { command: "okfh", args: ["doctor", "--json"] },
     ]);
     expect(result.stderr).toBe("");
@@ -522,12 +522,12 @@ describe("@okf-harness/setup", () => {
     });
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Runtime: older; current 0.5.4, target @okf-harness/cli@0.5.5");
-    expect(result.stdout).toContain("Runtime update available: current 0.5.4, target 0.5.5.");
+    expect(result.stdout).toContain("Runtime: older; current 0.5.4, target @okf-harness/cli@0.6.0");
+    expect(result.stdout).toContain("Runtime update available: current 0.5.4, target 0.6.0.");
     expect(prompt).toBe("Update global okfh runtime? [Y/n] ");
     expect(runs).toEqual([
       { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
-      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.5.5"] },
+      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.6.0"] },
       { command: "okfh", args: ["doctor", "--json"] },
     ]);
     expect(result.stderr).toBe("");
@@ -585,14 +585,14 @@ describe("@okf-harness/setup", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain(
-      "Runtime installation failed: npm install -g @okf-harness/cli@0.5.5",
+      "Runtime installation failed: npm install -g @okf-harness/cli@0.6.0",
     );
     expect(result.stderr).toContain("Use a user-writable npm global prefix");
-    expect(result.stderr).toContain("npm install -g @okf-harness/cli@0.5.5");
+    expect(result.stderr).toContain("npm install -g @okf-harness/cli@0.6.0");
     expect(result.stderr).not.toContain("sudo");
     expect(runs).toEqual([
       { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
-      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.5.5"] },
+      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.6.0"] },
     ]);
   });
 
@@ -607,7 +607,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -678,7 +678,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -736,7 +736,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };
@@ -767,7 +767,7 @@ describe("@okf-harness/setup", () => {
           if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
               stderr: "",
             };

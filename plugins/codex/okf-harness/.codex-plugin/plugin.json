@@ -1,6 +1,6 @@
 {
   "name": "okf-harness",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "description": "Adds the okf-harness-bootstrap skill for creating, finding, selecting, or repairing OKF Harness workspaces. Requires okfh; first use gives setup guidance if the runtime is missing.",
   "author": {
     "name": "Eric Zhou",
