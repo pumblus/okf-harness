@@ -1,6 +1,6 @@
 # OKF Harness Native Integration
 
-This package exposes the global `okf-harness-bootstrap` integration for Pi and OpenCode.
+This package exposes the global `okf-harness-bootstrap` integration for Pi, OpenCode, and OpenClaw.
 
 ## Install
 
@@ -12,10 +12,14 @@ pi install npm:@pumblus/okf-harness
 opencode plugin @pumblus/okf-harness --global
 ```
 
-The package does not install or update the OKF Harness runtime. If `okfh` is missing, install the runtime with the project README command:
+```bash
+openclaw skills install @pumblus/okf-harness --global
+```
+
+The package does not install or update the OKF Harness runtime. If `okfh` is missing, run Universal setup:
 
 ```bash
-npm install -g @okf-harness/cli
+npx @okf-harness/setup@latest
 ```
 
 ## Scope

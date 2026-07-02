@@ -313,6 +313,50 @@ describe("@okf-harness/setup", () => {
     expect(result.stdout).toContain("claude plugin install okf-harness@okf-harness");
   });
 
+  it("installs explicitly selected Hermes through the custom skill tap", async () => {
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-setup-bin-"));
+    await writeFakeExecutable(bin, "hermes");
+    const runs: Array<{ command: string; args: string[] }> = [];
+
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--agents", "hermes", "--yes"],
+      captureIo(),
+      {
+        env: { PATH: bin },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          runs.push({ command, args });
+          if (command === "npm" && args[0] === "ls") {
+            return {
+              stdout: JSON.stringify({
+                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+              }),
+              stderr: "",
+            };
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
+              stderr: "",
+            };
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(runs).toContainEqual({
+      command: path.join(bin, "hermes"),
+      args: ["skills", "tap", "add", "pumblus/okf-harness"],
+    });
+    expect(runs).toContainEqual({
+      command: path.join(bin, "hermes"),
+      args: ["skills", "install", "pumblus/okf-harness/okf-harness"],
+    });
+    expect(result.stdout).toContain("Successful integrations: Hermes Agent");
+  });
+
   it("installs explicitly selected OpenClaw with --yes", async () => {
     const bin = await mkdtemp(path.join(tmpdir(), "okfh-setup-bin-"));
     await writeFakeExecutable(bin, "openclaw");

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import plugin from "../src/opencode.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = path.resolve(packageRoot, "../..");
 const previousOpenCodeConfigDir = process.env.OPENCODE_CONFIG_DIR;
 
 afterEach(() => {
@@ -28,6 +29,8 @@ describe("@pumblus/okf-harness package", () => {
     });
     expect(packageJson.files).toEqual(["dist", "skills", "README.md"]);
     expect(packageJson.pi).toEqual({ skills: ["./skills"] });
+    expect(packageJson.keywords).toContain("openclaw");
+    expect(packageJson.keywords).toContain("clawhub");
     expect(packageJson.bin).toBeUndefined();
     expect(packageJson.dependencies).toBeUndefined();
     expect(packageJson.scripts.postinstall).toBeUndefined();
@@ -40,11 +43,27 @@ describe("@pumblus/okf-harness package", () => {
     );
 
     expect(skill).toContain("name: okf-harness-bootstrap");
+    expect(skill).toContain("compatibility: pi, opencode, openclaw");
+    expect(skill).toContain("openclaw:");
     expect(skill).toContain('okf-harness-managed: "true"');
     expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
-    expect(skill).toContain("npm install -g @okf-harness/cli");
+    expect(skill).toContain("npx @okf-harness/setup@latest");
     expect(skill).toContain("Do not install, update, or replace the runtime");
     expect(skill).not.toContain("name: okf-harness\n");
+    expect(skill).not.toContain("npm install -g @okf-harness/cli");
+  });
+
+  it("publishes the Hermes custom tap skill shape", async () => {
+    const skill = await readFile(path.join(repoRoot, "skills", "okf-harness", "SKILL.md"), "utf8");
+
+    expect(skill).toContain("name: okf-harness-bootstrap");
+    expect(skill).toContain("hermes:");
+    expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
+    expect(skill).toContain('okf-harness-install-id: "pumblus/okf-harness/okf-harness"');
+    expect(skill).toContain("npx @okf-harness/setup@latest");
+    expect(skill).toContain("exposes only `okf-harness-bootstrap`");
+    expect(skill).not.toContain("name: okf-harness\n");
+    expect(skill).not.toContain("npm install -g @okf-harness/cli");
   });
 
   it("syncs the OpenCode global bootstrap skill without touching the runtime", async () => {
@@ -60,7 +79,7 @@ describe("@pumblus/okf-harness package", () => {
         "utf8",
       );
       expect(installedSkill).toContain("name: okf-harness-bootstrap");
-      expect(installedSkill).toContain("npm install -g @okf-harness/cli");
+      expect(installedSkill).toContain("npx @okf-harness/setup@latest");
     } finally {
       await rm(tempRoot, { force: true, recursive: true });
     }

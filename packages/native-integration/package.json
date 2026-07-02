@@ -1,7 +1,7 @@
 {
   "name": "@pumblus/okf-harness",
   "version": "0.5.5",
-  "description": "Pi and OpenCode native bootstrap integration for OKF Harness.",
+  "description": "Pi, OpenCode, and OpenClaw native bootstrap integration for OKF Harness.",
   "license": "Apache-2.0",
   "type": "module",
   "author": "Eric Zhou",
@@ -24,7 +24,9 @@
     "agent-skills",
     "pi",
     "pi-package",
-    "opencode"
+    "opencode",
+    "openclaw",
+    "clawhub"
   ],
   "publishConfig": {
     "access": "public"

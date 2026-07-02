@@ -9,6 +9,13 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const nativeIntegrationPackageName = "@pumblus/okf-harness";
 const nativeIntegrationPackageDir = "packages/native-integration";
+const hermesTapSkillPath = "skills/okf-harness/SKILL.md";
+const openClawSkillDir = path.join(
+  repoRoot,
+  nativeIntegrationPackageDir,
+  "skills",
+  "okf-harness-bootstrap",
+);
 
 const publishablePackages = [
   { name: "@okf-harness/core", dir: "packages/core" },
@@ -133,6 +140,9 @@ async function main() {
 
     await runOpenCodePluginInstallSmoke(tempRoot, path.join(repoRoot, nativeIntegrationPackageDir));
     await runPiInstallSmoke(tempRoot);
+    await assertHermesTapSkill();
+    await runHermesSkillTapSmoke(tempRoot);
+    await runOpenClawSkillSmoke(tempRoot);
 
     console.log("installing local tarballs");
     await run("npm", ["install", "--no-audit", "--no-fund", ...tarballs], {
@@ -489,7 +499,8 @@ async function assertNativeIntegrationPackage(installDir) {
   for (const expected of [
     "name: okf-harness-bootstrap",
     'okf-harness-entrypoint: "bootstrap"',
-    "npm install -g @okf-harness/cli",
+    "openclaw:",
+    "npx @okf-harness/setup@latest",
     "Do not install, update, or replace the runtime",
   ]) {
     if (!skill.includes(expected)) {
@@ -530,6 +541,25 @@ async function assertNativeIntegrationPackage(installDir) {
     throw new Error("OpenCode plugin did not sync the global bootstrap skill");
   }
   console.log("native integration package contents passed");
+}
+
+async function assertHermesTapSkill() {
+  const skill = await readFile(path.join(repoRoot, hermesTapSkillPath), "utf8");
+  for (const expected of [
+    "name: okf-harness-bootstrap",
+    "hermes:",
+    'okf-harness-entrypoint: "bootstrap"',
+    'okf-harness-install-id: "pumblus/okf-harness/okf-harness"',
+    "npx @okf-harness/setup@latest",
+  ]) {
+    if (!skill.includes(expected)) {
+      throw new Error(`Hermes tap skill missing ${expected}`);
+    }
+  }
+  if (skill.includes("name: okf-harness\n")) {
+    throw new Error("Hermes tap skill must not expose a global okf-harness entrypoint");
+  }
+  console.log("hermes skill tap package shape passed");
 }
 
 async function runOpenCodePluginInstallSmoke(tempRoot, localPluginSpec) {
@@ -635,6 +665,87 @@ async function runPiInstallSmoke(tempRoot) {
     }),
   });
   console.log("pi package install smoke passed");
+}
+
+async function runHermesSkillTapSmoke(tempRoot) {
+  if (!(await commandExists("hermes"))) {
+    console.log(
+      "hermes CLI not found; manual release checklist gap: run hermes skills tap add pumblus/okf-harness and hermes skills install pumblus/okf-harness/okf-harness before release.",
+    );
+    return;
+  }
+  if (process.env.OKFH_HERMES_TAP_SMOKE !== "1") {
+    console.log(
+      "hermes CLI found; registry smoke gap: set OKFH_HERMES_TAP_SMOKE=1 and run the release tap install smoke before release.",
+    );
+    return;
+  }
+
+  const home = path.join(tempRoot, "hermes-home");
+  const xdgConfigHome = path.join(tempRoot, "hermes-xdg-config");
+  const xdgCacheHome = path.join(tempRoot, "hermes-xdg-cache");
+  const xdgDataHome = path.join(tempRoot, "hermes-xdg-data");
+  await mkdir(home, { recursive: true });
+  await mkdir(xdgConfigHome, { recursive: true });
+  await mkdir(xdgCacheHome, { recursive: true });
+  await mkdir(xdgDataHome, { recursive: true });
+
+  const env = buildNativeHostSmokeEnv(process.env, {
+    home,
+    xdgCacheHome,
+    xdgConfigHome,
+    xdgDataHome,
+  });
+  await run("hermes", ["skills", "tap", "add", "pumblus/okf-harness"], {
+    cwd: tempRoot,
+    env,
+  });
+  await run("hermes", ["skills", "install", "pumblus/okf-harness/okf-harness"], {
+    cwd: tempRoot,
+    env,
+  });
+  console.log("hermes release tap install smoke passed");
+}
+
+async function runOpenClawSkillSmoke(tempRoot) {
+  if (!(await commandExists("openclaw"))) {
+    console.log(
+      "openclaw CLI not found; manual release checklist gap: run openclaw skills install @pumblus/okf-harness --global before release.",
+    );
+    return;
+  }
+
+  const home = path.join(tempRoot, "openclaw-home");
+  const xdgConfigHome = path.join(tempRoot, "openclaw-xdg-config");
+  const xdgCacheHome = path.join(tempRoot, "openclaw-xdg-cache");
+  const xdgDataHome = path.join(tempRoot, "openclaw-xdg-data");
+  await mkdir(home, { recursive: true });
+  await mkdir(xdgConfigHome, { recursive: true });
+  await mkdir(xdgCacheHome, { recursive: true });
+  await mkdir(xdgDataHome, { recursive: true });
+
+  const env = buildNativeHostSmokeEnv(process.env, {
+    home,
+    xdgCacheHome,
+    xdgConfigHome,
+    xdgDataHome,
+  });
+  if (process.env.OKFH_OPENCLAW_REGISTRY_SMOKE === "1") {
+    await run("openclaw", ["skills", "install", nativeIntegrationPackageName, "--global"], {
+      cwd: tempRoot,
+      env,
+    });
+    console.log("openclaw registry skill install smoke passed");
+    return;
+  }
+
+  await run("openclaw", ["skills", "install", openClawSkillDir, "--global"], {
+    cwd: tempRoot,
+    env,
+  });
+  console.log(
+    "openclaw local skill install smoke passed; registry smoke gap: set OKFH_OPENCLAW_REGISTRY_SMOKE=1 after the ClawHub skill is published.",
+  );
 }
 
 async function commandExists(command) {
