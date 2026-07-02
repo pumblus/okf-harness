@@ -1,15 +1,28 @@
 # OKF Harness
 
-> OKF Harness is an agent-first, local-first, terminal-native CLI and agent guidance package for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
+> OKF Harness is an agent-first, local-first, terminal-native setup, runtime, and agent guidance package for maintaining OKF-compatible LLM Wikis through supported agents.
 
 OKF Harness helps a person keep source material, synthesized markdown knowledge, citations, workspace checks, search, bounded reads, and graph reports in one local workspace.
 
-Install the CLI:
+Run setup once:
 
 ```bash
-npm install -g @okf-harness/cli
-okfh doctor --json
+curl -fsSL https://okf-harness.dev/install.sh | sh
 ```
+
+Windows PowerShell:
+
+```powershell
+irm https://okf-harness.dev/install.ps1 | iex
+```
+
+Already have Node.js 22 or newer?
+
+```bash
+npx @okf-harness/setup@latest
+```
+
+Advanced CLI-only installation is documented in the CLI reference.
 
 OKF Harness is independent. It builds on Andrej Karpathy's LLM Wiki pattern and Google's Open Knowledge Format, but it is not affiliated with or endorsed by Andrej Karpathy or Google. It is not an official OKF implementation, standalone knowledge-base app, Obsidian plugin, cloud sync service, vector database, or private agent runtime.
 
@@ -18,7 +31,7 @@ OKF Harness is independent. It builds on Andrej Karpathy's LLM Wiki pattern and 
 - [Full LLM context](https://raw.githubusercontent.com/pumblus/okf-harness/main/llms-full.txt): generated context bundle from the public README, terminology, workflows, CLI reference, roadmap, and package READMEs.
 - [Project README](https://raw.githubusercontent.com/pumblus/okf-harness/main/README.md): product overview, quick start, workflow sketch, docs, development commands, and acknowledgements.
 - [Product terminology](https://raw.githubusercontent.com/pumblus/okf-harness/main/CONTEXT.md): glossary for OKF Harness, workspaces, source material, ingest, query, search, read, graph, and agent guidance.
-- [User workflows](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/WORKFLOWS.md): prefixed Claude Code and Codex workflows for setup, source registration, ingest, answer, check, graph, and adapter repair.
+- [User workflows](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/WORKFLOWS.md): supported-agent workflows for setup, source registration, ingest, answer, check, graph, and adapter repair.
 - [CLI reference](https://raw.githubusercontent.com/pumblus/okf-harness/main/docs/CLI.md): `okfh` command contract, JSON envelope, workspace rules, and command options.
 
 ## Packages
@@ -26,6 +39,8 @@ OKF Harness is independent. It builds on Andrej Karpathy's LLM Wiki pattern and 
 - [@okf-harness/cli](https://www.npmjs.com/package/@okf-harness/cli): user-facing CLI package that installs `okfh` and `okf-harness`.
 - [@okf-harness/core](https://www.npmjs.com/package/@okf-harness/core): OKF parsing, config, manifest, path safety, lint, search, graph, and source handling.
 - [@okf-harness/agent-pack](https://www.npmjs.com/package/@okf-harness/agent-pack): Claude Code and Codex adapter renderers and shared skill templates.
+- [@okf-harness/setup](https://www.npmjs.com/package/@okf-harness/setup): recommended setup package for runtime checks and native agent integration install plans.
+- [@pumblus/okf-harness](https://www.npmjs.com/package/@pumblus/okf-harness): native integration package for Pi, OpenCode, and OpenClaw.
 
 ## Project Docs
 

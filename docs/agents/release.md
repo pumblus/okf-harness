@@ -78,8 +78,19 @@ The smoke script owns:
 
 - package list
 - tarball install checks
+- installer script source checks
+- `@pumblus/okf-harness` package inspection for Pi, OpenCode, and OpenClaw entries
+- Hermes Agent skill tap shape inspection
 - host CLI checks
 - release checklist coverage gaps
+
+When Claude Code and Codex CLIs are available, also run:
+
+```bash
+pnpm smoke:marketplace
+```
+
+This is the release smoke for Claude Code and Codex marketplace add/install behavior. If either CLI is unavailable in the release environment, record the missing host smoke as an explicit gap.
 
 ## npm publish flow
 
@@ -102,6 +113,10 @@ After publishing:
 - Verify the documented CLI install path when the release still documents one.
 - Verify documented setup package install paths when available in the release environment.
 - Verify documented native host integration install paths when available in the release environment.
+- Inspect the published `@pumblus/okf-harness` package contents for Pi, OpenCode, and OpenClaw entries.
+- Inspect the Hermes Agent skill tap package shape.
+- Run OpenCode host install smoke when the OpenCode CLI is available.
+- Run Pi, Hermes Agent, and OpenClaw host install smokes when their CLIs are available; otherwise list each unavailable host as a manual release gap.
 - Do not claim shipped if any documented install command fails.
 
 ## GitHub Release
@@ -143,6 +158,10 @@ Before saying the release is done, separate the evidence layers:
 - GitHub tag
 - GitHub Release
 - downloaded installer assets when the release includes them
+- Claude Code and Codex marketplace add/install smokes
+- `@pumblus/okf-harness` package inspection
+- OpenCode host install smoke or explicit unavailable-host gap
+- Pi, Hermes Agent, and OpenClaw host install smokes or explicit manual gaps
 - npm registry versions
 - npm dist-tags
 - documented install commands

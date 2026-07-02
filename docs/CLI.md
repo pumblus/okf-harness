@@ -80,7 +80,7 @@ In JSON output, `data.checks` remains the flat compatibility list. `data.groups`
 
 ### init
 
-Creates a workspace and optionally renders Claude Code and Codex adapter files.
+Creates a workspace and optionally renders workspace-local adapter files. The current CLI workspace adapters are `codex` and `claude`; v0.6 native integrations are installed through setup or their host package surfaces and do not imply `okfh init --agents` support.
 
 ```bash
 okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --git --json
@@ -94,11 +94,11 @@ Options:
 - `--git` initializes a git repository without committing.
 - `--dry-run` returns the planned writes without creating files.
 
-Use the adapter for the agent you are currently setting up: `codex` for Codex or `claude` for Claude Code. Use `all` only when you explicitly want both supported adapters. Use `none` only for advanced or developer setup.
+Use the adapter for the workspace-local agent you are currently setting up: `codex` for Codex or `claude` for Claude Code. Use `all` only when you explicitly want both workspace adapters. Use `none` only for advanced or developer setup.
 
 ### agent install
 
-Installs or repairs Claude Code and Codex adapter files in an existing workspace.
+Installs or repairs workspace-local adapter files in an existing workspace. This command currently covers the `codex` and `claude` adapters.
 
 ```bash
 okfh agent install codex --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -106,11 +106,11 @@ okfh agent install claude --workspace "$HOME/Documents/OKF Harness/ai-research" 
 okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-Use the current agent adapter by default. Use `all` only when you explicitly want both supported adapters. Use `--dry-run` to inspect planned writes. Use `--force` only after reviewing conflicts.
+Use the current workspace adapter by default. Use `all` only when you explicitly want both workspace adapters. Use `--dry-run` to inspect planned writes. Use `--force` only after reviewing conflicts.
 
 ### bootstrap
 
-Advanced diagnostic and repair tooling for legacy managed global bootstrap entrypoints for supported agents. This is not the primary first-setup workflow; normal setup starts from `@okf-harness/setup` or a native agent integration.
+Advanced diagnostic and repair tooling for legacy managed global bootstrap entrypoints for Claude Code and Codex. This is not the primary first-setup workflow; normal setup starts from `@okf-harness/setup` or a native agent integration.
 
 ```bash
 okfh bootstrap install --agents codex --json

@@ -1,6 +1,6 @@
 # OKF Harness 工作流
 
-OKF Harness 是为通过 Claude Code 或 Codex 操作的人设计的。CLI 仍然可见，但日常工作从智能体（Agent）开始。
+OKF Harness 是为通过受支持智能体操作的人设计的。CLI 仍然可见，但日常工作从智能体（Agent）开始。
 
 这个工作流遵循 Andrej Karpathy 的 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 模式，并使用 Google 的 [OKF 规范](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) 作为 bundle 格式。
 
@@ -44,48 +44,34 @@ npx @okf-harness/setup@latest
 
 ## 从你的智能体开始
 
-使用当前智能体的 OKF Harness 前缀。还没有工作区时，使用 setup 或原生集成安装的全局引导入口。完成设置或选择工作区后，在工作区内使用工作区本地入口（Workspace-local entrypoint）。
+使用当前智能体的 OKF Harness 入口名。入口名是稳定的，具体调用语法由智能体决定。Codex 通常使用 `$okf-harness`，Claude Code 通常使用 `/okf-harness`，其他原生集成会通过自己的 skill 或 plugin UI 暴露可用的 OKF Harness 入口。有些 v0.6 原生集成在工作区本地适配器出现前只暴露 `okf-harness-bootstrap`。
+
+下面的示例用 `<okf-harness-bootstrap>` 和 `<okf-harness>` 表示这些入口。还没有工作区时，使用 setup 或原生集成安装的全局引导入口。完成设置或选择工作区后，引导入口会把你交给工作区本地的 `okf-harness` 入口，或告诉你当前智能体支持的下一步。
 
 还没有工作区：
 
-Codex：
-
 ```text
-$okf-harness-bootstrap 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区，然后告诉我如何刷新当前智能体上下文。
+<okf-harness-bootstrap> 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区，然后告诉我如何刷新当前智能体上下文。
 ```
 
-Claude Code：
+全局引导入口会先从浅层本地工作区集合（Workspace collection）中发现或选择已有工作区。没有选中工作区时，再进入当前智能体设置（Current-agent setup）：推断显示名称和目标目录；细节缺失或有歧义时先询问，再做持久写入；没有明确说明 Git 选择时先确认。当当前智能体有工作区本地适配器（Workspace-local adapter）时，引导入口可以用对应适配器调用 `okfh init`。目前工作区本地适配器是 `codex` 和 `claude`；其他原生集成在工作区适配器出现前使用自己的引导入口。
 
-```text
-/okf-harness-bootstrap 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区，然后告诉我如何刷新当前智能体上下文。
-```
-
-全局引导入口会先从浅层本地工作区集合（Workspace collection）中发现或选择已有工作区。没有选中工作区时，再进入当前智能体设置（Current-agent setup）：推断显示名称和目标目录；细节缺失或有歧义时先询问，再做持久写入；没有明确说明 Git 选择时先确认；然后调用 `okfh init`，并传入当前智能体对应的适配器（Adapter）：Codex 使用 `--agents codex`，Claude Code 使用 `--agents claude`。只有在你明确要求同时准备两个受支持智能体时，才使用 `--agents all`。
-
-设置完成后，全局引导入口会修复当前智能体的工作区本地入口，并返回智能体上下文刷新（Agent context refresh）提示。通常是让你从工作区文件夹开启新的 Codex thread 或 Claude Code session，让客户端加载新的指引。
+设置完成后，如果该智能体支持工作区本地指引，全局引导入口会修复它，并返回智能体上下文刷新（Agent context refresh）提示。通常是让你从工作区文件夹开启新的智能体会话，让客户端加载新的指引。
 
 全局引导入口不是日常工作流。它不应整理 Wiki 内容、迁移非空的非工作区目录、写入全局根指引文件，或承诺不支持的智能体客户端。
 
 要端到端检查首次启动，可以按这五步操作：
 
 1. 在干净环境中运行 setup。
-2. 打开 Codex 或 Claude Code。
+2. 打开一个受支持智能体。
 3. 确认当前智能体能发现 `okf-harness-bootstrap`。
 4. 用它为当前智能体创建一个空工作区。
-5. 按刷新指引操作，并确认从工作区文件夹能使用工作区本地的 `okf-harness` 入口。
+5. 按刷新指引操作，并在该智能体支持工作区本地指引时，确认从工作区文件夹能使用 `okf-harness` 入口。
 
 ## 添加资料
 
-Codex：
-
 ```text
-$okf-harness 将 ~/Downloads/llm-wiki-note.md 添加到这个工作区，更新 Wiki 并加上引用，然后再次检查工作区。
-```
-
-Claude Code：
-
-```text
-/okf-harness 将 ~/Downloads/llm-wiki-note.md 添加到这个工作区，更新 Wiki 并加上引用，然后再次检查工作区。
+<okf-harness> 将 ~/Downloads/llm-wiki-note.md 添加到这个工作区，更新 Wiki 并加上引用，然后再次检查工作区。
 ```
 
 智能体应调用：
@@ -109,16 +95,8 @@ URL 来源只作为来源指针保存。OKF Harness 会记录 URL，但不会自
 
 ## 提问
 
-Codex：
-
 ```text
-$okf-harness 我的工作区里是如何描述 LLM Wiki 结构的？
-```
-
-Claude Code：
-
-```text
-/okf-harness 我的工作区里是如何描述 LLM Wiki 结构的？
+<okf-harness> 我的工作区里是如何描述 LLM Wiki 结构的？
 ```
 
 智能体应调用：
@@ -136,16 +114,8 @@ okfh read <concept-id-or-path> --workspace <workspace> --offset <offset> --limit
 
 ## 维护工作区
 
-Codex：
-
 ```text
-$okf-harness 检查这个工作区，并告诉我它是否已经就绪。
-```
-
-Claude Code：
-
-```text
-/okf-harness 检查这个工作区，并告诉我它是否已经就绪。
+<okf-harness> 检查这个工作区，并告诉我它是否已经就绪。
 ```
 
 智能体应调用：
@@ -158,16 +128,8 @@ okfh check --workspace <workspace> --json
 
 ## 生成图谱
 
-Codex：
-
 ```text
-$okf-harness 为这个工作区生成本地图谱报告，并告诉我 HTML 文件在哪里。
-```
-
-Claude Code：
-
-```text
-/okf-harness 为这个工作区生成本地图谱报告，并告诉我 HTML 文件在哪里。
+<okf-harness> 为这个工作区生成本地图谱报告，并告诉我 HTML 文件在哪里。
 ```
 
 智能体应调用：
@@ -180,34 +142,30 @@ okfh graph --workspace <workspace> --json
 
 ## 修复智能体支持
 
-如果工作区已存在，但当前智能体没有发现 OKF Harness 指引，通过同一个前缀告诉它：
+如果工作区已存在，但当前智能体没有发现 OKF Harness 指引，通过同一个入口告诉它：
 
 ```text
-$okf-harness 修复这个工作区对 Codex 的 OKF Harness 支持。
+<okf-harness> 修复这个工作区的 OKF Harness 支持。
 ```
 
-```text
-/okf-harness 修复这个工作区对 Claude Code 的 OKF Harness 支持。
-```
-
-智能体默认只修复当前适配器：
+有工作区本地适配器时，智能体应修复当前适配器：
 
 ```bash
 okfh agent install codex --workspace <workspace> --json
 okfh agent install claude --workspace <workspace> --json
 ```
 
-使用与当前智能体匹配的那条命令。只有在你明确要求同时准备两个适配器时，才使用 `all`。仅在检查冲突后使用 `--force`。
+使用与当前工作区适配器匹配的命令。只有在你明确要求同时准备两个工作区适配器时，才使用 `all`。仅在检查冲突后使用 `--force`。对于没有工作区适配器的原生集成，使用 setup 或该宿主集成自己的修复流程。
 
 ## 排查引导入口
 
-如果 `$okf-harness-bootstrap` 或 `/okf-harness-bootstrap` 缺失、版本漂移，或被同名非受管理内容阻挡，运行：
+如果 `okf-harness-bootstrap` 入口缺失、版本漂移，或被同名非受管理内容阻挡，运行：
 
 ```bash
 okfh doctor --json
 ```
 
-`doctor` 会分别报告运行时、原生集成、旧式引导 fallback 和工作区检查。`okfh bootstrap status|repair --agents codex|claude|all --json` 是高级旧式 fallback 修复工具，不是主要的首次设置流程。
+`doctor` 会分别报告运行时、原生集成、旧式引导 fallback 和工作区检查。`okfh bootstrap status|repair --agents codex|claude|all --json` 是高级 Claude Code 和 Codex 旧式 fallback 修复工具，不是主要的首次设置流程。
 
 ## 文件结构
 
@@ -217,8 +175,8 @@ raw/sources/      已注册的原始资料，视为不可变
 wiki/             整理后的 OKF Markdown 概念文档
 .okfh/manifest    来源登记表，含哈希和来源 ID
 .okfh/reports/    生成的报告，如图谱 graph.html
-AGENTS.md         Codex 工作区指引
-CLAUDE.md         Claude Code 工作区指引
+AGENTS.md         安装 Codex 适配器时的工作区指引
+CLAUDE.md         安装 Claude Code 适配器时的工作区指引
 ```
 
 ## 设计克制

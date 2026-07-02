@@ -80,7 +80,7 @@ JSON 输出中，`data.checks` 仍保留兼容用的扁平列表。`data.groups`
 
 ### init
 
-创建工作区，可选渲染 Claude Code 和 Codex 的适配文件。
+创建工作区，可选渲染工作区本地适配文件。当前 CLI 工作区适配器是 `codex` 和 `claude`；v0.6 原生集成通过 setup 或各宿主包安装，不表示 `okfh init --agents` 已支持这些集成。
 
 ```bash
 okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --git --json
@@ -94,11 +94,11 @@ okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agent
 - `--git` 初始化 git 仓库但不提交。
 - `--dry-run` 返回计划的写入内容，不实际创建文件。
 
-使用当前智能体对应的适配器（Adapter）：Codex 使用 `codex`，Claude Code 使用 `claude`。只有明确需要两个受支持适配器时才使用 `all`。`none` 仅用于高级或开发场景。
+使用当前工作区本地智能体对应的适配器（Adapter）：Codex 使用 `codex`，Claude Code 使用 `claude`。只有明确需要两个工作区适配器时才使用 `all`。`none` 仅用于高级或开发场景。
 
 ### agent install
 
-在已有工作区中安装或修复 Claude Code 和 Codex 的适配文件。
+在已有工作区中安装或修复工作区本地适配文件。这个命令当前覆盖 `codex` 和 `claude` 适配器。
 
 ```bash
 okfh agent install codex --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -106,11 +106,11 @@ okfh agent install claude --workspace "$HOME/Documents/OKF Harness/ai-research" 
 okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 ```
 
-默认使用当前智能体对应的适配器。只有明确需要两个受支持适配器时才使用 `all`。用 `--dry-run` 查看计划写入的内容。仅在检查冲突后使用 `--force`。
+默认使用当前工作区适配器。只有明确需要两个工作区适配器时才使用 `all`。用 `--dry-run` 查看计划写入的内容。仅在检查冲突后使用 `--force`。
 
 ### bootstrap
 
-高级诊断和修复工具，用于受支持智能体的旧式受管理全局引导入口。它不是主要的首次设置流程；常规设置从 `@okf-harness/setup` 或原生智能体集成开始。
+高级诊断和修复工具，用于 Claude Code 和 Codex 的旧式受管理全局引导入口。它不是主要的首次设置流程；常规设置从 `@okf-harness/setup` 或原生智能体集成开始。
 
 ```bash
 okfh bootstrap install --agents codex --json

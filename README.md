@@ -7,7 +7,7 @@
 
 English | [中文](README.zh-CN.md)
 
-An agent-first, local-first, terminal-native harness for maintaining OKF-compatible LLM Wikis from Claude Code, Codex, and future coding agents.
+An agent-first, local-first, terminal-native harness for maintaining OKF-compatible LLM Wikis.
 
 OKF Harness is an independent open-source project built on two upstream ideas: Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern for agent-maintained living wikis, and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) for portable markdown knowledge bundles.
 
@@ -21,10 +21,10 @@ raw/sources + .okfh/manifest.jsonl
 wiki/*.md with citations
         |
         v
-Claude Code or Codex uses okfh evidence/read/graph
+supported agents use okfh evidence/read/graph
 ```
 
-OKF Harness does not ask you to learn a new knowledge-base app. You run setup once for the agents you use, create one local workspace per knowledge domain, then ask Claude Code or Codex to add sources, maintain the wiki, and answer from it.
+OKF Harness does not ask you to learn a new knowledge-base app. You run setup once for the agents you use, create one local workspace per knowledge domain, then ask your agent to add sources, maintain the wiki, and answer from it.
 
 ## Origins
 
@@ -37,13 +37,13 @@ This repository is not affiliated with or endorsed by Andrej Karpathy or Google.
 
 ## Before You Start
 
-Run setup once:
+If you're on macOS or Linux, run this script:
 
 ```bash
 curl -fsSL https://okf-harness.dev/install.sh | sh
 ```
 
-Windows PowerShell:
+In Windows PowerShell, run this instead:
 
 ```powershell
 irm https://okf-harness.dev/install.ps1 | iex
@@ -55,7 +55,7 @@ Already have Node.js 22 or newer?
 npx @okf-harness/setup@latest
 ```
 
-Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; the shared `okfh` runtime; and at least one supported agent integration. Repository development additionally needs `pnpm`.
+Normal use needs Node.js 22 or newer; git; the shared `okfh` runtime; and at least one supported agent integration. Repository development additionally needs `pnpm`.
 
 Setup installs or updates the shared global `okfh` runtime after confirmation, detects supported agent clients, and installs the selected native integrations. Direct native install paths are available for users who already know their agent:
 
@@ -68,42 +68,26 @@ Setup installs or updates the shared global `okfh` runtime after confirmation, d
 | Hermes Agent | `hermes skills tap add pumblus/okf-harness && hermes skills install pumblus/okf-harness/okf-harness` |
 | OpenClaw | `openclaw skills install @pumblus/okf-harness --global` |
 
-Direct `npm install -g @okf-harness/cli` is an advanced CLI-only runtime install. It does not write agent bootstrap entrypoints.
+Advanced direct CLI runtime installation is documented in the CLI reference. It does not write agent bootstrap entrypoints.
 
-After setup, the ordinary first-start flow is a prompt to your current agent, then a refresh into the workspace-local `okf-harness` entrypoint.
+After setup, start from the global bootstrap entrypoint in your current agent. If that agent has workspace-local guidance, the bootstrap handoff tells you how to refresh into the workspace-local `okf-harness` entrypoint.
 
 The recommended parent folder is only a convention, not a hidden CLI default. On macOS or Linux, use `$HOME/Documents/OKF Harness`. On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness`. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.
 
 ## Start With Your Agent
 
-Use the prefix for the agent you are already using. Before a workspace exists, start with the low-frequency global bootstrap entrypoint. After setup or selection, work inside the workspace with the workspace-local entrypoint.
+Use the OKF Harness entrypoint name exposed by the agent you already use. The entrypoint name is stable; the calling syntax belongs to the agent. Codex usually uses `$okf-harness`, Claude Code usually uses `/okf-harness`, and other native integrations expose the same entrypoint name through their own skill or plugin UI.
 
-No workspace yet:
-
-Codex:
+When copying a prompt below, replace the bracketed entrypoint with your agent's actual invocation.
 
 ```text
-$okf-harness-bootstrap Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
+<okf-harness-bootstrap> Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
 ```
 
-Claude Code:
+After setup or workspace selection, work inside the workspace with the workspace-local entrypoint:
 
 ```text
-/okf-harness-bootstrap Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
-```
-
-Inside a workspace:
-
-Codex:
-
-```text
-$okf-harness Check this workspace and tell me whether it is ready.
-```
-
-Claude Code:
-
-```text
-/okf-harness Check this workspace and tell me whether it is ready.
+<okf-harness> Check this workspace and tell me whether it is ready.
 ```
 
 Bootstrap can also discover or select a workspace from a local workspace collection and repair current-agent setup for the selected workspace. It does not synthesize wiki content, migrate non-empty non-workspace folders, or write global root guidance files.
@@ -120,33 +104,17 @@ This does not add a global `okfh` binary.
 
 Add a source:
 
-Codex:
-
 ```text
-$okf-harness Add this PDF to my workspace, update the wiki with citations, then check the workspace again.
-```
-
-Claude Code:
-
-```text
-/okf-harness Add this PDF to my workspace, update the wiki with citations, then check the workspace again.
+<okf-harness> Add this PDF to my workspace, update the wiki with citations, then check the workspace again.
 ```
 
 Ask a question:
 
-Codex:
-
 ```text
-$okf-harness What does my workspace say about LLM Wiki structure?
+<okf-harness> What does my workspace say about LLM Wiki structure?
 ```
 
-Claude Code:
-
-```text
-/okf-harness What does my workspace say about LLM Wiki structure?
-```
-
-## Why
+## Why OKF Harness
 
 Most personal knowledge tools make the app the center. OKF Harness makes the local folder the center:
 
@@ -163,7 +131,7 @@ The product stays narrow on purpose: local files, terminal-native commands, boun
 ## What It Does
 
 - Initializes a local OKF Harness workspace.
-- Installs workspace guidance for Claude Code or Codex.
+- Installs supported workspace guidance for agents with workspace adapters.
 - Registers files and URL pointers as raw sources.
 - Produces ingest plans so an agent can update the wiki with citations.
 - Prepares bounded evidence briefs from synthesized wiki pages before answers.
@@ -193,21 +161,19 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 ## Troubleshooting
 
-If `$okf-harness-bootstrap` or `/okf-harness-bootstrap` is missing, stale, or blocked by an unmanaged same-name skill, run:
+If the `okf-harness-bootstrap` entrypoint is missing, stale, or blocked by an unmanaged same-name skill, run:
 
 ```bash
 okfh doctor --json
 ```
 
-`doctor` reports runtime, native integration, legacy bootstrap fallback, and workspace checks separately. Use `okfh bootstrap status|repair --agents codex|claude|all --json` only as advanced legacy fallback repair tooling; the primary first-setup workflow is setup plus the agent prompt above.
+`doctor` reports runtime, native integration, legacy bootstrap fallback, and workspace checks separately. Use `okfh bootstrap status|repair --agents codex|claude|all --json` only as advanced legacy fallback repair tooling for Claude/Codex adapters; the primary first-setup workflow is setup plus the agent prompt above.
 
 ## Docs
 
-- [Workflows](docs/WORKFLOWS.md) explains the user-facing Claude Code and Codex flows, including the first-start check.
+- [Workflows](docs/WORKFLOWS.md) explains the user-facing agent flows, including the first-start check.
 - [CLI reference](docs/CLI.md) lists commands, options, and JSON behavior.
 - [Roadmap](docs/ROADMAP.md) shows the current focus and demand-ranked ideas.
-- [LLM context](llms.txt) gives AI tools a concise map of the public project docs.
-- [Full LLM context](llms-full.txt) combines the public overview, terminology, workflows, CLI reference, roadmap, and package READMEs.
 - [Example workspace](examples/ai-research-workspace/README.md) gives a small lintable workspace.
 - [Contributing](CONTRIBUTING.md) explains project scope and verification.
 - [Security](SECURITY.md) explains local data boundaries and reporting.
@@ -228,7 +194,7 @@ See [CONTEXT.md](CONTEXT.md) for the project glossary and [docs/adr](docs/adr) f
 
 Thanks to Andrej Karpathy for publishing the LLM Wiki pattern, and to Google for publishing Open Knowledge Format as a simple, portable shape for markdown knowledge bundles. OKF Harness adapts those ideas for a local, agent-first workflow.
 
-Thanks also to Tw93's [Waza](https://github.com/tw93/waza) and Matt Pocock's [Skills for Real Engineers](https://github.com/mattpocock/skills) for shaping the development workflow behind this project.
+Thanks also to Tw93's [Waza](https://github.com/tw93/waza) and Matt Pocock's [Skills for Real Engineers](https://github.com/mattpocock/skills) for shaping the development behind this project.
 
 ## License
 

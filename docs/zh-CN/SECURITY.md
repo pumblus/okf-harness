@@ -12,10 +12,10 @@ OKF Harness 是本地优先的。当前运行面是本地 CLI 和它写入的 wo
 - workspace 路径安全
 - 来源注册和 manifest 完整性
 - 原始资料的不可变边界
-- 生成的 Claude Code 和 Codex 指引
+- 生成的智能体指引和原生集成入口
 - 图谱报告生成
 - 本地文件写入边界
-- `@okf-harness/core`、`@okf-harness/cli` 和 `@okf-harness/agent-pack` 的包内容
+- `@okf-harness/core`、`@okf-harness/cli`、`@okf-harness/agent-pack` 和 `@pumblus/okf-harness` 的包内容
 
 涉及 Obsidian、GUI、云端同步、网页抓取或账户的问题，除非影响上面列出的运行面，否则应先作为路线图或设计讨论处理。
 

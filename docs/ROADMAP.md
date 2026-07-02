@@ -12,7 +12,7 @@ It is an independent project that builds on Andrej Karpathy's [LLM Wiki](https:/
 
 It is not affiliated with or endorsed by Andrej Karpathy or Google.
 
-The key difference from full desktop LLM Wiki applications is deliberate: OKF Harness does not try to become the primary knowledge-base app. A person keeps working in Claude Code, Codex, and future agent clients; the harness provides a transparent local workspace, deterministic CLI, bounded evidence, bounded reads, lint, and graph reports around ordinary markdown files.
+The key difference from full desktop LLM Wiki applications is deliberate: OKF Harness does not try to become the primary knowledge-base app. A person keeps working in a supported agent client; the harness provides a transparent local workspace, deterministic CLI, bounded evidence, bounded reads, lint, and graph reports around ordinary markdown files.
 
 This means OKF Harness should compete on:
 
@@ -36,17 +36,16 @@ This means OKF Harness should compete on:
 
 ### Agent Adapter Expansion
 
-Goal: support more agent clients without weakening the default local-shell model.
+Goal: support additional agent clients and deepen current integrations without weakening the default local-shell model.
 
 Candidates:
 
-- Pi adapter.
-- OpenCode adapter.
+- Workspace-local adapters for native integrations that currently expose only bootstrap.
 - Adapter conformance tests shared across clients.
 - Improved supported-agent detection as each new adapter is added.
 - Investigation for Cursor, VS Code, Aider, Goose, Continue, and GitHub Copilot coding agent.
 
-Constraint: new adapters must preserve the same workflow contracts as Claude Code and Codex. They should not force a private runtime into the default product path.
+Constraint: new adapters must preserve the same workflow contracts as supported agents. They should not force a private runtime into the default product path.
 
 ## Medium Demand
 

@@ -14,7 +14,7 @@
 - 针对现有 CLI 或核心行为的专项测试
 - `okfh --json` 命令行为的 bug 修复
 - CLI 错误信息和下一步提示的改进
-- Claude Code 或 Codex 的 agent 指引修正
+- 受支持智能体的指引、原生集成或适配器修正
 - 小型示例 workspace 的改进
 
 以下方向请先开 issue 或发起讨论：
@@ -94,7 +94,7 @@ pnpm smoke:tarball
 
 README 应面向用户、篇幅简短。命令参考放在 [docs/CLI.md](CLI.md)，用户工作流放在 [docs/WORKFLOWS.md](WORKFLOWS.md)，路线图想法放在 [docs/ROADMAP.md](ROADMAP.md)，术语放在 [CONTEXT.md](../../CONTEXT.md)，架构决策放在 [docs/adr](../adr)。
 
-文档应优先解释普通 Claude Code 或 Codex 用户该怎么操作，然后再说明内部包结构。
+文档应优先解释普通受支持智能体用户该怎么操作，然后再说明内部包结构。
 
 ## Pull Request 清单
 
