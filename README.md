@@ -24,7 +24,7 @@ wiki/*.md with citations
 Claude Code or Codex uses okfh evidence/read/graph
 ```
 
-OKF Harness does not ask you to learn a new knowledge-base app. You install one CLI package, create one local workspace per knowledge domain, then ask Claude Code or Codex to add sources, maintain the wiki, and answer from it.
+OKF Harness does not ask you to learn a new knowledge-base app. You run setup once for the agents you use, create one local workspace per knowledge domain, then ask Claude Code or Codex to add sources, maintain the wiki, and answer from it.
 
 ## Origins
 
@@ -37,19 +37,40 @@ This repository is not affiliated with or endorsed by Andrej Karpathy or Google.
 
 ## Before You Start
 
-Install the CLI once:
+Run setup once:
 
 ```bash
-npm install -g @okf-harness/cli
+curl -fsSL https://okf-harness.dev/install.sh | sh
 ```
 
-Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; and the `@okf-harness/cli` package. Repository development additionally needs `pnpm`.
+Windows PowerShell:
 
-You can run that command yourself, or ask your agent to check whether `okfh` is installed. If an agent needs to install a global npm package, it must ask for your explicit approval first.
+```powershell
+irm https://okf-harness.dev/install.ps1 | iex
+```
 
-Package installation best-effort installs managed global bootstrap entrypoints for detected Codex and Claude Code clients. If that cannot complete, package installation still succeeds and troubleshooting can use `okfh doctor --json`.
+Already have Node.js 22 or newer?
 
-After installation, the ordinary first-start flow is a prompt to your current agent, then a refresh into the workspace-local `okf-harness` entrypoint.
+```bash
+npx @okf-harness/setup@latest
+```
+
+Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; the shared `okfh` runtime; and at least one supported agent integration. Repository development additionally needs `pnpm`.
+
+Setup installs or updates the shared global `okfh` runtime after confirmation, detects supported agent clients, and installs the selected native integrations. Direct native install paths are available for users who already know their agent:
+
+| Agent | Native install command |
+|---|---|
+| Claude Code | `claude plugin marketplace add pumblus/okf-harness && claude plugin install okf-harness@okf-harness` |
+| Codex | `codex plugin marketplace add pumblus/okf-harness --json && codex plugin add okf-harness@okf-harness --json` |
+| OpenCode | `opencode plugin @pumblus/okf-harness --global` |
+| Pi | `pi install npm:@pumblus/okf-harness` |
+| Hermes Agent | `hermes skills tap add pumblus/okf-harness && hermes skills install pumblus/okf-harness/okf-harness` |
+| OpenClaw | `openclaw skills install @pumblus/okf-harness --global` |
+
+Direct `npm install -g @okf-harness/cli` is an advanced CLI-only runtime install. It does not write agent bootstrap entrypoints.
+
+After setup, the ordinary first-start flow is a prompt to your current agent, then a refresh into the workspace-local `okf-harness` entrypoint.
 
 The recommended parent folder is only a convention, not a hidden CLI default. On macOS or Linux, use `$HOME/Documents/OKF Harness`. On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness`. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.
 
@@ -93,7 +114,7 @@ For a transient diagnostic command:
 npx --package @okf-harness/cli okfh doctor --json
 ```
 
-This does not add a global `okfh` binary, but npm may still run package install hooks while preparing the temporary package.
+This does not add a global `okfh` binary.
 
 ## Common Next Steps
 
@@ -178,7 +199,7 @@ If `$okf-harness-bootstrap` or `/okf-harness-bootstrap` is missing, stale, or bl
 okfh doctor --json
 ```
 
-`doctor` reports global bootstrap status even before a workspace is selected. Use `okfh bootstrap status|repair --agents codex|claude|all --json` only as diagnostic or repair tooling; the primary first-setup workflow is the agent prompt above.
+`doctor` reports runtime, native integration, legacy bootstrap fallback, and workspace checks separately. Use `okfh bootstrap status|repair --agents codex|claude|all --json` only as advanced legacy fallback repair tooling; the primary first-setup workflow is setup plus the agent prompt above.
 
 ## Docs
 

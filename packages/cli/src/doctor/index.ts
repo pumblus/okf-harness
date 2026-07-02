@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import {
@@ -24,16 +25,40 @@ export type DoctorCheck = {
   details?: Record<string, unknown>;
 };
 
+export type DoctorCheckGroupId =
+  | "runtime"
+  | "nativeIntegrations"
+  | "legacyBootstrapFallback"
+  | "workspace";
+
+export type DoctorCheckSummary = {
+  pass: number;
+  warn: number;
+  fail: number;
+  skip: number;
+};
+
+export type DoctorCheckGroup = {
+  id: DoctorCheckGroupId;
+  label: string;
+  ok: boolean;
+  checks: DoctorCheck[];
+  summary: DoctorCheckSummary;
+};
+
+export type DoctorCheckGroups = {
+  runtime: DoctorCheckGroup;
+  nativeIntegrations: DoctorCheckGroup;
+  legacyBootstrapFallback: DoctorCheckGroup;
+  workspace: DoctorCheckGroup;
+};
+
 export type DoctorResult = {
   ok: boolean;
   workspace: string | null;
   checks: DoctorCheck[];
-  summary: {
-    pass: number;
-    warn: number;
-    fail: number;
-    skip: number;
-  };
+  groups: DoctorCheckGroups;
+  summary: DoctorCheckSummary;
 };
 
 export type RunDoctorOptions = {
@@ -41,6 +66,7 @@ export type RunDoctorOptions = {
   startDir?: string | undefined;
   dev?: boolean | undefined;
   runtimePlatform?: NodeJS.Platform | string | undefined;
+  env?: NodeJS.ProcessEnv | undefined;
   runExecutable?: RunExecutable | undefined;
   readBootstrapStatus?: ReadBootstrapStatus | undefined;
 };
@@ -54,6 +80,14 @@ export type RunExecutable = (
 type ReadBootstrapStatus = typeof readBootstrapAgentStatus;
 
 const execFileAsync = promisify(execFile);
+const nativeIntegrationProfiles = [
+  { id: "claude", label: "Claude Code", command: "claude" },
+  { id: "codex", label: "Codex", command: "codex" },
+  { id: "opencode", label: "OpenCode", command: "opencode" },
+  { id: "pi", label: "Pi", command: "pi" },
+  { id: "hermes", label: "Hermes Agent", command: "hermes" },
+  { id: "openclaw", label: "OpenClaw", command: "openclaw" },
+] as const;
 const requiredSkillFiles = [
   "okf-harness/SKILL.md",
   "okf-harness/references/setup.md",
@@ -65,9 +99,10 @@ const requiredSkillFiles = [
 
 export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorResult> {
   const runtimePlatform = options.runtimePlatform ?? process.platform;
+  const env = options.env ?? process.env;
   const runExecutable = options.runExecutable ?? runExecutableDefault;
   const readBootstrapStatus = options.readBootstrapStatus ?? readBootstrapAgentStatus;
-  const checks: DoctorCheck[] = [
+  const runtimeChecks: DoctorCheck[] = [
     checkOkfh(),
     checkPlatform(runtimePlatform),
     checkNode(),
@@ -80,7 +115,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     }),
   ];
   if (options.dev === true) {
-    checks.push(
+    runtimeChecks.push(
       await checkExecutable("pnpm", ["--version"], {
         id: "runtime-pnpm",
         label: "pnpm",
@@ -92,29 +127,31 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     );
   }
 
-  checks.push(
-    ...(await Promise.all(
-      supportedBootstrapAgents.map((agent) => checkGlobalBootstrap(agent, readBootstrapStatus)),
-    )),
+  const nativeIntegrationChecks = await Promise.all(
+    nativeIntegrationProfiles.map((profile) => checkNativeIntegration(profile, env)),
+  );
+  const legacyBootstrapFallbackChecks = await Promise.all(
+    supportedBootstrapAgents.map((agent) => checkGlobalBootstrap(agent, readBootstrapStatus)),
   );
 
-  const workspaceRoot = await resolveDoctorWorkspace(options, checks);
+  const workspaceChecks: DoctorCheck[] = [];
+  const workspaceRoot = await resolveDoctorWorkspace(options, workspaceChecks);
   if (workspaceRoot === null) {
-    checks.push(
+    workspaceChecks.push(
       skipCheck(
         "workspace-status",
         "Workspace status",
         "Workspace check skipped: no workspace was resolved.",
       ),
     );
-    checks.push(
+    workspaceChecks.push(
       skipCheck(
         "workspace-adapter-claude",
         "Claude Code adapter",
         "Workspace adapter check skipped: no workspace was resolved.",
       ),
     );
-    checks.push(
+    workspaceChecks.push(
       skipCheck(
         "workspace-adapter-codex",
         "Codex adapter",
@@ -122,17 +159,38 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
       ),
     );
   } else {
-    checks.push(await checkWorkspaceStatus(workspaceRoot));
-    checks.push(...(await checkSafetyPolicy(workspaceRoot)));
-    checks.push(await checkAdapter(workspaceRoot, "claude"));
-    checks.push(await checkAdapter(workspaceRoot, "codex"));
+    workspaceChecks.push(await checkWorkspaceStatus(workspaceRoot));
+    workspaceChecks.push(...(await checkSafetyPolicy(workspaceRoot)));
+    workspaceChecks.push(await checkAdapter(workspaceRoot, "claude"));
+    workspaceChecks.push(await checkAdapter(workspaceRoot, "codex"));
   }
 
+  const groups: DoctorCheckGroups = {
+    runtime: groupChecks("runtime", "Runtime", runtimeChecks),
+    nativeIntegrations: groupChecks(
+      "nativeIntegrations",
+      "Native integrations",
+      nativeIntegrationChecks,
+    ),
+    legacyBootstrapFallback: groupChecks(
+      "legacyBootstrapFallback",
+      "Legacy bootstrap fallback",
+      legacyBootstrapFallbackChecks,
+    ),
+    workspace: groupChecks("workspace", "Workspace", workspaceChecks),
+  };
+  const checks = [
+    ...runtimeChecks,
+    ...nativeIntegrationChecks,
+    ...legacyBootstrapFallbackChecks,
+    ...workspaceChecks,
+  ];
   const summary = summarizeChecks(checks);
   return {
     ok: summary.fail === 0,
     workspace: workspaceRoot,
     checks,
+    groups,
     summary,
   };
 }
@@ -359,6 +417,35 @@ async function checkGlobalBootstrap(
   };
 }
 
+async function checkNativeIntegration(
+  profile: (typeof nativeIntegrationProfiles)[number],
+  env: NodeJS.ProcessEnv,
+): Promise<DoctorCheck> {
+  const executablePath = await findExecutable(profile.command, env);
+  const details = {
+    agent: profile.id,
+    command: profile.command,
+    installCommand: `npx @okf-harness/setup@latest --agents ${profile.id}`,
+    verifiesIntegrationInstall: false,
+  };
+  if (executablePath === undefined) {
+    return skipCheck(
+      `native-host-cli-${profile.id}`,
+      `${profile.label} host CLI`,
+      `Native host check skipped: ${profile.label} CLI was not detected.`,
+      details,
+    );
+  }
+
+  return {
+    id: `native-host-cli-${profile.id}`,
+    label: `${profile.label} host CLI`,
+    status: "pass",
+    message: `Native host check passed: ${profile.label} CLI was detected.`,
+    details: { ...details, executablePath },
+  };
+}
+
 async function checkWorkspaceStatus(workspaceRoot: string): Promise<DoctorCheck> {
   const status = await readWorkspaceStatus(workspaceRoot);
   if (!status.initialized) {
@@ -488,6 +575,62 @@ function summarizeChecks(checks: DoctorCheck[]): DoctorResult["summary"] {
     },
     { pass: 0, warn: 0, fail: 0, skip: 0 },
   );
+}
+
+function groupChecks(
+  id: DoctorCheckGroupId,
+  label: string,
+  checks: DoctorCheck[],
+): DoctorCheckGroup {
+  const summary = summarizeChecks(checks);
+  return {
+    id,
+    label,
+    ok: summary.fail === 0,
+    checks,
+    summary,
+  };
+}
+
+async function findExecutable(
+  command: string,
+  env: NodeJS.ProcessEnv,
+): Promise<string | undefined> {
+  const pathValue = env.PATH ?? "";
+  for (const directory of pathValue.split(path.delimiter).filter((entry) => entry.length > 0)) {
+    for (const candidate of executableCandidates(command, env)) {
+      const candidatePath = path.join(directory, candidate);
+      if (await isExecutableFile(candidatePath)) {
+        return candidatePath;
+      }
+    }
+  }
+  return undefined;
+}
+
+function executableCandidates(command: string, env: NodeJS.ProcessEnv): string[] {
+  const pathext = (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+    .split(";")
+    .map((extension) => extension.trim().toLowerCase())
+    .filter((extension) => extension.length > 0);
+  return [
+    command,
+    ...pathext.map((extension) => `${command}${extension}`),
+    ...pathext.map((extension) => `${command}${extension.toUpperCase()}`),
+  ];
+}
+
+async function isExecutableFile(filePath: string): Promise<boolean> {
+  try {
+    const entry = await stat(filePath);
+    if (!entry.isFile()) {
+      return false;
+    }
+    await access(filePath, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function fileExists(filePath: string): Promise<boolean> {

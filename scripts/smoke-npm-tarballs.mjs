@@ -150,21 +150,16 @@ async function main() {
       cwd: installDir,
       env: bootstrapEnv,
     });
+    await assertCliPackage(installDir);
     await assertNativeIntegrationPackage(installDir);
     const agentPackVersion = await installedPackageVersion(installDir, "@okf-harness/agent-pack");
-    await assertGeneratedSkill(
+    await assertFileMissing(
       path.join(bootstrapCodexSkillRoot, "skills/okf-harness-bootstrap/SKILL.md"),
-      agentPackVersion,
-      "bootstrap",
-      "codex",
     );
-    await assertGeneratedSkill(
+    await assertFileMissing(
       path.join(bootstrapClaudeHome, "skills/okf-harness-bootstrap/SKILL.md"),
-      agentPackVersion,
-      "bootstrap",
-      "claude",
     );
-    console.log("postinstall bootstrap passed");
+    console.log("cli postinstall stayed inactive");
 
     const setupPlan = await runInstalledPackageBin(
       installDir,
@@ -190,8 +185,16 @@ async function main() {
         throw new Error(`${binName} doctor smoke failed: ${result.stdout}`);
       }
       assertCheckAbsent(envelope, "runtime-pnpm", `${binName} default doctor`);
-      assertCheckStatus(envelope, "global-bootstrap-codex", "pass", `${binName} default doctor`);
-      assertCheckStatus(envelope, "global-bootstrap-claude", "pass", `${binName} default doctor`);
+      assertCheckGroup(envelope, "runtime", `${binName} default doctor`);
+      assertCheckGroup(envelope, "nativeIntegrations", `${binName} default doctor`);
+      assertCheckGroup(envelope, "legacyBootstrapFallback", `${binName} default doctor`);
+      assertCheckNotStatus(envelope, "global-bootstrap-codex", "pass", `${binName} default doctor`);
+      assertCheckNotStatus(
+        envelope,
+        "global-bootstrap-claude",
+        "pass",
+        `${binName} default doctor`,
+      );
       const summary = envelope.data.summary;
       console.log(
         `${binName} doctor passed: ${summary.pass} pass, ${summary.warn} warn, ${summary.skip} skip`,
@@ -446,11 +449,20 @@ async function installedPackageVersion(installDir, packageName) {
 }
 
 function assertPackedPackageContents(packageInfo, packedPackage) {
+  const files = new Set((packedPackage.files ?? []).map((file) => file.path));
+  if (packageInfo.name === "@okf-harness/cli") {
+    for (const forbidden of ["postinstall.mjs", "dist/postinstall.js", "dist/postinstall.d.ts"]) {
+      if (files.has(forbidden)) {
+        throw new Error(`${packageInfo.name} tarball should not include ${forbidden}`);
+      }
+    }
+    return;
+  }
+
   if (packageInfo.name !== nativeIntegrationPackageName) {
     return;
   }
 
-  const files = new Set((packedPackage.files ?? []).map((file) => file.path));
   for (const expected of [
     "package.json",
     "README.md",
@@ -490,6 +502,22 @@ async function assertInstallerScripts() {
     }
   }
   console.log("installer release asset sources passed");
+}
+
+async function assertCliPackage(installDir) {
+  const packageRoot = path.join(installDir, "node_modules", "@okf-harness", "cli");
+  const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
+  if (packageJson.scripts?.postinstall !== undefined) {
+    throw new Error("@okf-harness/cli must not run postinstall hooks");
+  }
+
+  const files = await listFiles(packageRoot);
+  for (const forbidden of ["postinstall.mjs", "dist/postinstall.js", "dist/postinstall.d.ts"]) {
+    if (files.includes(forbidden)) {
+      throw new Error(`@okf-harness/cli installed unexpected ${forbidden}`);
+    }
+  }
+  console.log("cli package postinstall absence passed");
 }
 
 async function assertNativeIntegrationPackage(installDir) {
@@ -836,11 +864,41 @@ function assertCheckStatus(envelope, checkId, status, label) {
   }
 }
 
+function assertCheckNotStatus(envelope, checkId, status, label) {
+  const checks = Array.isArray(envelope.data?.checks) ? envelope.data.checks : [];
+  const check = checks.find((candidate) => candidate?.id === checkId);
+  if (check === undefined) {
+    throw new Error(`${label} missing ${checkId}: ${JSON.stringify(envelope)}`);
+  }
+  if (check?.status === status) {
+    throw new Error(`${label} expected ${checkId} not ${status}: ${JSON.stringify(envelope)}`);
+  }
+}
+
 function assertCheckAbsent(envelope, checkId, label) {
   const checks = Array.isArray(envelope.data?.checks) ? envelope.data.checks : [];
   if (checks.some((candidate) => candidate?.id === checkId)) {
     throw new Error(`${label} should not include ${checkId}: ${JSON.stringify(envelope)}`);
   }
+}
+
+function assertCheckGroup(envelope, groupId, label) {
+  const group = envelope.data?.groups?.[groupId];
+  if (!group || !Array.isArray(group.checks)) {
+    throw new Error(`${label} missing doctor group ${groupId}: ${JSON.stringify(envelope)}`);
+  }
+}
+
+async function assertFileMissing(filePath) {
+  try {
+    await readFile(filePath, "utf8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
+  throw new Error(`Expected file to be missing: ${filePath}`);
 }
 
 async function listFiles(root, current = root) {

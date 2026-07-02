@@ -102,9 +102,8 @@ async function expectHostPlugin(options: {
   )?.contents;
   expect(skill).toContain("name: okf-harness-bootstrap");
   expect(skill).toContain("If `okfh` is missing");
-  expect(skill).toContain("npm install -g @okf-harness/cli");
-  expect(skill).toContain("okfh doctor --json");
-  expect(skill).not.toContain("npx @okf-harness/setup@latest");
+  expect(skill).toContain("npx @okf-harness/setup@latest");
+  expect(skill).not.toContain("npm install -g @okf-harness/cli");
   expect(skill).not.toContain("name: okf-harness\n");
 }
 

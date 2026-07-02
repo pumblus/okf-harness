@@ -6,6 +6,8 @@ The npm package is `@okf-harness/cli`. It installs the `okfh` command and the lo
 
 ## Install
 
+Most users should use the recommended setup commands in the [README](../README.md). Direct CLI install is an advanced runtime-only path:
+
 ```bash
 npm install -g @okf-harness/cli
 ```
@@ -16,7 +18,7 @@ Transient diagnostic command:
 npx --package @okf-harness/cli okfh doctor --json
 ```
 
-This does not add a global `okfh` binary, but npm may still run package install hooks while preparing the temporary package.
+This does not add a global `okfh` binary.
 
 Requirements for normal use:
 
@@ -27,7 +29,7 @@ Requirements for normal use:
 
 Repository development additionally requires `pnpm`; check that environment with `okfh doctor --dev --json`.
 
-Normal first setup should start from the `okf-harness-bootstrap` global bootstrap entrypoint in Codex or Claude Code. Use `okfh doctor --json` and `okfh bootstrap` for troubleshooting, diagnostics, and repair.
+Normal first setup should start from `@okf-harness/setup` or a native agent integration. Direct CLI install does not write agent bootstrap entrypoints.
 
 ## Workspace Rules
 
@@ -64,7 +66,7 @@ For workspace `status` and `check`, `next` reports the top-priority Workspace ne
 
 ### doctor
 
-Checks the running CLI, Node.js, git, runtime platform, global bootstrap status, and workspace readiness when a workspace can be resolved. Global bootstrap checks still run when no workspace is resolved. `pnpm` is required only for repository development and is checked by `--dev`.
+Checks the running CLI, Node.js, git, runtime platform, native host CLI detection, legacy bootstrap fallback status, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
 
 ```bash
 okfh doctor --json
@@ -73,6 +75,8 @@ okfh doctor --dev --json
 ```
 
 `doctor` does not write files.
+
+In JSON output, `data.checks` remains the flat compatibility list. `data.groups` separates `runtime`, `nativeIntegrations`, `legacyBootstrapFallback`, and `workspace` checks. The `nativeIntegrations` group reports host CLI detection; it does not claim the host has verified the OKF Harness native integration install state.
 
 ### init
 
@@ -106,7 +110,7 @@ Use the current agent adapter by default. Use `all` only when you explicitly wan
 
 ### bootstrap
 
-Diagnostic and repair tooling for managed global bootstrap entrypoints for supported agents. This is not the primary first-setup workflow; normal setup starts from `$okf-harness-bootstrap` in Codex or `/okf-harness-bootstrap` in Claude Code.
+Advanced diagnostic and repair tooling for legacy managed global bootstrap entrypoints for supported agents. This is not the primary first-setup workflow; normal setup starts from `@okf-harness/setup` or a native agent integration.
 
 ```bash
 okfh bootstrap install --agents codex --json

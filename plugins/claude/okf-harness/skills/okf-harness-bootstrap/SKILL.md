@@ -19,7 +19,7 @@ Bootstrap routes OKF Harness setup before a workspace-local `okf-harness` skill 
 1. Classify the request as setup, discovery, repair, or an explicit combination of those.
 2. If the current directory is already an OKF Harness workspace, do not create a nested workspace; repair Claude Code support and hand off to a fresh workspace session.
 3. Load only the reference needed for the current route.
-4. If `okfh` is missing, stop and tell the user to run `npm install -g @okf-harness/cli`, then `okfh doctor --json`; do not create workspaces or edit files until runtime setup is fixed.
+4. If `okfh` is missing, stop and tell the user to run `npx @okf-harness/setup@latest`; do not create workspaces or edit files until runtime setup is fixed.
 5. Run harness operations through local-shell `okfh --json` commands and read their JSON before deciding the next step.
 6. Before persistent setup writes, state the resolved workspace name, path, agent target, and Git choice unless the user gave all four explicitly.
 7. Finish from the CLI `data.refresh` object when present; do not invent refresh commands.

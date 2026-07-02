@@ -244,9 +244,8 @@ describe("@okf-harness/agent-pack", () => {
       expect(skill).toContain("references/repair.md");
       expect(skill).toContain("resolved `--workspace <path>`");
       expect(skill).toContain("If `okfh` is missing");
-      expect(skill).toContain("npm install -g @okf-harness/cli");
-      expect(skill).toContain("okfh doctor --json");
-      expect(skill).not.toContain("npx @okf-harness/setup@latest");
+      expect(skill).toContain("npx @okf-harness/setup@latest");
+      expect(skill).not.toContain("npm install -g @okf-harness/cli");
       expect(skill).toContain("then stop with a fresh-session handoff");
       expect(skill).toContain("first-loop blocker with one concrete next action");
       expect(skill).toContain("Completion criterion");

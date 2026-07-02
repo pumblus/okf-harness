@@ -117,7 +117,7 @@ okfh doctor --json
 ```
 
 - For v0.6.0 and later, attach `install.sh` and `install.ps1`, download both assets back, and verify they resolve to the intended setup version.
-- For v0.6.0 and later, keep the Install section to the recommended installer path. Do not list native or direct CLI commands there; link to docs for those.
+- For v0.6.0 and later, keep the Install section to the recommended installer path. Do not list native, direct CLI, or `okfh bootstrap` commands there; link to docs for those.
 - Use the release title/body template from the root `AGENTS.md`.
 - Ensure the release body states important non-goals and unchanged boundaries when they matter.
 

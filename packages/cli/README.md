@@ -4,9 +4,9 @@ Command-line package for OKF Harness local workspaces. It provides the `okfh` co
 
 OKF Harness is an independent open-source project built on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 
-Most users install this package once, create one local workspace per knowledge domain, then ask Claude Code or Codex to maintain the workspace through `okfh --json`.
+Most users should start from the recommended setup flow in the main README. This package is the shared `okfh` runtime for setup, native integrations, scripting, and advanced diagnostics.
 
-Install:
+Advanced direct runtime install:
 
 ```bash
 npm install -g @okf-harness/cli
@@ -20,7 +20,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 Runtime requirements are macOS, Windows, or Linux; Node.js 22 or newer; git; and this package. Repository development additionally requires `pnpm` and can be checked with `okfh doctor --dev --json`.
 
-Normal first setup starts from the managed `okf-harness-bootstrap` entrypoint in Codex or Claude Code. Use `okfh doctor --json` and `okfh bootstrap` when bootstrap discovery needs diagnostics or repair.
+Direct CLI install does not write agent bootstrap entrypoints. Use `@okf-harness/setup` or a native agent integration for ordinary first setup, and use `okfh doctor --json` or `okfh bootstrap` only when diagnostics or legacy fallback repair need the CLI.
 
 Common commands:
 

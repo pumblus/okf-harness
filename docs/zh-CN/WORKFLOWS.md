@@ -22,19 +22,29 @@ Windows 下按同样习惯放在 `%USERPROFILE%\Documents\OKF Harness\...`。
 
 ## 开始之前
 
-在本地终端运行一次：
+在本地终端运行一次 setup：
 
 ```bash
-npm install -g @okf-harness/cli
+curl -fsSL https://okf-harness.dev/install.sh | sh
 ```
 
-普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、git，以及 `@okf-harness/cli`。`pnpm` 只用于仓库开发。
+Windows PowerShell：
 
-包安装时会尽量为检测到的 Codex 和 Claude Code 安装受管理的全局引导入口（Global bootstrap entrypoint）。你也可以让智能体检查本机是否已经安装 `okfh`。如果智能体需要安装全局 npm 包，必须先得到你的明确同意。
+```powershell
+irm https://okf-harness.dev/install.ps1 | iex
+```
+
+已经有 Node.js 22 或更高版本？
+
+```bash
+npx @okf-harness/setup@latest
+```
+
+普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、git、共享的 `okfh` 运行时，以及一个受支持的原生智能体集成。`pnpm` 只用于仓库开发。
 
 ## 从你的智能体开始
 
-使用当前智能体的 OKF Harness 前缀。还没有工作区时，使用全局引导入口。完成设置或选择工作区后，在工作区内使用工作区本地入口（Workspace-local entrypoint）。
+使用当前智能体的 OKF Harness 前缀。还没有工作区时，使用 setup 或原生集成安装的全局引导入口。完成设置或选择工作区后，在工作区内使用工作区本地入口（Workspace-local entrypoint）。
 
 还没有工作区：
 
@@ -58,7 +68,7 @@ Claude Code：
 
 要端到端检查首次启动，可以按这五步操作：
 
-1. 在干净环境中安装 CLI。
+1. 在干净环境中运行 setup。
 2. 打开 Codex 或 Claude Code。
 3. 确认当前智能体能发现 `okf-harness-bootstrap`。
 4. 用它为当前智能体创建一个空工作区。
@@ -197,7 +207,7 @@ okfh agent install claude --workspace <workspace> --json
 okfh doctor --json
 ```
 
-即使没有解析到工作区，`doctor` 也会报告全局引导状态。`okfh bootstrap status|repair --agents codex|claude|all --json` 是诊断或修复工具，不是主要的首次设置流程。
+`doctor` 会分别报告运行时、原生集成、旧式引导 fallback 和工作区检查。`okfh bootstrap status|repair --agents codex|claude|all --json` 是高级旧式 fallback 修复工具，不是主要的首次设置流程。
 
 ## 文件结构
 

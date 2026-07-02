@@ -123,8 +123,7 @@ async function walk(root, current, files) {
 async function assertBootstrapSkill(root) {
   const skill = await readFile(path.join(root, bootstrapSkill), "utf8");
   assert.match(skill, /^name: okf-harness-bootstrap$/m);
-  assert.match(skill, /npm install -g @okf-harness\/cli/);
-  assert.match(skill, /okfh doctor --json/);
-  assert.doesNotMatch(skill, /npx @okf-harness\/setup@latest/);
+  assert.match(skill, /npx @okf-harness\/setup@latest/);
+  assert.doesNotMatch(skill, /npm install -g @okf-harness\/cli/);
   assert.doesNotMatch(skill, /^name: okf-harness$/m);
 }

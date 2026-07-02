@@ -27,6 +27,7 @@ export function registerDoctorCommand(
         workspace: result.workspace,
         data: {
           checks: result.checks,
+          groups: result.groups,
           summary: result.summary,
         },
         warnings: result.checks

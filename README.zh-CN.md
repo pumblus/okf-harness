@@ -24,7 +24,7 @@ wiki/*.md（含引用标注）
 Claude Code 或 Codex 通过 okfh evidence/read/graph 查阅
 ```
 
-装一个 CLI 包，每个知识领域建一个本地工作区（Workspace），然后让 Claude Code 或 Codex 帮你添加资料、维护 Wiki、回答问题。
+运行一次 setup，为你使用的智能体安装集成；每个知识领域建一个本地工作区（Workspace），然后让 Claude Code 或 Codex 帮你添加资料、维护 Wiki、回答问题。
 
 ## 来源
 
@@ -37,19 +37,40 @@ OKF Harness 建立在：
 
 ## 开始之前
 
-先安装一次 CLI：
+先运行一次 setup：
 
 ```bash
-npm install -g @okf-harness/cli
+curl -fsSL https://okf-harness.dev/install.sh | sh
 ```
 
-普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、git，以及 `@okf-harness/cli` 包。只有参与仓库开发时才额外需要 `pnpm`。
+Windows PowerShell：
 
-你可以自己运行这条命令，也可以让智能体检查本机是否已经安装 `okfh`。如果智能体需要安装全局 npm 包，必须先得到你的明确同意。
+```powershell
+irm https://okf-harness.dev/install.ps1 | iex
+```
 
-包安装时会尽量为检测到的 Codex 和 Claude Code 安装受管理的全局引导入口（Global bootstrap entrypoint）。如果这一步没完成，包安装仍会成功，排查时可以运行 `okfh doctor --json`。
+已经有 Node.js 22 或更高版本？
 
-安装后，普通首次启动流程是先向当前智能体发出提示词，然后按刷新指引进入工作区本地的 `okf-harness` 入口。
+```bash
+npx @okf-harness/setup@latest
+```
+
+普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、git、共享的 `okfh` 运行时，以及至少一个受支持的智能体集成。只有参与仓库开发时才额外需要 `pnpm`。
+
+setup 会在确认后安装或更新共享的全局 `okfh` 运行时，检测受支持的智能体客户端，并安装你选择的原生集成。已经明确知道自己要用哪个智能体时，也可以直接使用原生命令：
+
+| 智能体 | 原生安装命令 |
+|---|---|
+| Claude Code | `claude plugin marketplace add pumblus/okf-harness && claude plugin install okf-harness@okf-harness` |
+| Codex | `codex plugin marketplace add pumblus/okf-harness --json && codex plugin add okf-harness@okf-harness --json` |
+| OpenCode | `opencode plugin @pumblus/okf-harness --global` |
+| Pi | `pi install npm:@pumblus/okf-harness` |
+| Hermes Agent | `hermes skills tap add pumblus/okf-harness && hermes skills install pumblus/okf-harness/okf-harness` |
+| OpenClaw | `openclaw skills install @pumblus/okf-harness --global` |
+
+直接运行 `npm install -g @okf-harness/cli` 属于高级 CLI-only 运行时安装；它不会写入智能体引导入口。
+
+setup 后，普通首次启动流程是先向当前智能体发出提示词，然后按刷新指引进入工作区本地的 `okf-harness` 入口。
 
 推荐父目录只是一个约定，不是 CLI 隐式默认路径。macOS 或 Linux 使用 `$HOME/Documents/OKF Harness`。Windows PowerShell 使用 `$env:USERPROFILE\Documents\OKF Harness`。Command Prompt 使用 `%USERPROFILE%\Documents\OKF Harness`。
 
@@ -93,7 +114,7 @@ Claude Code：
 npx --package @okf-harness/cli okfh doctor --json
 ```
 
-这不会添加全局 `okfh` 命令，但 npm 准备临时包时仍可能运行包安装钩子。
+这不会添加全局 `okfh` 命令。
 
 ## 常见下一步
 
@@ -178,7 +199,7 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh doctor --json
 ```
 
-即使还没有选中工作区，`doctor` 也会报告全局引导状态。`okfh bootstrap status|repair --agents codex|claude|all --json` 只用于诊断或修复；主要的首次设置流程仍然是上面的智能体提示词。
+`doctor` 会分别报告运行时、原生集成、旧式引导 fallback 和工作区检查。`okfh bootstrap status|repair --agents codex|claude|all --json` 只用于高级旧式 fallback 修复；主要的首次设置流程是 setup 加上上面的智能体提示词。
 
 ## 文档
 

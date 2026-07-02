@@ -662,21 +662,58 @@ async function verifyRuntime(options: {
   return 0;
 }
 
+type DoctorCheckLike = { id: string; status: string; message: string };
+
 function reportSetupDoctorWarnings(writeOut: (chunk: string) => void, doctor: unknown): void {
-  for (const check of doctorChecks(doctor)) {
+  const runtimeChecks =
+    doctorGroupChecks(doctor, "runtime") ??
+    doctorChecks(doctor).filter((check) => check.id === "runtime-git");
+  const workspaceChecks =
+    doctorGroupChecks(doctor, "workspace") ??
+    doctorChecks(doctor).filter((check) => check.id.startsWith("workspace-"));
+
+  for (const check of runtimeChecks) {
     if (check.status !== "warn" && check.status !== "fail") {
       continue;
     }
     if (check.id === "runtime-git") {
       writeOut(`Doctor setup warning: ${check.message}\n`);
     }
-    if (check.id.startsWith("workspace-")) {
+  }
+
+  for (const check of workspaceChecks) {
+    if (check.status === "warn" || check.status === "fail") {
       writeOut(`Doctor workspace warning: ${check.message}\n`);
     }
   }
 }
 
 function hasBlockingDoctorFailure(doctor: unknown): boolean {
+  const runtimeChecks = doctorGroupChecks(doctor, "runtime");
+  if (runtimeChecks !== undefined) {
+    const nativeChecks = doctorGroupChecks(doctor, "nativeIntegrations") ?? [];
+    const legacyChecks = doctorGroupChecks(doctor, "legacyBootstrapFallback") ?? [];
+    const workspaceChecks = doctorGroupChecks(doctor, "workspace") ?? [];
+    const groupedCheckIds = new Set(
+      [...runtimeChecks, ...nativeChecks, ...legacyChecks, ...workspaceChecks].map(
+        (check) => check.id,
+      ),
+    );
+    const ungroupedChecks = doctorChecks(doctor).filter((check) => !groupedCheckIds.has(check.id));
+    const hasBlockingProblem = [...runtimeChecks, ...nativeChecks, ...ungroupedChecks].some(
+      (check) => check.status === "fail" && check.id !== "runtime-git",
+    );
+    if (hasBlockingProblem) {
+      return true;
+    }
+    const hasKnownNonBlockingProblem = [
+      ...runtimeChecks.filter((check) => check.id === "runtime-git"),
+      ...legacyChecks,
+      ...workspaceChecks,
+    ].some((check) => check.status === "warn" || check.status === "fail");
+    return doctorOk(doctor) === false && !hasKnownNonBlockingProblem;
+  }
+
   const checks = doctorChecks(doctor);
   if (checks.some((check) => check.status === "fail" && !isSetupNonBlockingDoctorCheck(check))) {
     return true;
@@ -696,11 +733,28 @@ function doctorOk(doctor: unknown): boolean | undefined {
   return isRecord(doctor) && typeof doctor.ok === "boolean" ? doctor.ok : undefined;
 }
 
-function doctorChecks(doctor: unknown): Array<{ id: string; status: string; message: string }> {
+function doctorGroupChecks(doctor: unknown, groupId: string): DoctorCheckLike[] | undefined {
+  if (
+    !isRecord(doctor) ||
+    !isRecord(doctor.data) ||
+    !isRecord(doctor.data.groups) ||
+    !isRecord(doctor.data.groups[groupId])
+  ) {
+    return undefined;
+  }
+  const group = doctor.data.groups[groupId];
+  return Array.isArray(group.checks) ? parseDoctorChecks(group.checks) : undefined;
+}
+
+function doctorChecks(doctor: unknown): DoctorCheckLike[] {
   if (!isRecord(doctor) || !isRecord(doctor.data) || !Array.isArray(doctor.data.checks)) {
     return [];
   }
-  return doctor.data.checks.flatMap((check) => {
+  return parseDoctorChecks(doctor.data.checks);
+}
+
+function parseDoctorChecks(checks: unknown[]): DoctorCheckLike[] {
+  return checks.flatMap((check) => {
     if (!isRecord(check)) {
       return [];
     }

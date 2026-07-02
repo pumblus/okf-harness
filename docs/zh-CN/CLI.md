@@ -6,6 +6,8 @@ npm 包名为 `@okf-harness/cli`。安装后可用 `okfh` 命令，也提供了 
 
 ## 安装
 
+多数用户应使用 [README](../../README.zh-CN.md) 中的推荐 setup 命令。直接安装 CLI 是高级 runtime-only 路径：
+
 ```bash
 npm install -g @okf-harness/cli
 ```
@@ -16,7 +18,7 @@ npm install -g @okf-harness/cli
 npx --package @okf-harness/cli okfh doctor --json
 ```
 
-这不会添加全局 `okfh` 命令，但 npm 准备临时包时仍可能运行包安装钩子。
+这不会添加全局 `okfh` 命令。
 
 普通使用环境要求：
 
@@ -27,7 +29,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 参与仓库开发时额外需要 `pnpm`；用 `okfh doctor --dev --json` 检查开发环境。
 
-普通首次设置应从 Codex 或 Claude Code 里的 `okf-harness-bootstrap` 全局引导入口（Global bootstrap entrypoint）开始。`okfh doctor --json` 和 `okfh bootstrap` 用于排查、诊断和修复。
+普通首次设置应从 `@okf-harness/setup` 或原生智能体集成开始。直接安装 CLI 不会写入智能体引导入口。
 
 ## 工作区规则
 
@@ -64,7 +66,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 ### doctor
 
-检查 CLI 运行环境、Node.js、git、运行平台、全局引导状态，以及可解析到工作区时的工作区就绪状态。即使没有解析到工作区，也会运行全局引导检查。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
+检查 CLI 运行环境、Node.js、git、运行平台、原生宿主 CLI 检测、旧式引导 fallback 状态，以及可解析到工作区时的工作区就绪状态。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
 
 ```bash
 okfh doctor --json
@@ -73,6 +75,8 @@ okfh doctor --dev --json
 ```
 
 `doctor` 不会写入任何文件。
+
+JSON 输出中，`data.checks` 仍保留兼容用的扁平列表。`data.groups` 会把检查拆成 `runtime`、`nativeIntegrations`、`legacyBootstrapFallback` 和 `workspace`。`nativeIntegrations` 组报告宿主 CLI 检测；它不表示宿主已经验证 OKF Harness 原生集成安装状态。
 
 ### init
 
@@ -106,7 +110,7 @@ okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --j
 
 ### bootstrap
 
-诊断和修复受支持智能体的受管理全局引导入口。它不是主要的首次设置流程；常规设置从 Codex 的 `$okf-harness-bootstrap` 或 Claude Code 的 `/okf-harness-bootstrap` 开始。
+高级诊断和修复工具，用于受支持智能体的旧式受管理全局引导入口。它不是主要的首次设置流程；常规设置从 `@okf-harness/setup` 或原生智能体集成开始。
 
 ```bash
 okfh bootstrap install --agents codex --json

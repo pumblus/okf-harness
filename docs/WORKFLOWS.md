@@ -22,19 +22,29 @@ Avoid one hidden global knowledge base. Separate workspaces make agent prompts c
 
 ## Before You Start
 
-Run this once in your local terminal:
+Run setup once in your local terminal:
 
 ```bash
-npm install -g @okf-harness/cli
+curl -fsSL https://okf-harness.dev/install.sh | sh
 ```
 
-Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; and `@okf-harness/cli`. `pnpm` is only for repository development.
+Windows PowerShell:
 
-Package installation best-effort installs managed global bootstrap entrypoints for detected Codex and Claude Code clients. You can also ask your agent to check whether `okfh` is installed. The agent must ask for explicit approval before installing a global npm package.
+```powershell
+irm https://okf-harness.dev/install.ps1 | iex
+```
+
+Already have Node.js 22 or newer?
+
+```bash
+npx @okf-harness/setup@latest
+```
+
+Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; the shared `okfh` runtime; and a supported native agent integration. `pnpm` is only for repository development.
 
 ## Start With Your Agent
 
-Use the current agent's OKF Harness prefix. Before a workspace exists, use the global bootstrap entrypoint. After setup or selection, use the workspace-local entrypoint from inside the workspace.
+Use the current agent's OKF Harness prefix. Before a workspace exists, use the global bootstrap entrypoint installed by setup or a native integration. After setup or selection, use the workspace-local entrypoint from inside the workspace.
 
 No workspace yet:
 
@@ -58,7 +68,7 @@ Bootstrap is not the daily workflow. It should not synthesize wiki content, migr
 
 To verify first start end to end:
 
-1. Install the CLI in a clean environment.
+1. Run setup in a clean environment.
 2. Open Codex or Claude Code.
 3. Confirm `okf-harness-bootstrap` is discoverable in that agent.
 4. Use it to create one empty workspace for the current agent.
@@ -197,7 +207,7 @@ If `$okf-harness-bootstrap` or `/okf-harness-bootstrap` is missing, stale, or bl
 okfh doctor --json
 ```
 
-`doctor` reports global bootstrap status even when no workspace is resolved. Use `okfh bootstrap status|repair --agents codex|claude|all --json` as diagnostic or repair tooling, not as the primary first-setup workflow.
+`doctor` reports runtime, native integration, legacy bootstrap fallback, and workspace checks separately. Use `okfh bootstrap status|repair --agents codex|claude|all --json` as advanced legacy fallback repair tooling, not as the primary first-setup workflow.
 
 ## What Goes Where
 

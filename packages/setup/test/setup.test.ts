@@ -629,6 +629,28 @@ describe("@okf-harness/setup", () => {
                       message: "workspace is not initialized",
                     },
                   ],
+                  groups: {
+                    runtime: {
+                      checks: [
+                        {
+                          id: "runtime-okfh",
+                          status: "pass",
+                          message: "runtime ok",
+                        },
+                      ],
+                    },
+                    nativeIntegrations: { checks: [] },
+                    legacyBootstrapFallback: { checks: [] },
+                    workspace: {
+                      checks: [
+                        {
+                          id: "workspace-status",
+                          status: "fail",
+                          message: "workspace is not initialized",
+                        },
+                      ],
+                    },
+                  },
                 },
               }),
               stderr: "",
@@ -673,6 +695,20 @@ describe("@okf-harness/setup", () => {
                       message: "git executable was not found.",
                     },
                   ],
+                  groups: {
+                    runtime: {
+                      checks: [
+                        {
+                          id: "runtime-git",
+                          status: "fail",
+                          message: "git executable was not found.",
+                        },
+                      ],
+                    },
+                    nativeIntegrations: { checks: [] },
+                    legacyBootstrapFallback: { checks: [] },
+                    workspace: { checks: [] },
+                  },
                 },
               }),
               stderr: "",
@@ -708,6 +744,53 @@ describe("@okf-harness/setup", () => {
           if (command === "okfh" && args.join(" ") === "doctor --json") {
             return {
               stdout: JSON.stringify({ ok: false, data: { checks: [] } }),
+              stderr: "",
+            };
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Runtime verification failed");
+  });
+
+  it("fails setup when grouped doctor output has an ungrouped failure", async () => {
+    const result = await runSetup(
+      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
+      captureIo(),
+      {
+        env: { PATH: "" },
+        nodeVersion: "v22.0.0",
+        runCommand: async (command, args) => {
+          if (command === "npm" && args[0] === "ls") {
+            return {
+              stdout: JSON.stringify({
+                dependencies: { "@okf-harness/cli": { version: "0.5.5" } },
+              }),
+              stderr: "",
+            };
+          }
+          if (command === "okfh" && args.join(" ") === "doctor --json") {
+            return {
+              stdout: JSON.stringify({
+                ok: false,
+                data: {
+                  checks: [
+                    { id: "runtime-okfh", status: "pass", message: "runtime ok" },
+                    { id: "unexpected-check", status: "fail", message: "unexpected failed" },
+                  ],
+                  groups: {
+                    runtime: {
+                      checks: [{ id: "runtime-okfh", status: "pass", message: "runtime ok" }],
+                    },
+                    nativeIntegrations: { checks: [] },
+                    legacyBootstrapFallback: { checks: [] },
+                    workspace: { checks: [] },
+                  },
+                },
+              }),
               stderr: "",
             };
           }

@@ -71,6 +71,27 @@ describe("@okf-harness/cli doctor", () => {
           summary: {
             fail: 0,
           },
+          groups: {
+            runtime: {
+              checks: expect.arrayContaining([
+                expect.objectContaining({ id: "runtime-okfh", status: "pass" }),
+              ]),
+            },
+            nativeIntegrations: {
+              checks: expect.any(Array),
+            },
+            legacyBootstrapFallback: {
+              checks: expect.arrayContaining([
+                expect.objectContaining({ id: "global-bootstrap-codex", status: "pass" }),
+                expect.objectContaining({ id: "global-bootstrap-claude", status: "pass" }),
+              ]),
+            },
+            workspace: {
+              checks: expect.arrayContaining([
+                expect.objectContaining({ id: "workspace-status", status: "pass" }),
+              ]),
+            },
+          },
           checks: expect.arrayContaining([
             expect.objectContaining({ id: "runtime-okfh", status: "pass" }),
             expect.objectContaining({ id: "runtime-platform", status: "pass" }),
@@ -104,6 +125,20 @@ describe("@okf-harness/cli doctor", () => {
           command: "doctor",
           workspace: null,
           data: {
+            groups: {
+              legacyBootstrapFallback: {
+                checks: expect.arrayContaining([
+                  expect.objectContaining({ id: "global-bootstrap-codex", status: "skip" }),
+                  expect.objectContaining({ id: "global-bootstrap-claude", status: "skip" }),
+                ]),
+              },
+              workspace: {
+                checks: expect.arrayContaining([
+                  expect.objectContaining({ id: "workspace-resolution", status: "warn" }),
+                  expect.objectContaining({ id: "workspace-status", status: "skip" }),
+                ]),
+              },
+            },
             checks: expect.arrayContaining([
               expect.objectContaining({ id: "workspace-resolution", status: "warn" }),
               expect.objectContaining({ id: "global-bootstrap-codex", status: "skip" }),
@@ -141,6 +176,43 @@ describe("@okf-harness/cli doctor", () => {
           status: "warn",
           message: expect.stringContaining("could not be read"),
         }),
+      ]),
+    );
+  });
+
+  it("separates native host CLI checks from legacy bootstrap fallback checks", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-cli-bin-"));
+    await writeFakeExecutable(bin, "codex");
+
+    const result = await runDoctor({
+      startDir: root,
+      env: { PATH: bin },
+    });
+
+    expect(result.groups.nativeIntegrations.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "native-host-cli-codex",
+          status: "pass",
+          details: expect.objectContaining({ verifiesIntegrationInstall: false }),
+        }),
+        expect.objectContaining({ id: "native-host-cli-claude", status: "skip" }),
+      ]),
+    );
+    expect(result.groups.legacyBootstrapFallback.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "global-bootstrap-codex" }),
+        expect.objectContaining({ id: "global-bootstrap-claude" }),
+      ]),
+    );
+    expect(result.groups.workspace.checks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "workspace-resolution" })]),
+    );
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "native-host-cli-codex" }),
+        expect.objectContaining({ id: "global-bootstrap-codex" }),
       ]),
     );
   });
@@ -439,4 +511,10 @@ function fakeBootstrapStatus(
     next: [`Run okfh bootstrap repair --agents ${agent} --json to install or repair it.`],
     ...overrides,
   };
+}
+
+async function writeFakeExecutable(bin: string, name: string): Promise<void> {
+  const executable = path.join(bin, name);
+  await writeFile(executable, "#!/bin/sh\nexit 0\n", "utf8");
+  await chmod(executable, 0o755);
 }
