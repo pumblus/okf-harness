@@ -357,7 +357,7 @@ describe("@okf-harness/agent-pack", () => {
     expect((await stat(path.join(workspace, ".agents/skills/okf-harness/SKILL.md"))).isFile()).toBe(
       true,
     );
-  }, 10_000);
+  });
 
   it("removes old managed workflow skills during adapter repair", async () => {
     const workspace = await mkdtemp(path.join(tmpdir(), "okfh-agent-pack-"));
