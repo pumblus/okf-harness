@@ -22,6 +22,8 @@
     "build": "pnpm --recursive --filter '@okf-harness/*' --filter '@pumblus/okf-harness' build",
     "docs:llms": "node scripts/build-llms.mjs",
     "docs:llms:check": "node scripts/build-llms.mjs --check",
+    "site:build": "node scripts/build-site.mjs",
+    "site:check": "node scripts/build-site.mjs --check",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "lint": "biome check package.json biome.json tsconfig.json tsconfig.base.json vitest.config.ts scripts/*.mjs packages/*/package.json packages/*/tsconfig.json packages/*/src packages/*/test && pnpm docs:llms:check",
