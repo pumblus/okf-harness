@@ -3,13 +3,999 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>OKF Harness</title>
+    <meta name="generator" content="Kami">
+    <meta
+      name="description"
+      content="OKF Harness gives your agent a local, inspectable knowledge workflow for OKF-compatible LLM Wikis."
+    >
+    <meta property="og:title" content="OKF Harness">
+    <meta
+      property="og:description"
+      content="A local, terminal-native harness that helps your agent maintain inspectable OKF knowledge workspaces."
+    >
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://okf-harness.dev/">
+    <link rel="canonical" href="https://okf-harness.dev/">
+    <title>OKF Harness | Local knowledge for your agent</title>
+    <style>
+      :root {
+        --parchment: #f5f4ed;
+        --ivory: #faf9f5;
+        --warm-sand: #e8e6dc;
+        --brand: #1b365d;
+        --brand-light: #2d5a8a;
+        --brand-tint: #eef2f7;
+        --near-black: #141413;
+        --dark-warm: #3d3d3a;
+        --olive: #504e49;
+        --stone: #6b6a64;
+        --border: #e8e6dc;
+        --border-soft: #e5e3d8;
+        --line: #d8d5c8;
+        --shot-bg: #141318;
+        --serif: Charter, Georgia, Palatino, "Times New Roman", serif;
+        --mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, Monaco, monospace;
+        --latin-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--parchment);
+        color: var(--near-black);
+        font-family: var(--serif);
+        font-size: 15px;
+        line-height: 1.55;
+        letter-spacing: 0;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      a {
+        color: var(--brand);
+        text-decoration: none;
+        transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.15s;
+      }
+
+      a:hover {
+        color: var(--brand-light);
+      }
+
+      .skip-link {
+        position: absolute;
+        left: 16px;
+        top: 16px;
+        z-index: 10;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: var(--ivory);
+        color: var(--brand);
+        border: 1px solid var(--border);
+        transform: translateY(-140%);
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+
+      .page {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 88px 64px 120px;
+      }
+
+      .hero {
+        padding-bottom: 48px;
+        margin-bottom: 80px;
+        border-bottom: 1px solid var(--border-soft);
+      }
+
+      .eyebrow {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+        margin: 0 0 22px;
+        color: var(--stone);
+        font-family: var(--latin-ui);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+      }
+
+      .eyebrow nav {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .eyebrow a {
+        color: var(--stone);
+      }
+
+      .eyebrow a:hover {
+        color: var(--dark-warm);
+      }
+
+      .version {
+        color: var(--brand);
+        font-weight: 600;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      .hero h1 {
+        margin: 0 0 18px;
+        max-width: 920px;
+        color: var(--near-black);
+        font-family: var(--serif);
+        font-size: 88px;
+        font-weight: 500;
+        line-height: 1.06;
+        letter-spacing: 0;
+        text-wrap: balance;
+        opacity: 0;
+        transform: translateY(10px);
+        filter: blur(6px);
+        animation: hero-rise 900ms cubic-bezier(0.16, 1, 0.3, 1) 120ms forwards;
+      }
+
+      @keyframes hero-rise {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+          filter: blur(0);
+        }
+      }
+
+      .tagline {
+        max-width: 780px;
+        margin: 0 0 28px;
+        color: var(--olive);
+        font-size: 21px;
+        line-height: 1.4;
+        letter-spacing: 0.2px;
+        text-wrap: pretty;
+      }
+
+      .hero-tokens {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        margin: 0 0 32px;
+        color: var(--stone);
+        font-family: var(--latin-ui);
+        font-size: 13px;
+      }
+
+      .hero-tokens span {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 6px;
+      }
+
+      .hero-tokens b {
+        color: var(--dark-warm);
+        font-weight: 500;
+      }
+
+      .hero-cta {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .btn-primary,
+      .btn-ghost {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        min-width: 158px;
+        padding: 13px 28px;
+        border-radius: 999px;
+        border: 1.5px solid var(--brand);
+        font-family: var(--serif);
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 0.2px;
+      }
+
+      .btn-primary {
+        background: var(--brand);
+        color: var(--ivory);
+      }
+
+      .btn-primary:hover {
+        background: var(--brand-light);
+        border-color: var(--brand-light);
+        color: var(--ivory);
+        transform: translateY(-1px);
+      }
+
+      .btn-ghost {
+        background: transparent;
+        color: var(--brand);
+      }
+
+      .btn-ghost:hover {
+        background: var(--brand-tint);
+        color: var(--brand);
+        transform: translateY(-1px);
+      }
+
+      section {
+        margin-bottom: 72px;
+      }
+
+      .section-head {
+        margin-bottom: 24px;
+      }
+
+      .section-num {
+        margin: 0 0 6px;
+        color: var(--brand);
+        font-family: var(--latin-ui);
+        font-size: 13px;
+        font-weight: 400;
+        letter-spacing: 0.4px;
+      }
+
+      .section-title {
+        margin: 0;
+        color: var(--near-black);
+        font-size: 32px;
+        font-weight: 500;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      .section-lede {
+        max-width: 760px;
+        margin: 14px 0 0;
+        color: var(--olive);
+        font-size: 17px;
+        line-height: 1.55;
+      }
+
+      .proof-grid,
+      .install-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .proof-card,
+      .install-card {
+        min-width: 0;
+        background: var(--ivory);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 18px;
+      }
+
+      .proof-card h3,
+      .install-card h3 {
+        margin: 0 0 10px;
+        color: var(--near-black);
+        font-size: 17px;
+        font-weight: 500;
+        line-height: 1.25;
+      }
+
+      .proof-card p,
+      .install-card p {
+        margin: 0 0 14px;
+        color: var(--olive);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      pre.code {
+        margin: 0;
+        padding: 16px 18px;
+        overflow-x: auto;
+        border: 1px solid #30302e;
+        border-radius: 6px;
+        background: var(--shot-bg);
+        color: #f5f4ed;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.55;
+        font-variant-numeric: lining-nums tabular-nums;
+      }
+
+      pre.code code {
+        min-width: max-content;
+        display: block;
+      }
+
+      .features {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--border-soft);
+      }
+
+      .features li {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 36px;
+        padding: 28px 0;
+        border-bottom: 1px solid var(--border-soft);
+        align-items: baseline;
+      }
+
+      .features .name {
+        margin: 0;
+        color: var(--brand);
+        font-size: 22px;
+        font-weight: 500;
+        line-height: 1.2;
+      }
+
+      .features .name small {
+        display: block;
+        margin-top: 4px;
+        color: var(--olive);
+        font-size: 13px;
+        font-style: italic;
+        font-weight: 400;
+        line-height: 1.4;
+      }
+
+      .features .what {
+        margin: 0;
+        color: var(--dark-warm);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+
+      .principles {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--border-soft);
+      }
+
+      .principles li {
+        display: grid;
+        grid-template-columns: 32px 1fr;
+        gap: 8px;
+        padding: 22px 24px 22px 0;
+        border-bottom: 1px solid var(--border-soft);
+        border-right: 1px solid var(--border-soft);
+        align-items: baseline;
+      }
+
+      .principles li + li {
+        padding-left: 24px;
+      }
+
+      .principles li:last-child {
+        border-right: 0;
+      }
+
+      .principles .n {
+        color: var(--brand);
+        font-size: 18px;
+        font-weight: 500;
+        line-height: 1;
+      }
+
+      .principles b {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--near-black);
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 0.1px;
+      }
+
+      .principles span span {
+        color: var(--olive);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .install-panel {
+        padding: 28px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--ivory);
+      }
+
+      .install-panel + .install-panel {
+        margin-top: 18px;
+      }
+
+      .native-table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        color: var(--dark-warm);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      th {
+        padding: 0 0 10px;
+        border-bottom: 1px solid var(--border);
+        color: var(--dark-warm);
+        font-family: var(--latin-ui);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        text-align: left;
+        text-transform: uppercase;
+      }
+
+      td {
+        padding: 12px 14px 12px 0;
+        border-bottom: 1px solid var(--border-soft);
+        vertical-align: top;
+      }
+
+      td:first-child {
+        min-width: 128px;
+        color: var(--near-black);
+        font-weight: 500;
+      }
+
+      td code,
+      .faq code {
+        padding: 1px 6px;
+        border-radius: 3px;
+        background: var(--brand-tint);
+        color: var(--brand);
+        font-family: var(--mono);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .faq-pair {
+        margin-bottom: 24px;
+      }
+
+      .faq-pair:last-child {
+        margin-bottom: 0;
+      }
+
+      .faq dt {
+        margin: 0 0 6px;
+        color: var(--near-black);
+        font-size: 16px;
+        font-weight: 500;
+        letter-spacing: 0.1px;
+      }
+
+      .faq dd {
+        margin: 0;
+        color: var(--olive);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .faq-tail {
+        margin: 28px 0 0;
+        color: var(--stone);
+        font-size: 13px;
+      }
+
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 48px;
+        margin-top: 56px;
+        padding-top: 40px;
+        border-top: 1px solid var(--border-soft);
+        color: var(--stone);
+        font-size: 13px;
+      }
+
+      .foot .mark {
+        max-width: 360px;
+      }
+
+      .wm-name {
+        display: block;
+        color: var(--near-black);
+        font-size: 28px;
+        font-weight: 500;
+        line-height: 1.1;
+      }
+
+      .wm-line {
+        display: block;
+        margin-top: 6px;
+        color: var(--olive);
+      }
+
+      .colophon {
+        max-width: 520px;
+        text-align: right;
+      }
+
+      .links {
+        margin-bottom: 16px;
+        color: var(--dark-warm);
+        font-family: var(--latin-ui);
+        line-height: 1.55;
+      }
+
+      .links a {
+        color: var(--dark-warm);
+      }
+
+      .links a:hover {
+        color: var(--brand);
+      }
+
+      .ethos {
+        max-width: 430px;
+        margin-left: auto;
+        color: var(--olive);
+        font-style: italic;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 880px) {
+        .page {
+          padding: 64px 32px 80px;
+        }
+
+        .hero {
+          margin-bottom: 56px;
+          padding-bottom: 32px;
+        }
+
+        .hero h1 {
+          font-size: 64px;
+        }
+
+        .tagline {
+          font-size: 18px;
+        }
+
+        section {
+          margin-bottom: 56px;
+        }
+
+        .section-title {
+          font-size: 26px;
+        }
+
+        .proof-grid,
+        .install-grid,
+        .principles {
+          grid-template-columns: 1fr;
+        }
+
+        .principles li,
+        .principles li + li {
+          padding-left: 0;
+          padding-right: 0;
+          border-right: 0;
+        }
+
+        .features li {
+          grid-template-columns: 1fr;
+          gap: 8px;
+          padding: 22px 0;
+        }
+
+        .foot {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 32px;
+          margin-top: 48px;
+          padding-top: 32px;
+        }
+
+        .colophon {
+          max-width: 100%;
+          text-align: left;
+        }
+
+        .ethos {
+          margin-left: 0;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .page {
+          padding: 52px 16px 64px;
+        }
+
+        .eyebrow {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .eyebrow nav {
+          justify-content: flex-start;
+        }
+
+        .hero h1 {
+          font-size: 48px;
+        }
+
+        .tagline {
+          font-size: 17px;
+        }
+
+        .hero-cta {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .btn-primary,
+        .btn-ghost {
+          min-width: 0;
+          max-width: 100%;
+          padding: 13px 20px;
+        }
+
+        pre.code {
+          padding: 14px 16px;
+          font-size: 11.5px;
+        }
+
+        pre.code code {
+          min-width: 0;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+        }
+
+        td code,
+        .faq code {
+          white-space: normal;
+          overflow-wrap: anywhere;
+        }
+
+        table,
+        thead,
+        tbody,
+        tr,
+        td {
+          display: block;
+        }
+
+        thead {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+        }
+
+        tr {
+          padding: 10px 0;
+          border-bottom: 1px solid var(--border-soft);
+        }
+
+        td {
+          padding: 3px 0;
+          border-bottom: 0;
+        }
+
+        td:first-child {
+          min-width: 0;
+        }
+
+        td:nth-child(2)::before {
+          content: "Install command";
+          display: block;
+          margin-bottom: 4px;
+          color: var(--stone);
+          font-family: var(--latin-ui);
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+        }
+
+        .install-panel {
+          padding: 20px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        .hero h1 {
+          animation: none;
+          opacity: 1;
+          transform: none;
+          filter: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <main>
-      <h1>OKF Harness</h1>
-      <p>Agent-first local knowledge workflows.</p>
-      <p>Current version: {{PACKAGE_VERSION}}</p>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <main id="main" class="page">
+      <header class="hero">
+        <div class="eyebrow">
+          <span>Local knowledge harness / <span class="version">v{{PACKAGE_VERSION}}</span></span>
+          <nav aria-label="Primary links">
+            <a href="https://github.com/pumblus/okf-harness">GitHub</a>
+            <a href="https://github.com/pumblus/okf-harness#readme">README</a>
+            <a href="https://github.com/pumblus/okf-harness/blob/main/docs/WORKFLOWS.md">Workflows</a>
+          </nav>
+        </div>
+
+        <h1>Give your agent a local knowledge harness.</h1>
+        <p class="tagline">
+          OKF Harness helps agent-first knowledge workers keep source material,
+          markdown knowledge, and evidence-backed answers inspectable on their own machine.
+        </p>
+        <div class="hero-tokens" aria-label="Product facts">
+          <span><b>Local-first</b> workspace files</span>
+          <span><b>Terminal-native</b> agent tool surface</span>
+          <span><b>Apache-2.0</b> open source</span>
+        </div>
+        <div class="hero-cta">
+          <a class="btn-primary" href="#install">Install OKF Harness</a>
+          <a class="btn-ghost" href="https://github.com/pumblus/okf-harness">View on GitHub</a>
+        </div>
+      </header>
+
+      <section id="proof" aria-labelledby="proof-title">
+        <div class="section-head">
+          <p class="section-num">00 / Terminal proof</p>
+          <h2 id="proof-title" class="section-title">The workflow is visible in the terminal.</h2>
+          <p class="section-lede">
+            No product mockups are needed here. The public promise is the same one an agent sees:
+            local commands, explicit files, bounded evidence, and checkable output.
+          </p>
+        </div>
+        <div class="proof-grid">
+          <article class="proof-card">
+            <h3>Install once</h3>
+            <p>Use the operating-system installer first, then let setup detect supported agents.</p>
+            <pre class="code"><code>curl -fsSL https://okf-harness.dev/install.sh | sh
+
+irm https://okf-harness.dev/install.ps1 | iex</code></pre>
+          </article>
+          <article class="proof-card">
+            <h3>Start from your agent</h3>
+            <p>Ask the agent you already use to create or select a local workspace.</p>
+            <pre class="code"><code>&lt;okf-harness-bootstrap&gt; Set up a workspace
+for my AI research notes.
+
+&lt;okf-harness&gt; Add this PDF, update the wiki
+with citations, then check the workspace.</code></pre>
+          </article>
+          <article class="proof-card">
+            <h3>Check the result</h3>
+            <p>Agents call deterministic commands when they need evidence or validation.</p>
+            <pre class="code"><code>okfh check --workspace ./ai-research --json
+okfh evidence "LLM Wiki" --workspace ./ai-research --json
+okfh graph --workspace ./ai-research --json</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="features" aria-labelledby="features-title">
+        <div class="section-head">
+          <p class="section-num">01 / What it gives your agent</p>
+          <h2 id="features-title" class="section-title">A small harness around ordinary files.</h2>
+        </div>
+        <ol class="features">
+          <li>
+            <p class="name">Start from your agent<small>No separate app to learn.</small></p>
+            <p class="what">
+              Setup exposes a stable OKF Harness entrypoint in supported agents. You ask in
+              natural language; the agent handles the local commands.
+            </p>
+          </li>
+          <li>
+            <p class="name">Keep knowledge inspectable<small>The folder stays the center.</small></p>
+            <p class="what">
+              Source copies and hashes live under <code>raw/sources/</code>. Synthesized knowledge
+              lives in ordinary markdown under <code>wiki/</code>, with citations back to reference pages.
+            </p>
+          </li>
+          <li>
+            <p class="name">Give agents bounded evidence<small>Answers begin with a brief.</small></p>
+            <p class="what">
+              The evidence workflow returns selected wiki excerpts and continuation cues before an
+              agent answers. It is not an unbounded raw-source context dump.
+            </p>
+          </li>
+          <li>
+            <p class="name">Check the workspace, map the graph<small>Trust has a report trail.</small></p>
+            <p class="what">
+              <code>okfh check</code> reports conformance and Harness findings. <code>okfh graph</code>
+              generates a local HTML map so links and references can be inspected.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section id="principles" aria-labelledby="principles-title">
+        <div class="section-head">
+          <p class="section-num">02 / Product principles</p>
+          <h2 id="principles-title" class="section-title">Narrow boundaries make the workflow trustworthy.</h2>
+        </div>
+        <ol class="principles">
+          <li>
+            <span class="n">1</span>
+            <span><b>Local first</b><span>Your workspace is a local folder. OKF Harness does not need accounts, cloud sync, or hosted workspaces for normal use.</span></span>
+          </li>
+          <li>
+            <span class="n">2</span>
+            <span><b>No hidden knowledge-base app</b><span>The product supports markdown workspaces and agent workflows. It does not replace your editor, notes app, or agent client.</span></span>
+          </li>
+          <li>
+            <span class="n">3</span>
+            <span><b>Auditable before automatic</b><span>Installer scripts, native install commands, source registration, checks, and graph reports stay visible before they become convenient.</span></span>
+          </li>
+        </ol>
+      </section>
+
+      <section id="install" aria-labelledby="install-title">
+        <div class="section-head">
+          <p class="section-num">03 / Install</p>
+          <h2 id="install-title" class="section-title">Use the installer path first.</h2>
+          <p class="section-lede">
+            Setup installs or updates the shared <code>okfh</code> runtime after confirmation,
+            detects supported agent clients, and installs the selected native integrations.
+          </p>
+        </div>
+
+        <div class="install-grid">
+          <article class="install-card">
+            <h3>macOS or Linux</h3>
+            <p>Recommended for a local terminal.</p>
+            <pre class="code"><code>curl -fsSL https://okf-harness.dev/install.sh | sh</code></pre>
+          </article>
+          <article class="install-card">
+            <h3>Windows PowerShell</h3>
+            <p>Use the Windows installer route.</p>
+            <pre class="code"><code>irm https://okf-harness.dev/install.ps1 | iex</code></pre>
+          </article>
+          <article class="install-card">
+            <h3>Already have Node.js 22?</h3>
+            <p>Run setup directly when Node is already available.</p>
+            <pre class="code"><code>npx @okf-harness/setup@latest</code></pre>
+          </article>
+        </div>
+
+        <div class="install-panel">
+          <h3>Native install paths for supported agents</h3>
+          <p>
+            Use these direct commands when you already know the agent integration you want.
+          </p>
+          <div class="native-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Agent</th>
+                  <th scope="col">Native install command</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Claude Code</td>
+                  <td><code>claude plugin marketplace add pumblus/okf-harness &amp;&amp; claude plugin install okf-harness@okf-harness</code></td>
+                </tr>
+                <tr>
+                  <td>Codex</td>
+                  <td><code>codex plugin marketplace add pumblus/okf-harness --json &amp;&amp; codex plugin add okf-harness@okf-harness --json</code></td>
+                </tr>
+                <tr>
+                  <td>OpenCode</td>
+                  <td><code>opencode plugin @pumblus/okf-harness --global</code></td>
+                </tr>
+                <tr>
+                  <td>Pi</td>
+                  <td><code>pi install npm:@pumblus/okf-harness</code></td>
+                </tr>
+                <tr>
+                  <td>Hermes Agent</td>
+                  <td><code>hermes skills tap add pumblus/okf-harness &amp;&amp; hermes skills install pumblus/okf-harness/okf-harness</code></td>
+                </tr>
+                <tr>
+                  <td>OpenClaw</td>
+                  <td><code>openclaw skills install @pumblus/okf-harness --global</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" aria-labelledby="faq-title">
+        <div class="section-head">
+          <p class="section-num">04 / FAQ</p>
+          <h2 id="faq-title" class="section-title">The boundary is part of the product.</h2>
+        </div>
+        <dl class="faq">
+          <div class="faq-pair">
+            <dt>Is OKF Harness a knowledge-base app?</dt>
+            <dd>
+              No. It is a local harness around markdown workspaces and agent workflows. Your
+              agent remains the interface; the folder remains the source of truth.
+            </dd>
+          </div>
+          <div class="faq-pair">
+            <dt>Does it upload my source material?</dt>
+            <dd>
+              No upload is part of the default workflow. Local files are copied into
+              <code>raw/sources/</code> and recorded with hashes; URL sources are recorded as pointers.
+            </dd>
+          </div>
+          <div class="faq-pair">
+            <dt>Which agents are supported?</dt>
+            <dd>
+              The current native install table covers Claude Code, Codex, OpenCode, Pi,
+              Hermes Agent, and OpenClaw. Workspace-local guidance is narrower where an agent
+              does not yet expose that surface.
+            </dd>
+          </div>
+          <div class="faq-pair">
+            <dt>What does setup install?</dt>
+            <dd>
+              Setup installs or updates the shared global <code>okfh</code> runtime after
+              confirmation, detects supported agent clients, and installs the native integrations
+              you select.
+            </dd>
+          </div>
+        </dl>
+        <p class="faq-tail">
+          Need the full command contract? Read the
+          <a href="https://github.com/pumblus/okf-harness/blob/main/docs/CLI.md">CLI reference</a>.
+        </p>
+      </section>
+
+      <footer class="foot">
+        <div class="mark">
+          <span class="wm-name">OKF Harness</span>
+          <span class="wm-line">A local harness for agent-maintained OKF-compatible LLM Wikis.</span>
+        </div>
+        <div class="colophon">
+          <div class="links">
+            <a href="https://github.com/pumblus/okf-harness">GitHub</a> &middot;
+            <a href="https://github.com/pumblus/okf-harness/blob/main/README.md">README</a> &middot;
+            <a href="https://github.com/pumblus/okf-harness/blob/main/README.zh-CN.md">Chinese README</a> &middot;
+            <a href="https://github.com/pumblus/okf-harness/blob/main/docs/ROADMAP.md">Roadmap</a> &middot;
+            <a href="https://github.com/pumblus/okf-harness/blob/main/LICENSE">Apache-2.0</a> &middot;
+            <a href="https://github.com/pumblus">Eric Zhou on GitHub</a> &middot;
+            <a href="https://x.com/yhzhou0921">Eric Zhou on X</a>
+          </div>
+          <p class="ethos">
+            OKF Harness is independent and is not affiliated with or endorsed by
+            Andrej Karpathy or Google.
+          </p>
+        </div>
+      </footer>
     </main>
   </body>
 </html>
