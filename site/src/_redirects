@@ -1,2 +1,6 @@
 /install.sh https://github.com/pumblus/okf-harness/releases/latest/download/install.sh 302
 /install.ps1 https://github.com/pumblus/okf-harness/releases/latest/download/install.ps1 302
+/docs https://github.com/pumblus/okf-harness/tree/main/docs 302
+/docs/* https://github.com/pumblus/okf-harness/blob/main/docs/:splat 302
+/llms.txt https://raw.githubusercontent.com/pumblus/okf-harness/main/llms.txt 302
+/llms-full.txt https://raw.githubusercontent.com/pumblus/okf-harness/main/llms-full.txt 302
