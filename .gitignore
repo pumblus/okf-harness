@@ -24,6 +24,7 @@ docs/okf-harness-intro.pdf
 
 # Private agent instruction overrides
 /AGENTS.override.md
+/.pi/
 
 # Local environment and secrets
 .env
