@@ -92,7 +92,7 @@ pnpm smoke:tarball
 
 ## 文档
 
-README 应面向用户、篇幅简短。命令参考放在 [docs/CLI.md](CLI.md)，用户工作流放在 [docs/WORKFLOWS.md](WORKFLOWS.md)，路线图想法放在 [docs/ROADMAP.md](ROADMAP.md)，术语放在 [CONTEXT.md](../../CONTEXT.md)，架构决策放在 [docs/adr](../adr)。
+README 应面向用户、篇幅简短。命令参考放在 [docs/CLI.md](CLI.md)，用户工作流放在 [docs/WORKFLOWS.md](WORKFLOWS.md)，产品路线图想法放在 [docs/ROADMAP.md](ROADMAP.md)，仅限网站的路线图想法放在 [docs/zh-CN/website/ROADMAP.md](website/ROADMAP.md)，术语放在 [CONTEXT.md](../../CONTEXT.md)，架构决策放在 [docs/adr](../adr)。
 
 文档应优先解释普通受支持智能体用户该怎么操作，然后再说明内部包结构。
 

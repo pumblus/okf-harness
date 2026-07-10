@@ -90,7 +90,7 @@ pnpm smoke:tarball
 
 ## Documentation
 
-README should stay user-facing and short. Put command references in [docs/CLI.md](docs/CLI.md), user workflows in [docs/WORKFLOWS.md](docs/WORKFLOWS.md), roadmap ideas in [docs/ROADMAP.md](docs/ROADMAP.md), glossary terms in [CONTEXT.md](CONTEXT.md), and architecture decisions in [docs/adr](docs/adr).
+README should stay user-facing and short. Put command references in [docs/CLI.md](docs/CLI.md), user workflows in [docs/WORKFLOWS.md](docs/WORKFLOWS.md), product roadmap ideas in [docs/ROADMAP.md](docs/ROADMAP.md), website-only roadmap ideas in [docs/website/ROADMAP.md](docs/website/ROADMAP.md), glossary terms in [CONTEXT.md](CONTEXT.md), and architecture decisions in [docs/adr](docs/adr).
 
 Docs should explain what a normal Claude Code or Codex user should do before explaining the internal package structure.
 

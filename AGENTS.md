@@ -7,7 +7,8 @@ This file is the canonical agent guide for OKF Harness. Runtime-specific files s
 - OKF Harness is agent-first, local-first, terminal-native, and open source.
 - Runtime target: Node.js 22+, TypeScript, ESM, pnpm.
 - Public product surface: `README.md`, `README.zh-CN.md`, `docs/WORKFLOWS.md`, `docs/zh-CN/WORKFLOWS.md`, `docs/CLI.md`, `docs/zh-CN/CLI.md`, `docs/ROADMAP.md`, `docs/zh-CN/ROADMAP.md`, `CONTEXT.md`, and `docs/adr/`.
-- Current public scope lives in the roadmap, ADRs, and issue tracker. Keep this file to durable repository rules.
+- Public website-planning surface: `docs/website/ROADMAP.md` and `docs/zh-CN/website/ROADMAP.md`.
+- Current public product scope lives in `docs/ROADMAP.md`, ADRs, and the issue tracker. The website roadmap tracks website-only direction and does not define product scope. Keep this file to durable repository rules.
 
 ## Hard rules
 
@@ -31,7 +32,7 @@ This file is the canonical agent guide for OKF Harness. Runtime-specific files s
 | `packages/agent-pack` | Claude/Codex adapter renderers, shared templates, managed guidance blocks | `packages/agent-pack/AGENTS.md` | `pnpm test packages/agent-pack/test && pnpm typecheck` |
 | `packages/setup` | Universal setup package, setup plans, runtime install/update flow, selected native integration installs | `packages/setup/AGENTS.md` | `pnpm test packages/setup/test && pnpm typecheck` |
 | `packages/native-integration` | Native host bootstrap package and global `okf-harness-bootstrap` | `packages/native-integration/AGENTS.md` | `pnpm test packages/native-integration/test && pnpm smoke:tarball` |
-| `docs` | Public docs, ADRs, roadmap, repo-local agent workflow docs | `docs/AGENTS.md` | Check links, command names, and matching zh-CN docs when applicable |
+| `docs` | Public docs, ADRs, product and website roadmaps, repo-local agent workflow docs | `docs/AGENTS.md` | Check links, command names, and matching zh-CN docs when applicable |
 
 ## Agent workflow docs
 
