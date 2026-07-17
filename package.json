@@ -21,6 +21,7 @@
   "scripts": {
     "build": "pnpm --recursive --filter '@okf-harness/*' --filter '@pumblus/okf-harness' build",
     "docs:llms": "node scripts/build-llms.mjs",
+    "proto:evolution": "node packages/core/prototypes/evolution-lifecycle/tui.mjs",
     "docs:llms:check": "node scripts/build-llms.mjs --check",
     "site:build": "node scripts/build-site.mjs",
     "site:check": "node scripts/build-site.mjs --check",
