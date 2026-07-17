@@ -9,7 +9,7 @@ This repo uses a single-context layout.
 - `CONTEXT.md` at the repo root.
 - `docs/adr/` for ADRs that touch the area you are about to work in.
 
-If any of these files do not exist, proceed silently. Do not flag their absence or suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
+If any of these files do not exist, proceed silently. Do not flag their absence or suggest creating them upfront. The producer skill (`/domain-modeling`, reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
 
 ## File structure
 
@@ -25,7 +25,7 @@ If any of these files do not exist, proceed silently. Do not flag their absence 
 
 When your output names a domain concept, use the term as defined in `CONTEXT.md`. Do not drift to synonyms the glossary explicitly avoids.
 
-If the concept you need is not in the glossary yet, note it for `/grill-with-docs`.
+If the concept you need is not in the glossary yet, note it for `/domain-modeling`.
 
 ## Flag ADR conflicts
 

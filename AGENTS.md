@@ -34,14 +34,25 @@ This file is the canonical agent guide for OKF Harness. Runtime-specific files s
 | `packages/native-integration` | Native host bootstrap package and global `okf-harness-bootstrap` | `packages/native-integration/AGENTS.md` | `pnpm test packages/native-integration/test && pnpm smoke:tarball` |
 | `docs` | Public docs, ADRs, product and website roadmaps, repo-local agent workflow docs | `docs/AGENTS.md` | Check links, command names, and matching zh-CN docs when applicable |
 
-## Agent workflow docs
+## Agent skills
 
-Use repo-local workflow docs under `docs/agents/` when the task touches that workflow:
+Repo-local workflow docs under `docs/agents/`. Read the relevant one when a task touches that workflow.
 
-- `docs/agents/issue-tracker.md` for issues and PRDs.
-- `docs/agents/triage-labels.md` for labels and triage states.
-- `docs/agents/domain.md` for domain documentation layout.
-- `docs/agents/release.md` for the full public release checklist.
+### Issue tracker
+
+Issues and PRDs live as GitHub issues, driven through the `gh` CLI. External PRs are not a triage surface. Wayfinder maps use `wayfinder:*` labels, sub-issues, and native issue dependencies. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles, each mapped to a label string of the same name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Release
+
+The full public release checklist. See `docs/agents/release.md`.
 
 ## Working flow
 
