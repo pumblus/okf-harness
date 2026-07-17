@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 [![本地终端](https://img.shields.io/badge/platform-local%20terminal-lightgrey.svg)](docs/zh-CN/CLI.md)
+[![BundleDex](https://bundledex.net/badge/okf-harness.svg)](https://bundledex.net/bundles/okf-harness/)
 
 [English](README.md) | 中文
 
