@@ -1,3 +1,4 @@
+import type { CheckResult } from "@okf-harness/core";
 import type { CliIo, JsonEnvelope } from "../types.js";
 
 export function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): void {
@@ -11,24 +12,21 @@ export function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): vo
 
 function renderHumanResult(envelope: JsonEnvelope): string {
   if (envelope.command === "check") {
-    const data = envelope.data as {
-      status?: string;
-      okfVersion?: string;
-      okfConformance?: { ok?: boolean; findings?: Array<{ code?: string; path?: string }> };
-      harnessLint?: {
-        ok?: boolean;
-        findings?: Record<string, Array<{ code?: string; path?: string }>>;
-      };
-    };
-    const harnessFindings = data.harnessLint?.findings ?? {};
+    const data = envelope.data as Partial<CheckResult>;
+    const implicatedSources = [
+      ...new Set(data.currency?.dangling.map(({ original }) => original) ?? []),
+    ];
     const rows = [
       `Status: ${humanCheckStatus(data.status)}`,
       `OKF version: ${data.okfVersion ?? "unknown"}`,
       `OKF conformance: ${data.okfConformance?.ok === false ? "fail" : "pass"}`,
       `Harness lint: ${data.harnessLint?.ok === false ? "needs attention" : "pass"}`,
+      `Currency: ${
+        data.currency?.sealed === false ? `not sealed (${implicatedSources.join(", ")})` : "sealed"
+      }`,
     ];
-    for (const priority of ["high", "medium", "low"]) {
-      const findings = harnessFindings[priority] ?? [];
+    for (const priority of ["high", "medium", "low"] as const) {
+      const findings = data.harnessLint?.findings[priority] ?? [];
       if (findings.length > 0) {
         rows.push(`${priority}: ${findings.length}`);
         rows.push(

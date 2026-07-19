@@ -236,6 +236,16 @@ describe("@okf-harness/cli workspace", () => {
     ]);
 
     const checked = await runJsonCli(["node", "okfh", "check", "--workspace", workspace, "--json"]);
+    let stdout = "";
+    let stderr = "";
+    const exitCode = await runCli(["node", "okfh", "check", "--workspace", workspace], {
+      writeOut: (chunk) => {
+        stdout += chunk;
+      },
+      writeErr: (chunk) => {
+        stderr += chunk;
+      },
+    });
 
     expect(checked.exitCode).toBe(0);
     expect(checked.result.data.currency).toEqual({
@@ -249,6 +259,12 @@ describe("@okf-harness/cli workspace", () => {
         },
       ],
     });
+    expect(checked.result.data.harnessLint.findings.medium).toContainEqual(
+      expect.objectContaining({ code: "SOURCE_LINEAGE_SUSPECTED" }),
+    );
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe("");
+    expect(stdout).toContain("Currency: not sealed (paper.md)");
   });
 
   it("returns the same next step for URL-only sources", async () => {
