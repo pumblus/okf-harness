@@ -29,6 +29,17 @@ export type LintResult = {
   issues: LintIssue[];
 };
 
+export type ReferenceSourceLink = {
+  sourceId: string;
+  referencePath: string;
+};
+
+export type DanglingReconciliation = {
+  original: string;
+  priorSourceId: string;
+  revisionSourceId: string;
+};
+
 export const OKF_MISSING_FRONTMATTER = "OKF_MISSING_FRONTMATTER" as const;
 export const OKF_INVALID_FRONTMATTER = "OKF_INVALID_FRONTMATTER" as const;
 export const OKF_MISSING_TYPE = "OKF_MISSING_TYPE" as const;
@@ -147,6 +158,21 @@ function lintReferenceSourceIds(
   entries: SourceManifestEntry[],
 ): LintIssue[] {
   const sourceIds = new Set(entries.map((entry) => entry.id));
+  return referenceSourceLinks(files).flatMap(({ sourceId, referencePath }) =>
+    sourceIds.has(sourceId)
+      ? []
+      : [
+          {
+            code: REFERENCE_SOURCE_MISSING,
+            severity: "error",
+            path: referencePath,
+            message: `Reference document points to an unregistered source id: ${sourceId}`,
+          } satisfies LintIssue,
+        ],
+  );
+}
+
+export function referenceSourceLinks(files: OkfMarkdownFile[]): ReferenceSourceLink[] {
   return files.flatMap((file) => {
     if (file.isReserved || !file.workspacePath.startsWith("wiki/references/")) {
       return [];
@@ -156,18 +182,9 @@ function lintReferenceSourceIds(
     }
 
     const sourceId = frontmatterSourceId(file.frontmatter.data);
-    if (sourceId === undefined || sourceIds.has(sourceId)) {
-      return [];
-    }
-
-    return [
-      {
-        code: REFERENCE_SOURCE_MISSING,
-        severity: "error",
-        path: file.workspacePath,
-        message: `Reference document points to an unregistered source id: ${sourceId}`,
-      } satisfies LintIssue,
-    ];
+    return sourceId === undefined
+      ? []
+      : [{ sourceId, referencePath: file.workspacePath } satisfies ReferenceSourceLink];
   });
 }
 
@@ -283,6 +300,22 @@ function lintSourceLineage(
   entries: SourceManifestEntry[],
   acknowledgements: ReconciliationAcknowledgement[],
 ): LintIssue[] {
+  const paths = new Map(entries.map((entry) => [entry.id, entry.path]));
+  return danglingReconciliations(entries, acknowledgements).map(
+    (edge) =>
+      ({
+        code: SOURCE_LINEAGE_SUSPECTED,
+        severity: "warning",
+        path: paths.get(edge.revisionSourceId) as string,
+        message: `Source ${edge.revisionSourceId} may revise ${edge.priorSourceId}; both were registered as ${edge.original}.`,
+      }) satisfies LintIssue,
+  );
+}
+
+export function danglingReconciliations(
+  entries: SourceManifestEntry[],
+  acknowledgements: ReconciliationAcknowledgement[],
+): DanglingReconciliation[] {
   const entriesByOriginal = new Map<string, SourceManifestEntry[]>();
   for (const entry of entries) {
     if (entry.kind !== "file") {
@@ -303,11 +336,10 @@ function lintSourceLineage(
         ? []
         : [
             {
-              code: SOURCE_LINEAGE_SUSPECTED,
-              severity: "warning",
-              path: revision.path,
-              message: `Source ${revision.id} may revise ${prior.id}; both were registered as ${revision.original}.`,
-            } satisfies LintIssue,
+              original: revision.original,
+              priorSourceId: prior.id,
+              revisionSourceId: revision.id,
+            } satisfies DanglingReconciliation,
           ],
     );
   });

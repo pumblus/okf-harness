@@ -181,6 +181,10 @@ describe("@okf-harness/cli workspace", () => {
       data: {
         status: "ready",
         okfVersion: "0.1",
+        currency: {
+          sealed: true,
+          dangling: [],
+        },
         okfConformance: {
           ok: true,
           findings: [],
@@ -196,6 +200,54 @@ describe("@okf-harness/cli workspace", () => {
       },
       warnings: [],
       next: [NEXT_ADD_LOCAL_SOURCE],
+    });
+  });
+
+  it("reports unsealed currency without changing the check exit code", async () => {
+    const { root, workspace } = await initWorkspace();
+    const sourcePath = path.join(root, "paper.md");
+    await writeFile(sourcePath, "# Paper v1\n", "utf8");
+    const prior = await runJsonCli([
+      "node",
+      "okfh",
+      "source",
+      "add",
+      sourcePath,
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+    await mkdir(path.join(workspace, "wiki/references"), { recursive: true });
+    await writeFile(
+      path.join(workspace, "wiki/references/paper.md"),
+      `---\ntype: Reference\ntitle: Paper\nokfh:\n  source_id: ${prior.result.data.source.id}\n---\n# Paper\n`,
+      "utf8",
+    );
+    await writeFile(sourcePath, "# Paper v2\n", "utf8");
+    const revision = await runJsonCli([
+      "node",
+      "okfh",
+      "source",
+      "add",
+      sourcePath,
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+
+    const checked = await runJsonCli(["node", "okfh", "check", "--workspace", workspace, "--json"]);
+
+    expect(checked.exitCode).toBe(0);
+    expect(checked.result.data.currency).toEqual({
+      sealed: false,
+      dangling: [
+        {
+          original: "paper.md",
+          priorSourceId: prior.result.data.source.id,
+          revisionSourceId: revision.result.data.source.id,
+          promotedBy: ["wiki/references/paper.md"],
+        },
+      ],
     });
   });
 

@@ -2,6 +2,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { checkWorkspace } from "../src/check/index.js";
 import { addSource } from "../src/source/index.js";
+import { clearReconciliation } from "../src/source/reconciliation.js";
 import { copyValidWorkspace, validWorkspaceFixture } from "./helpers.js";
 
 describe("OKF workspace check", () => {
@@ -11,6 +12,10 @@ describe("OKF workspace check", () => {
     expect(result).toEqual({
       status: "ready",
       okfVersion: "0.1",
+      currency: {
+        sealed: true,
+        dangling: [],
+      },
       okfConformance: {
         ok: true,
         findings: [],
@@ -24,6 +29,64 @@ describe("OKF workspace check", () => {
         },
       },
     });
+  });
+
+  it("reports currency only for dangling reconciliations involving promoted sources", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    const draftPath = `${workspaceRoot}/draft.md`;
+    await writeFile(draftPath, "# Draft v1\n", "utf8");
+    await addSource({ workspaceRoot, input: draftPath });
+    await writeFile(draftPath, "# Draft v2\n", "utf8");
+    await addSource({ workspaceRoot, input: draftPath });
+
+    expect((await checkWorkspace(workspaceRoot)).currency).toEqual({
+      sealed: true,
+      dangling: [],
+    });
+
+    const promotedPath = `${workspaceRoot}/karpathy-llm-wiki.md`;
+    await writeFile(promotedPath, "# Revised source\n", "utf8");
+    const revision = await addSource({ workspaceRoot, input: promotedPath });
+
+    expect((await checkWorkspace(workspaceRoot)).currency).toEqual({
+      sealed: false,
+      dangling: [
+        {
+          original: "karpathy-llm-wiki.md",
+          priorSourceId: "src_20260615_0001",
+          revisionSourceId: revision.source.id,
+          promotedBy: ["wiki/references/karpathy-llm-wiki.md"],
+        },
+      ],
+    });
+
+    await clearReconciliation({
+      workspaceRoot,
+      priorSourceId: "src_20260615_0001",
+      revisionSourceId: revision.source.id,
+      note: "Reconciled the promoted source revision.",
+    });
+    expect((await checkWorkspace(workspaceRoot)).currency).toEqual({
+      sealed: true,
+      dangling: [],
+    });
+
+    await writeFile(promotedPath, "# Third source revision\n", "utf8");
+    const third = await addSource({ workspaceRoot, input: promotedPath });
+    const reopened = await checkWorkspace(workspaceRoot);
+
+    expect(reopened.currency).toEqual({
+      sealed: false,
+      dangling: [
+        {
+          original: "karpathy-llm-wiki.md",
+          priorSourceId: "src_20260615_0001",
+          revisionSourceId: third.source.id,
+          promotedBy: ["wiki/references/karpathy-llm-wiki.md"],
+        },
+      ],
+    });
+    expect(reopened.status).toBe("needs_attention");
   });
 
   it("blocks workspaces that are not OKF-readable", async () => {

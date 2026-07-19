@@ -1,5 +1,7 @@
+import { readWorkspaceConfig } from "../config/index.js";
 import {
   BROKEN_LINK,
+  danglingReconciliations,
   type LintIssue,
   type LintResult,
   LOG_INVALID_DATE_HEADING,
@@ -9,17 +11,34 @@ import {
   OKF_MISSING_TYPE,
   REFERENCE_SOURCE_MISSING,
   RESERVED_FILE_HAS_CONCEPT_FRONTMATTER,
+  referenceSourceLinks,
   SOURCE_HASH_DRIFT,
   SOURCE_MISSING,
 } from "../lint/index.js";
-import { RECONCILIATION_LEDGER_INVALID } from "../source/reconciliation.js";
+import { scanConcepts } from "../okf/concepts.js";
+import { readSourceManifest } from "../source/index.js";
+import {
+  RECONCILIATION_LEDGER_INVALID,
+  readReconciliationLedger,
+} from "../source/reconciliation.js";
 
 export type CheckStatus = "ready" | "needs_attention" | "blocked";
 export type HarnessPriority = "high" | "medium" | "low";
 
+export type CheckCurrency = {
+  sealed: boolean;
+  dangling: Array<{
+    original: string;
+    priorSourceId: string;
+    revisionSourceId: string;
+    promotedBy: string[];
+  }>;
+};
+
 export type CheckResult = {
   status: CheckStatus;
   okfVersion: "0.1";
+  currency: CheckCurrency;
   okfConformance: {
     ok: boolean;
     findings: LintIssue[];
@@ -31,11 +50,14 @@ export type CheckResult = {
 };
 
 export async function checkWorkspace(workspaceRoot: string): Promise<CheckResult> {
-  const lint = await lintWorkspace(workspaceRoot);
-  return checkLintResult(lint);
+  const [lint, currency] = await Promise.all([
+    lintWorkspace(workspaceRoot),
+    readCheckCurrency(workspaceRoot),
+  ]);
+  return checkLintResult(lint, currency);
 }
 
-export function checkLintResult(lint: LintResult): CheckResult {
+export function checkLintResult(lint: LintResult, currency: CheckCurrency): CheckResult {
   const okfFindings = lint.issues.filter(isOkfConformanceFinding);
   const harnessFindings = groupHarnessFindings(
     lint.issues.filter((issue) => !isOkfConformanceFinding(issue)),
@@ -45,6 +67,7 @@ export function checkLintResult(lint: LintResult): CheckResult {
   return {
     status: okfFindings.length > 0 ? "blocked" : harnessOk ? "ready" : "needs_attention",
     okfVersion: "0.1",
+    currency,
     okfConformance: {
       ok: okfFindings.length === 0,
       findings: okfFindings,
@@ -54,6 +77,38 @@ export function checkLintResult(lint: LintResult): CheckResult {
       findings: harnessFindings,
     },
   };
+}
+
+export async function readCheckCurrency(workspaceRoot: string): Promise<CheckCurrency> {
+  const configResult = await readWorkspaceConfig(workspaceRoot);
+  if (!configResult.ok) {
+    return { sealed: true, dangling: [] };
+  }
+
+  try {
+    const [scan, manifest, ledger] = await Promise.all([
+      scanConcepts(workspaceRoot, configResult.config),
+      readSourceManifest(workspaceRoot, configResult.config),
+      readReconciliationLedger(workspaceRoot, configResult.config),
+    ]);
+    const promotedBySource = new Map<string, string[]>();
+    for (const { sourceId, referencePath } of referenceSourceLinks(scan.files)) {
+      const paths = promotedBySource.get(sourceId) ?? [];
+      paths.push(referencePath);
+      promotedBySource.set(sourceId, paths);
+    }
+
+    const dangling = danglingReconciliations(manifest.entries, ledger.entries).flatMap((edge) => {
+      const promotedBy = [
+        ...(promotedBySource.get(edge.priorSourceId) ?? []),
+        ...(promotedBySource.get(edge.revisionSourceId) ?? []),
+      ];
+      return promotedBy.length === 0 ? [] : [{ ...edge, promotedBy: [...new Set(promotedBy)] }];
+    });
+    return { sealed: dangling.length === 0, dangling };
+  } catch {
+    return { sealed: true, dangling: [] };
+  }
 }
 
 function groupHarnessFindings(issues: LintIssue[]): Record<HarnessPriority, LintIssue[]> {

@@ -2,6 +2,7 @@ import {
   type CheckResult,
   checkLintResult,
   listSources,
+  readCheckCurrency,
   readWorkspaceStatus,
   resolveWorkspaceRoot,
   type WorkspaceStatus,
@@ -41,7 +42,7 @@ export function registerWorkspaceCommands(
       const options = command.opts() as { workspace?: string; json?: boolean };
       const workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
       const result = await readWorkspaceStatus(workspaceRoot);
-      const check = checkLintResult(result.lint);
+      const check = checkLintResult(result.lint, { sealed: true, dangling: [] });
       const envelope: JsonEnvelope = {
         ok: result.initialized && check.status !== "blocked",
         command: "status",
@@ -92,7 +93,7 @@ export function registerWorkspaceCommands(
         setExitCode(1);
         return;
       }
-      const check = checkLintResult(workspaceStatus.lint);
+      const check = checkLintResult(workspaceStatus.lint, await readCheckCurrency(workspaceRoot));
       const blocked = check.status === "blocked";
       const envelope: JsonEnvelope = {
         ok: !blocked,
