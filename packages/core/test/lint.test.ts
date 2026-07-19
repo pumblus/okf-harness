@@ -1,5 +1,6 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
+import { checkWorkspace } from "../src/check/index.js";
 import { lintWorkspace } from "../src/lint/index.js";
 import { addSource } from "../src/source/index.js";
 import { copyValidWorkspace, validWorkspaceFixture } from "./helpers.js";
@@ -143,6 +144,101 @@ describe("OKF hard linter", () => {
         path: added.source.path,
       }),
     ]);
+  });
+
+  it("warns about a suspected source revision without blocking the workspace", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    const priorPath = `${workspaceRoot}/prior/paper.md`;
+    const revisionPath = `${workspaceRoot}/revision/paper.md`;
+    await mkdir(`${workspaceRoot}/prior`);
+    await mkdir(`${workspaceRoot}/revision`);
+    await writeFile(priorPath, "# Paper\n\nOriginal.\n", "utf8");
+    await writeFile(revisionPath, "# Paper\n\nRevised.\n", "utf8");
+    const prior = await addSource({ workspaceRoot, input: priorPath });
+    const revision = await addSource({ workspaceRoot, input: revisionPath });
+
+    const lint = await lintWorkspace(workspaceRoot);
+    const finding = lint.issues.find((issue) => issue.code === "SOURCE_LINEAGE_SUSPECTED");
+
+    expect(lint.ok).toBe(true);
+    expect(finding).toMatchObject({
+      severity: "warning",
+      path: revision.source.path,
+    });
+    expect(finding?.message).toContain(prior.source.id);
+    expect(finding?.message).toContain(revision.source.id);
+
+    const check = await checkWorkspace(workspaceRoot);
+    expect(check).toMatchObject({
+      status: "needs_attention",
+      okfConformance: { ok: true, findings: [] },
+      harnessLint: {
+        ok: false,
+        findings: {
+          high: [],
+          medium: [expect.objectContaining({ code: "SOURCE_LINEAGE_SUSPECTED" })],
+          low: [],
+        },
+      },
+    });
+  });
+
+  it("does not infer lineage from a deduped re-add or a different basename", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    const paperPath = `${workspaceRoot}/paper.md`;
+    const appendixPath = `${workspaceRoot}/appendix.md`;
+    await writeFile(paperPath, "# Paper\n", "utf8");
+    await writeFile(appendixPath, "# Different document\n", "utf8");
+    await addSource({ workspaceRoot, input: paperPath });
+    const reused = await addSource({ workspaceRoot, input: paperPath });
+    await addSource({ workspaceRoot, input: appendixPath });
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(reused.action).toBe("reused");
+    expect(result.issues).toEqual([]);
+  });
+
+  it("excludes URL sources from lineage", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await addSource({
+      workspaceRoot,
+      input: "https://first.example/reports/paper.md",
+    });
+    await addSource({
+      workspaceRoot,
+      input: "https://second.example/archive/paper.md",
+    });
+
+    const result = await lintWorkspace(workspaceRoot);
+
+    expect(result.issues).toEqual([]);
+  });
+
+  it("links the newest revision to every earlier distinct-hash sibling", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    const paperPath = `${workspaceRoot}/paper.md`;
+    await writeFile(paperPath, "# Paper v1\n", "utf8");
+    const first = await addSource({ workspaceRoot, input: paperPath });
+    await writeFile(paperPath, "# Paper v2\n", "utf8");
+    const second = await addSource({ workspaceRoot, input: paperPath });
+    await writeFile(paperPath, "# Paper v3\n", "utf8");
+    const revision = await addSource({ workspaceRoot, input: paperPath });
+
+    const result = await lintWorkspace(workspaceRoot);
+    const findings = result.issues.filter((issue) => issue.code === "SOURCE_LINEAGE_SUSPECTED");
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        path: revision.source.path,
+        message: expect.stringContaining(first.source.id),
+      }),
+      expect.objectContaining({
+        path: revision.source.path,
+        message: expect.stringContaining(second.source.id),
+      }),
+    ]);
+    expect(findings.every((finding) => finding.message.includes(revision.source.id))).toBe(true);
   });
 
   it("reports missing registered raw sources", async () => {

@@ -31,6 +31,7 @@ export const RESERVED_FILE_HAS_CONCEPT_FRONTMATTER =
   "RESERVED_FILE_HAS_CONCEPT_FRONTMATTER" as const;
 export const LOG_INVALID_DATE_HEADING = "LOG_INVALID_DATE_HEADING" as const;
 export const SOURCE_HASH_DRIFT = "SOURCE_HASH_DRIFT" as const;
+export const SOURCE_LINEAGE_SUSPECTED = "SOURCE_LINEAGE_SUSPECTED" as const;
 export const SOURCE_MISSING = "SOURCE_MISSING" as const;
 export const REFERENCE_SOURCE_MISSING = "REFERENCE_SOURCE_MISSING" as const;
 export const BROKEN_LINK = "BROKEN_LINK" as const;
@@ -59,6 +60,7 @@ export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> 
       sourceManifest.issues.length === 0
         ? [
             ...(await lintRegisteredSources(workspaceRoot, sourceManifest.entries)),
+            ...lintSourceLineage(sourceManifest.entries),
             ...lintReferenceSourceIds(scanResult.files, sourceManifest.entries),
             ...(await lintUnregisteredRawSources(
               workspaceRoot,
@@ -259,6 +261,37 @@ async function lintRegisteredSources(
   );
 
   return nested.flat();
+}
+
+function lintSourceLineage(entries: SourceManifestEntry[]): LintIssue[] {
+  const entriesByOriginal = new Map<string, SourceManifestEntry[]>();
+  for (const entry of entries) {
+    if (entry.kind !== "file") {
+      continue;
+    }
+    const siblings = entriesByOriginal.get(entry.original) ?? [];
+    siblings.push(entry);
+    entriesByOriginal.set(entry.original, siblings);
+  }
+
+  return [...entriesByOriginal.values()].flatMap((siblings) => {
+    const revision = siblings.at(-1);
+    if (revision === undefined) {
+      return [];
+    }
+    return siblings.slice(0, -1).flatMap((prior) =>
+      prior.sha256 === revision.sha256
+        ? []
+        : [
+            {
+              code: SOURCE_LINEAGE_SUSPECTED,
+              severity: "warning",
+              path: revision.path,
+              message: `Source ${revision.id} may revise ${prior.id}; both were registered as ${revision.original}.`,
+            } satisfies LintIssue,
+          ],
+    );
+  });
 }
 
 function lintMarkdownFile(file: OkfMarkdownFile): LintIssue[] {
