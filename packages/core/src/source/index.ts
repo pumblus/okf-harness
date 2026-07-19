@@ -4,6 +4,7 @@ import { access, appendFile, mkdir, readFile, rm, stat, writeFile } from "node:f
 import path from "node:path";
 import { loadWorkspaceConfig, type WorkspaceConfig } from "../config/index.js";
 import { toPosixPath } from "../paths/index.js";
+import { errorCode, isSourceId, readJsonlRows } from "./jsonl.js";
 import { safeSlug, titleFromFilename, titleFromUrl } from "./metadata.js";
 
 export const MANIFEST_INVALID = "MANIFEST_INVALID" as const;
@@ -119,50 +120,33 @@ export async function readSourceManifest(
   const workspaceRoot = path.resolve(workspaceRootInput);
   const workspaceConfig = config ?? (await loadWorkspaceConfig(workspaceRoot));
   const manifestPath = path.join(workspaceRoot, workspaceConfig.paths.manifest);
-  let source = "";
-
-  try {
-    source = await readFile(manifestPath, "utf8");
-  } catch (error) {
-    if (errorCode(error) !== "ENOENT") {
-      throw error;
-    }
-  }
-
   const entries: SourceManifestEntry[] = [];
   const issues: SourceManifestIssue[] = [];
-  const lines = source.split(/\r?\n/);
-  lines.forEach((line, index) => {
-    if (line.trim().length === 0) {
-      return;
-    }
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(line);
-    } catch (error) {
+  for (const row of await readJsonlRows(manifestPath)) {
+    if (!row.ok) {
       issues.push({
         code: MANIFEST_INVALID,
         path: workspaceConfig.paths.manifest,
-        line: index + 1,
-        message: error instanceof Error ? error.message : "Invalid manifest JSON row.",
+        line: row.line,
+        message: row.message,
       });
-      return;
+      continue;
     }
 
-    const entry = parseManifestEntry(parsed, workspaceConfig);
+    const entry = parseManifestEntry(row.value, workspaceConfig);
     if (entry.ok) {
       entries.push(entry.entry);
-      return;
+      continue;
     }
 
     issues.push({
       code: MANIFEST_INVALID,
       path: workspaceConfig.paths.manifest,
-      line: index + 1,
+      line: row.line,
       message: entry.message,
     });
-  });
+  }
 
   return { entries, issues };
 }
@@ -404,7 +388,7 @@ function parseManifestEntry(
   if (row.status !== undefined && row.status !== "registered") {
     return { ok: false, message: "Manifest status must be registered." };
   }
-  if (!/^src_\d{8}_\d{4}$/.test(String(row.id))) {
+  if (!isSourceId(String(row.id))) {
     return { ok: false, message: "Manifest source id must match src_YYYYMMDD_NNNN." };
   }
   if (!/^[a-f0-9]{64}$/.test(String(row.sha256))) {
@@ -546,13 +530,4 @@ async function pathExists(input: string): Promise<boolean> {
     }
     throw error;
   }
-}
-
-function errorCode(error: unknown): string | undefined {
-  if (typeof error !== "object" || error === null || !("code" in error)) {
-    return undefined;
-  }
-
-  const code = (error as { code?: unknown }).code;
-  return typeof code === "string" ? code : undefined;
 }

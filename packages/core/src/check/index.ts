@@ -12,6 +12,7 @@ import {
   SOURCE_HASH_DRIFT,
   SOURCE_MISSING,
 } from "../lint/index.js";
+import { RECONCILIATION_LEDGER_INVALID } from "../source/reconciliation.js";
 
 export type CheckStatus = "ready" | "needs_attention" | "blocked";
 export type HarnessPriority = "high" | "medium" | "low";
@@ -78,7 +79,8 @@ function harnessPriorityFor(issue: LintIssue): HarnessPriority {
     issue.code.startsWith("MANIFEST_") ||
     issue.code === SOURCE_HASH_DRIFT ||
     issue.code === SOURCE_MISSING ||
-    issue.code === REFERENCE_SOURCE_MISSING
+    issue.code === REFERENCE_SOURCE_MISSING ||
+    issue.code === RECONCILIATION_LEDGER_INVALID
   ) {
     return "high";
   }

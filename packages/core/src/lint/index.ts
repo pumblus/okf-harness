@@ -7,6 +7,11 @@ import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
 import { okfDocumentView } from "../okf/document.js";
 import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
 import { readSourceManifest, type SourceManifestEntry } from "../source/index.js";
+import {
+  isReconciledEdge,
+  type ReconciliationAcknowledgement,
+  readReconciliationLedger,
+} from "../source/reconciliation.js";
 
 export type LintSeverity = "error" | "warning" | "info";
 
@@ -56,11 +61,12 @@ export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> 
   try {
     const scanResult = await scanConcepts(workspaceRoot, configResult.config);
     const sourceManifest = await readSourceManifest(workspaceRoot, configResult.config);
+    const ledger = await readReconciliationLedger(workspaceRoot, configResult.config);
     const sourceIssues =
       sourceManifest.issues.length === 0
         ? [
             ...(await lintRegisteredSources(workspaceRoot, sourceManifest.entries)),
-            ...lintSourceLineage(sourceManifest.entries),
+            ...lintSourceLineage(sourceManifest.entries, ledger.entries),
             ...lintReferenceSourceIds(scanResult.files, sourceManifest.entries),
             ...(await lintUnregisteredRawSources(
               workspaceRoot,
@@ -73,6 +79,16 @@ export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> 
       ...scanResult.files.flatMap((file) => lintMarkdownFile(file)),
       ...lintWikiWarnings(scanResult.files),
       ...(await lintSafetyWarnings(workspaceRoot, configResult.config)),
+      ...ledger.issues.map(
+        (issue) =>
+          ({
+            code: issue.code,
+            severity: "error",
+            path: issue.path,
+            line: issue.line,
+            message: issue.message,
+          }) satisfies LintIssue,
+      ),
       ...sourceManifest.issues.map(
         (issue) =>
           ({
@@ -263,7 +279,10 @@ async function lintRegisteredSources(
   return nested.flat();
 }
 
-function lintSourceLineage(entries: SourceManifestEntry[]): LintIssue[] {
+function lintSourceLineage(
+  entries: SourceManifestEntry[],
+  acknowledgements: ReconciliationAcknowledgement[],
+): LintIssue[] {
   const entriesByOriginal = new Map<string, SourceManifestEntry[]>();
   for (const entry of entries) {
     if (entry.kind !== "file") {
@@ -280,7 +299,7 @@ function lintSourceLineage(entries: SourceManifestEntry[]): LintIssue[] {
       return [];
     }
     return siblings.slice(0, -1).flatMap((prior) =>
-      prior.sha256 === revision.sha256
+      prior.sha256 === revision.sha256 || isReconciledEdge(acknowledgements, prior.id, revision.id)
         ? []
         : [
             {
