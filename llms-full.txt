@@ -30,6 +30,7 @@ Source path: `README.md`
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 [![Local terminal](https://img.shields.io/badge/platform-local%20terminal-lightgrey.svg)](docs/CLI.md)
+[![BundleDex](https://bundledex.net/badge/okf-harness.svg)](https://bundledex.net/bundles/okf-harness/)
 
 English | [中文](README.zh-CN.md)
 
