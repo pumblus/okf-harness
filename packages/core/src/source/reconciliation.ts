@@ -8,7 +8,7 @@ import {
   SourceManagementError,
   type SourceManifestEntry,
 } from "./index.js";
-import { isSourceId, readJsonlRows } from "./jsonl.js";
+import { errorCode, isSourceId, type JsonlRow, readJsonlRows } from "./jsonl.js";
 
 export const RECONCILIATION_EDGE_UNKNOWN = "RECONCILIATION_EDGE_UNKNOWN" as const;
 export const RECONCILIATION_LEDGER_INVALID = "RECONCILIATION_LEDGER_INVALID" as const;
@@ -199,8 +199,17 @@ export async function readReconciliationLedger(
   const ledgerPath = reconciliationLedgerPath(workspaceConfig);
   const entries: ReconciliationAcknowledgement[] = [];
   const issues: ReconciliationLedgerIssue[] = [];
+  let rows: JsonlRow[];
+  try {
+    rows = await readJsonlRows(path.join(workspaceRoot, ledgerPath));
+  } catch (error) {
+    if (errorCode(error) !== "ENOENT") {
+      throw error;
+    }
+    rows = [];
+  }
 
-  for (const row of await readJsonlRows(path.join(workspaceRoot, ledgerPath))) {
+  for (const row of rows) {
     if (!row.ok) {
       issues.push({
         code: RECONCILIATION_LEDGER_INVALID,

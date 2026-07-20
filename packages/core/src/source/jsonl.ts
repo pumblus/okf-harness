@@ -11,15 +11,7 @@ export function isSourceId(value: string): boolean {
 }
 
 export async function readJsonlRows(absolutePath: string): Promise<JsonlRow[]> {
-  let source = "";
-  try {
-    source = await readFile(absolutePath, "utf8");
-  } catch (error) {
-    if (errorCode(error) !== "ENOENT") {
-      throw error;
-    }
-  }
-
+  const source = await readFile(absolutePath, "utf8");
   const rows: JsonlRow[] = [];
   source.split(/\r?\n/).forEach((line, index) => {
     if (line.trim().length === 0) {

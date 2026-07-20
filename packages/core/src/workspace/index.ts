@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { access, lstat, mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { stringify as stringifyYaml } from "yaml";
@@ -164,7 +164,7 @@ export async function readWorkspaceStatus(workspaceRootInput: string): Promise<W
   if (lineage.config === undefined) {
     return {
       workspaceRoot,
-      initialized: false,
+      initialized: await workspaceConfigExists(workspaceRoot),
       wikiFiles: 0,
       concepts: 0,
       lint,
@@ -183,6 +183,16 @@ export async function readWorkspaceStatus(workspaceRootInput: string): Promise<W
     check,
     warnings: [],
   };
+}
+
+async function workspaceConfigExists(workspaceRoot: string): Promise<boolean> {
+  try {
+    await lstat(path.join(workspaceRoot, "okfh.config.yaml"));
+    return true;
+  } catch (error) {
+    const code = errorCode(error);
+    return code !== "ENOENT" && code !== "ENOTDIR";
+  }
 }
 
 export async function resolveWorkspaceRoot(options: {

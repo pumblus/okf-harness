@@ -294,6 +294,31 @@ describe("@okf-harness/cli workspace", () => {
     expect(stdout).toContain("Currency: not sealed (MANIFEST_INVALID)");
   });
 
+  it("surfaces invalid config diagnostics through check", async () => {
+    const { workspace } = await initWorkspace();
+    await writeFile(path.join(workspace, "okfh.config.yaml"), "not: valid\n", "utf8");
+
+    const checked = await runJsonCli(["node", "okfh", "check", "--workspace", workspace, "--json"]);
+
+    expect(checked).toMatchObject({
+      exitCode: 0,
+      stderr: "",
+      result: {
+        ok: true,
+        command: "check",
+        data: {
+          currency: {
+            sealed: false,
+            dangling: [],
+          },
+        },
+      },
+    });
+    expect(checked.result.data.currency.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "CONFIG_INVALID" }),
+    );
+  });
+
   it("returns the same next step for URL-only sources", async () => {
     const { workspace } = await initWorkspace();
     await runJsonCli([
@@ -617,6 +642,30 @@ describe("@okf-harness/cli workspace", () => {
         code: "WORKSPACE_NOT_INITIALIZED",
       },
       next: [NEXT_INITIALIZE_WORKSPACE],
+    });
+  });
+
+  it("does not treat a file path as an initialized workspace", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "not-a-directory");
+    await writeFile(workspace, "not a directory\n", "utf8");
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(["node", "okfh", "check", "--workspace", workspace, "--json"], {
+      writeOut: (chunk) => {
+        stdout += chunk;
+      },
+      writeErr: (chunk) => {
+        stderr += chunk;
+      },
+    });
+
+    expect(exitCode).toBe(1);
+    expect(stdout).toBe("");
+    expect(JSON.parse(stderr)).toMatchObject({
+      error: { code: "WORKSPACE_NOT_INITIALIZED" },
+      workspace,
     });
   });
 

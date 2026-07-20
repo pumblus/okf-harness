@@ -336,6 +336,21 @@ describe("OKF workspace check", () => {
     });
   });
 
+  it("does not seal currency when the source manifest is missing", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await rm(`${workspaceRoot}/.okfh/manifest.jsonl`);
+
+    const result = await checkWorkspace(workspaceRoot);
+
+    expect(result.currency).toEqual({
+      sealed: false,
+      dangling: [],
+      diagnostics: [
+        expect.objectContaining({ code: "MANIFEST_INVALID", path: ".okfh/manifest.jsonl" }),
+      ],
+    });
+  });
+
   it("does not seal currency when the reconciliation ledger is invalid", async () => {
     const workspaceRoot = await copyValidWorkspace();
     await mkdir(`${workspaceRoot}/.okfh`, { recursive: true });
