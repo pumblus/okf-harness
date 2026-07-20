@@ -6,9 +6,11 @@ import {
   readSourceManifest,
   SOURCE_NOT_REGISTERED,
   SourceManagementError,
+  type SourceManifestEntry,
 } from "./index.js";
 import { isSourceId, readJsonlRows } from "./jsonl.js";
 
+export const RECONCILIATION_EDGE_UNKNOWN = "RECONCILIATION_EDGE_UNKNOWN" as const;
 export const RECONCILIATION_LEDGER_INVALID = "RECONCILIATION_LEDGER_INVALID" as const;
 export const RECONCILIATION_LEDGER_PATH_UNSAFE = "RECONCILIATION_LEDGER_PATH_UNSAFE" as const;
 export const RECONCILIATION_NOTE_REQUIRED = "RECONCILIATION_NOTE_REQUIRED" as const;
@@ -17,8 +19,20 @@ export type ReconciliationAcknowledgement = {
   prior_source_id: string;
   revision_source_id: string;
   note: string;
-  acknowledged_at: string;
 };
+
+/**
+ * One suspected-revision edge: a later-registered file source suspected to revise an
+ * earlier sibling that shares its original filename but differs in content hash.
+ */
+export type ReconciliationEdge = {
+  original: string;
+  priorSourceId: string;
+  revisionSourceId: string;
+};
+
+/** Backward-compatible name for an unacknowledged reconciliation edge. */
+export type DanglingReconciliation = ReconciliationEdge;
 
 export type ReconciliationLedgerIssue = {
   code: typeof RECONCILIATION_LEDGER_INVALID;
@@ -37,7 +51,6 @@ export type ClearReconciliationOptions = {
   priorSourceId: string;
   revisionSourceId: string;
   note: string;
-  now?: Date;
 };
 
 export type ClearReconciliationResult = {
@@ -77,6 +90,51 @@ export function isReconciledEdge(
   );
 }
 
+/**
+ * Suspected-revision edges derived from the manifest alone, recomputed every call.
+ * File sources sharing an original filename form a group in added order; the latest
+ * entry is the suspected revision of each earlier sibling with a different hash.
+ */
+export function suspectedRevisions(entries: SourceManifestEntry[]): ReconciliationEdge[] {
+  const entriesByOriginal = new Map<string, SourceManifestEntry[]>();
+  for (const entry of entries) {
+    if (entry.kind !== "file") {
+      continue;
+    }
+    const siblings = entriesByOriginal.get(entry.original) ?? [];
+    siblings.push(entry);
+    entriesByOriginal.set(entry.original, siblings);
+  }
+
+  return [...entriesByOriginal.values()].flatMap((siblings) => {
+    const revision = siblings.at(-1);
+    if (revision === undefined) {
+      return [];
+    }
+    return siblings.slice(0, -1).flatMap((prior) =>
+      prior.sha256 === revision.sha256
+        ? []
+        : [
+            {
+              original: revision.original,
+              priorSourceId: prior.id,
+              revisionSourceId: revision.id,
+            } satisfies ReconciliationEdge,
+          ],
+    );
+  });
+}
+
+/** Suspected-revision edges no acknowledgment covers yet. */
+export function danglingReconciliations(
+  entries: SourceManifestEntry[],
+  acknowledgements: ReconciliationAcknowledgement[],
+): ReconciliationEdge[] {
+  return suspectedRevisions(entries).filter(
+    (edge) => !isReconciledEdge(acknowledgements, edge.priorSourceId, edge.revisionSourceId),
+  );
+}
+
 export async function clearReconciliation(
   options: ClearReconciliationOptions,
 ): Promise<ClearReconciliationResult> {
@@ -106,11 +164,23 @@ export async function clearReconciliation(
     );
   }
 
+  const edge = suspectedRevisions(manifest.entries).find(
+    (candidate) =>
+      candidate.priorSourceId === options.priorSourceId &&
+      candidate.revisionSourceId === options.revisionSourceId,
+  );
+  if (edge === undefined) {
+    throw new SourceManagementError(
+      `No suspected-revision edge from ${options.priorSourceId} to ${options.revisionSourceId}.`,
+      RECONCILIATION_EDGE_UNKNOWN,
+      workspaceRoot,
+    );
+  }
+
   const acknowledgement: ReconciliationAcknowledgement = {
-    prior_source_id: options.priorSourceId,
-    revision_source_id: options.revisionSourceId,
+    prior_source_id: edge.priorSourceId,
+    revision_source_id: edge.revisionSourceId,
     note,
-    acknowledged_at: (options.now ?? new Date()).toISOString(),
   };
   const ledgerPath = reconciliationLedgerPath(config);
   const absoluteLedgerPath = path.join(workspaceRoot, ledgerPath);
@@ -166,12 +236,7 @@ function parseAcknowledgement(
   }
 
   const row = value as Record<string, unknown>;
-  const requiredStringFields = [
-    "prior_source_id",
-    "revision_source_id",
-    "note",
-    "acknowledged_at",
-  ] as const;
+  const requiredStringFields = ["prior_source_id", "revision_source_id", "note"] as const;
   for (const field of requiredStringFields) {
     if (typeof row[field] !== "string" || row[field].trim().length === 0) {
       return { ok: false, message: `Ledger row is missing a non-empty ${field} field.` };
@@ -190,7 +255,6 @@ function parseAcknowledgement(
       prior_source_id: String(row.prior_source_id),
       revision_source_id: String(row.revision_source_id),
       note: String(row.note),
-      acknowledged_at: String(row.acknowledged_at),
     },
   };
 }

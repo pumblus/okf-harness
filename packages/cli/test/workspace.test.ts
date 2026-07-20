@@ -258,6 +258,7 @@ describe("@okf-harness/cli workspace", () => {
           promotedBy: ["wiki/references/paper.md"],
         },
       ],
+      diagnostics: [],
     });
     expect(checked.result.data.harnessLint.findings.medium).toContainEqual(
       expect.objectContaining({ code: "SOURCE_LINEAGE_SUSPECTED" }),
@@ -265,6 +266,32 @@ describe("@okf-harness/cli workspace", () => {
     expect(exitCode).toBe(0);
     expect(stderr).toBe("");
     expect(stdout).toContain("Currency: not sealed (paper.md)");
+  });
+
+  it("reports unverifiable currency with diagnostics without changing the check exit code", async () => {
+    const { workspace } = await initWorkspace();
+    await mkdir(path.join(workspace, ".okfh"), { recursive: true });
+    await writeFile(path.join(workspace, ".okfh", "manifest.jsonl"), "not-json\n", "utf8");
+
+    const checked = await runJsonCli(["node", "okfh", "check", "--workspace", workspace, "--json"]);
+    let stdout = "";
+    const exitCode = await runCli(["node", "okfh", "check", "--workspace", workspace], {
+      writeOut: (chunk) => {
+        stdout += chunk;
+      },
+      writeErr: () => {},
+    });
+
+    expect(checked.exitCode).toBe(0);
+    expect(checked.result.data.currency).toEqual({
+      sealed: false,
+      dangling: [],
+      diagnostics: [
+        expect.objectContaining({ code: "MANIFEST_INVALID", path: ".okfh/manifest.jsonl" }),
+      ],
+    });
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Currency: not sealed (MANIFEST_INVALID)");
   });
 
   it("returns the same next step for URL-only sources", async () => {

@@ -147,7 +147,7 @@ okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 - `needs_attention`: OKF conformance passes, but Harness lint found maintainability or evidence-integrity issues.
 - `blocked`: OKF conformance fails and the workspace is not OKF-readable.
 
-The JSON response reports the OKF version as `data.okfVersion`, currently `0.1`. It keeps OKF conformance in `data.okfConformance`, Harness lint in `data.harnessLint`, and the promoted-source reconciliation seal in `data.currency`. Currency is informational and does not affect status or the exit code. The human view shows `Currency: sealed`, or `Currency: not sealed (...)` with the implicated source filenames.
+The JSON response reports the OKF version as `data.okfVersion`, currently `0.1`. It keeps OKF conformance in `data.okfConformance`, Harness lint in `data.harnessLint`, and the promoted-source reconciliation seal in `data.currency`. Currency is informational and does not affect status or the exit code. `data.currency.sealed` is `true` only when workspace validation has no error findings and no promoted source has a dangling reconciliation; otherwise it is `false` and `data.currency.diagnostics` lists the deterministic error codes. The human view shows `Currency: sealed`, or `Currency: not sealed (...)` with the implicated source filenames or diagnostic codes.
 
 `check` uses the same Workspace next-step decision as `status` and reports it through the existing top-level `next` field. When human-readable output has a next step, `check` shows the first one as `Next: ...`.
 

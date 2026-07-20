@@ -101,6 +101,44 @@ describe("clearReconciliation", () => {
       "First edge reconciled.",
       "Second edge reconciled.",
     ]);
+
+    const rows = ledgerAfterSecond
+      .trimEnd()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    for (const row of rows) {
+      expect(Object.keys(row).sort()).toEqual(["note", "prior_source_id", "revision_source_id"]);
+    }
+  });
+
+  it("rejects edges that are not suspected revisions without appending to the ledger", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    const first = await addRevision(workspaceRoot, "paper.md", "# Paper v1\n");
+    const second = await addRevision(workspaceRoot, "paper.md", "# Paper v2\n");
+    const unrelated = await addRevision(workspaceRoot, "notes.md", "# Notes v1\n");
+    const deduped = await addRevision(workspaceRoot, "copy-of-paper.md", "# Paper v1\n");
+    expect(deduped.action).toBe("reused");
+
+    const invalidEdges = [
+      { prior: second.source.id, revision: first.source.id }, // reversed
+      { prior: first.source.id, revision: unrelated.source.id }, // unrelated originals
+      { prior: first.source.id, revision: first.source.id }, // same content, same entry
+    ];
+    for (const { prior, revision } of invalidEdges) {
+      await expect(
+        clearReconciliation({
+          workspaceRoot,
+          priorSourceId: prior,
+          revisionSourceId: revision,
+          note: "Reconciled.",
+        }),
+      ).rejects.toMatchObject({ code: "RECONCILIATION_EDGE_UNKNOWN" });
+    }
+
+    const ledger = await readReconciliationLedger(workspaceRoot);
+    expect(ledger.issues).toEqual([]);
+    expect(ledger.entries).toEqual([]);
+    expect(await suspectedEdges(workspaceRoot)).toHaveLength(1);
   });
 
   it("rejects unregistered source ids and empty judgment notes", async () => {

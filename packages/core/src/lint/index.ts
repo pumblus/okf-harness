@@ -2,16 +2,17 @@ import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { CONFIG_INVALID, readWorkspaceConfig, type WorkspaceConfig } from "../config/index.js";
-import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import type { WorkspaceConfig } from "../config/index.js";
+import { readWorkspaceLineage, toErrorIssue, type WorkspaceLineage } from "../lineage/index.js";
+import type { OkfMarkdownFile } from "../okf/concepts.js";
 import { okfDocumentView } from "../okf/document.js";
 import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
-import { readSourceManifest, type SourceManifestEntry } from "../source/index.js";
-import {
-  isReconciledEdge,
-  type ReconciliationAcknowledgement,
-  readReconciliationLedger,
-} from "../source/reconciliation.js";
+import { MANIFEST_INVALID, type SourceManifestEntry } from "../source/index.js";
+import type { ReconciliationEdge } from "../source/reconciliation.js";
+import { REFERENCE_SOURCE_MISSING } from "./codes.js";
+
+export { type ReferenceSourceLink, referenceSourceLinks } from "../lineage/index.js";
+export { REFERENCE_SOURCE_MISSING };
 
 export type LintSeverity = "error" | "warning" | "info";
 
@@ -29,17 +30,6 @@ export type LintResult = {
   issues: LintIssue[];
 };
 
-export type ReferenceSourceLink = {
-  sourceId: string;
-  referencePath: string;
-};
-
-export type DanglingReconciliation = {
-  original: string;
-  priorSourceId: string;
-  revisionSourceId: string;
-};
-
 export const OKF_MISSING_FRONTMATTER = "OKF_MISSING_FRONTMATTER" as const;
 export const OKF_INVALID_FRONTMATTER = "OKF_INVALID_FRONTMATTER" as const;
 export const OKF_MISSING_TYPE = "OKF_MISSING_TYPE" as const;
@@ -49,86 +39,52 @@ export const LOG_INVALID_DATE_HEADING = "LOG_INVALID_DATE_HEADING" as const;
 export const SOURCE_HASH_DRIFT = "SOURCE_HASH_DRIFT" as const;
 export const SOURCE_LINEAGE_SUSPECTED = "SOURCE_LINEAGE_SUSPECTED" as const;
 export const SOURCE_MISSING = "SOURCE_MISSING" as const;
-export const REFERENCE_SOURCE_MISSING = "REFERENCE_SOURCE_MISSING" as const;
 export const BROKEN_LINK = "BROKEN_LINK" as const;
 export const MISSING_INDEX_ENTRY = "MISSING_INDEX_ENTRY" as const;
 export const MISSING_CITATIONS_SECTION = "MISSING_CITATIONS_SECTION" as const;
 export const GIT_CHECKPOINT_POLICY_NOT_ENFORCED = "GIT_CHECKPOINT_POLICY_NOT_ENFORCED" as const;
+export const WORKSPACE_READ_FAILED = "WORKSPACE_READ_FAILED" as const;
 
 export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> {
-  const configResult = await readWorkspaceConfig(workspaceRoot);
-  if (!configResult.ok) {
-    return {
-      ok: false,
-      issues: configResult.issues.map((issue) => ({
-        code: CONFIG_INVALID,
-        severity: "error",
-        message: issue.message,
-        path: issue.path,
-      })),
-    };
+  return lintWorkspaceFromLineage(workspaceRoot, await readWorkspaceLineage(workspaceRoot));
+}
+
+export async function lintWorkspaceFromLineage(
+  workspaceRoot: string,
+  lineage: WorkspaceLineage,
+): Promise<LintResult> {
+  if (lineage.config === undefined) {
+    return { ok: false, issues: lineage.issues };
   }
 
-  try {
-    const scanResult = await scanConcepts(workspaceRoot, configResult.config);
-    const sourceManifest = await readSourceManifest(workspaceRoot, configResult.config);
-    const ledger = await readReconciliationLedger(workspaceRoot, configResult.config);
-    const sourceIssues =
-      sourceManifest.issues.length === 0
-        ? [
-            ...(await lintRegisteredSources(workspaceRoot, sourceManifest.entries)),
-            ...lintSourceLineage(sourceManifest.entries, ledger.entries),
-            ...lintReferenceSourceIds(scanResult.files, sourceManifest.entries),
-            ...(await lintUnregisteredRawSources(
-              workspaceRoot,
-              configResult.config.paths.raw_sources,
-              sourceManifest.entries,
-            )),
-          ]
-        : [];
-    const issues = [
-      ...scanResult.files.flatMap((file) => lintMarkdownFile(file)),
-      ...lintWikiWarnings(scanResult.files),
-      ...(await lintSafetyWarnings(workspaceRoot, configResult.config)),
-      ...ledger.issues.map(
-        (issue) =>
-          ({
-            code: issue.code,
-            severity: "error",
-            path: issue.path,
-            line: issue.line,
-            message: issue.message,
-          }) satisfies LintIssue,
-      ),
-      ...sourceManifest.issues.map(
-        (issue) =>
-          ({
-            code: issue.code,
-            severity: "error",
-            path: issue.path,
-            line: issue.line,
-            message: issue.message,
-          }) satisfies LintIssue,
-      ),
-      ...sourceIssues,
-    ];
-    return {
-      ok: issues.every((issue) => issue.severity !== "error"),
-      issues,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      issues: [
-        {
-          code: CONFIG_INVALID,
-          severity: "error",
-          path: configResult.config.okf.bundle_root,
-          message: error instanceof Error ? error.message : "Could not scan OKF wiki.",
-        },
-      ],
-    };
-  }
+  const files = lineage.files;
+  const manifestReadable = !lineage.issues.some((issue) => issue.code === MANIFEST_INVALID);
+  const sourceIssues =
+    manifestReadable && lineage.manifestIssues.length === 0
+      ? [
+          ...(await lintRegisteredSources(workspaceRoot, lineage.manifestEntries)),
+          ...lintSourceLineage(lineage.dangling, lineage.manifestEntries),
+          ...lineage.referenceIssues.filter((issue) => issue.code === REFERENCE_SOURCE_MISSING),
+          ...(await lintUnregisteredRawSources(
+            workspaceRoot,
+            lineage.config.paths.raw_sources,
+            lineage.manifestEntries,
+          )),
+        ]
+      : [];
+  const issues = [
+    ...files.flatMap((file) => lintMarkdownFile(file)),
+    ...lintWikiWarnings(files),
+    ...(await lintSafetyWarnings(workspaceRoot, lineage.config)),
+    ...lineage.issues,
+    ...lineage.ledgerIssues.map(toErrorIssue),
+    ...lineage.manifestIssues.map(toErrorIssue),
+    ...sourceIssues,
+  ];
+  return {
+    ok: issues.every((issue) => issue.severity !== "error"),
+    issues,
+  };
 }
 
 async function lintSafetyWarnings(
@@ -153,41 +109,6 @@ async function lintSafetyWarnings(
   ];
 }
 
-function lintReferenceSourceIds(
-  files: OkfMarkdownFile[],
-  entries: SourceManifestEntry[],
-): LintIssue[] {
-  const sourceIds = new Set(entries.map((entry) => entry.id));
-  return referenceSourceLinks(files).flatMap(({ sourceId, referencePath }) =>
-    sourceIds.has(sourceId)
-      ? []
-      : [
-          {
-            code: REFERENCE_SOURCE_MISSING,
-            severity: "error",
-            path: referencePath,
-            message: `Reference document points to an unregistered source id: ${sourceId}`,
-          } satisfies LintIssue,
-        ],
-  );
-}
-
-export function referenceSourceLinks(files: OkfMarkdownFile[]): ReferenceSourceLink[] {
-  return files.flatMap((file) => {
-    if (file.isReserved || !file.workspacePath.startsWith("wiki/references/")) {
-      return [];
-    }
-    if (!file.frontmatter.ok) {
-      return [];
-    }
-
-    const sourceId = frontmatterSourceId(file.frontmatter.data);
-    return sourceId === undefined
-      ? []
-      : [{ sourceId, referencePath: file.workspacePath } satisfies ReferenceSourceLink];
-  });
-}
-
 async function lintUnregisteredRawSources(
   workspaceRoot: string,
   rawSourcesPath: string,
@@ -195,7 +116,12 @@ async function lintUnregisteredRawSources(
 ): Promise<LintIssue[]> {
   const rawRoot = path.join(workspaceRoot, rawSourcesPath);
   const registeredPaths = new Set(entries.map((entry) => entry.path));
-  const files = await scanRawSourceFiles(rawRoot);
+  let files: string[];
+  try {
+    files = await scanRawSourceFiles(rawRoot);
+  } catch {
+    return [workspaceReadIssue(rawSourcesPath)];
+  }
 
   return files.flatMap((filePath) => {
     const workspacePath = path
@@ -244,15 +170,6 @@ function isIgnoredRawSourceFile(workspacePath: string): boolean {
   return workspacePath === "raw/sources/README.md" || workspacePath.endsWith("/.gitkeep");
 }
 
-function frontmatterSourceId(frontmatter: Record<string, unknown>): string | undefined {
-  const okfh = frontmatter.okfh;
-  if (typeof okfh !== "object" || okfh === null || Array.isArray(okfh)) {
-    return undefined;
-  }
-  const sourceId = (okfh as { source_id?: unknown }).source_id;
-  return typeof sourceId === "string" && sourceId.trim().length > 0 ? sourceId : undefined;
-}
-
 async function lintRegisteredSources(
   workspaceRoot: string,
   entries: SourceManifestEntry[],
@@ -274,7 +191,7 @@ async function lintRegisteredSources(
             } satisfies LintIssue,
           ];
         }
-        throw error;
+        return [workspaceReadIssue(entry.path)];
       }
 
       const actual = createHash("sha256").update(contents).digest("hex");
@@ -296,12 +213,21 @@ async function lintRegisteredSources(
   return nested.flat();
 }
 
+function workspaceReadIssue(workspacePath: string): LintIssue {
+  return {
+    code: WORKSPACE_READ_FAILED,
+    severity: "error",
+    path: workspacePath,
+    message: `Workspace data could not be read: ${workspacePath}`,
+  };
+}
+
 function lintSourceLineage(
+  dangling: ReconciliationEdge[],
   entries: SourceManifestEntry[],
-  acknowledgements: ReconciliationAcknowledgement[],
 ): LintIssue[] {
   const paths = new Map(entries.map((entry) => [entry.id, entry.path]));
-  return danglingReconciliations(entries, acknowledgements).map(
+  return dangling.map(
     (edge) =>
       ({
         code: SOURCE_LINEAGE_SUSPECTED,
@@ -310,39 +236,6 @@ function lintSourceLineage(
         message: `Source ${edge.revisionSourceId} may revise ${edge.priorSourceId}; both were registered as ${edge.original}.`,
       }) satisfies LintIssue,
   );
-}
-
-export function danglingReconciliations(
-  entries: SourceManifestEntry[],
-  acknowledgements: ReconciliationAcknowledgement[],
-): DanglingReconciliation[] {
-  const entriesByOriginal = new Map<string, SourceManifestEntry[]>();
-  for (const entry of entries) {
-    if (entry.kind !== "file") {
-      continue;
-    }
-    const siblings = entriesByOriginal.get(entry.original) ?? [];
-    siblings.push(entry);
-    entriesByOriginal.set(entry.original, siblings);
-  }
-
-  return [...entriesByOriginal.values()].flatMap((siblings) => {
-    const revision = siblings.at(-1);
-    if (revision === undefined) {
-      return [];
-    }
-    return siblings.slice(0, -1).flatMap((prior) =>
-      prior.sha256 === revision.sha256 || isReconciledEdge(acknowledgements, prior.id, revision.id)
-        ? []
-        : [
-            {
-              original: revision.original,
-              priorSourceId: prior.id,
-              revisionSourceId: revision.id,
-            } satisfies DanglingReconciliation,
-          ],
-    );
-  });
 }
 
 function lintMarkdownFile(file: OkfMarkdownFile): LintIssue[] {

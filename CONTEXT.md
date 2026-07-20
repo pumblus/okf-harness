@@ -172,6 +172,10 @@ _Avoid_: state machine, onboarding progress, auto-fix, task list, semantic score
 The priority assigned to Harness lint findings inside a workspace check. High priority covers evidence integrity problems such as source drift, missing registered sources, or reference documents that cannot be tied to source records; medium priority covers maintenance gaps such as ordinary missing citations or missing index entries; low priority covers tolerated navigation or cleanup issues such as broken links.
 _Avoid_: check status, OKF conformance severity, raw issue code
 
+**Currency seal**:
+The Harness-computed guarantee inside a workspace check that every promoted raw source has no unreconciled suspected revision. The seal is positive only when workspace validation has no error findings and no promoted source has a dangling reconciliation; otherwise the check reports the workspace as not sealed with deterministic diagnostics rather than a false seal. Currency is a report, never a write gate, and never changes the check status or exit code.
+_Avoid_: freshness score, agent-claimed currency, write gate, version ranking
+
 **Source status**:
 A coarse label for where a raw source stands in the knowledge workflow. It describes evidence handling and must not imply that concept documents have already been updated.
 _Avoid_: task status, progress tracker, ingest plan status

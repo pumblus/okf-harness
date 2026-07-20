@@ -15,6 +15,7 @@ describe("OKF workspace check", () => {
       currency: {
         sealed: true,
         dangling: [],
+        diagnostics: [],
       },
       okfConformance: {
         ok: true,
@@ -42,6 +43,7 @@ describe("OKF workspace check", () => {
     expect((await checkWorkspace(workspaceRoot)).currency).toEqual({
       sealed: true,
       dangling: [],
+      diagnostics: [],
     });
 
     const promotedPath = `${workspaceRoot}/karpathy-llm-wiki.md`;
@@ -58,6 +60,7 @@ describe("OKF workspace check", () => {
           promotedBy: ["wiki/references/karpathy-llm-wiki.md"],
         },
       ],
+      diagnostics: [],
     });
 
     await clearReconciliation({
@@ -69,6 +72,7 @@ describe("OKF workspace check", () => {
     expect((await checkWorkspace(workspaceRoot)).currency).toEqual({
       sealed: true,
       dangling: [],
+      diagnostics: [],
     });
 
     await writeFile(promotedPath, "# Third source revision\n", "utf8");
@@ -85,6 +89,7 @@ describe("OKF workspace check", () => {
           promotedBy: ["wiki/references/karpathy-llm-wiki.md"],
         },
       ],
+      diagnostics: [],
     });
     expect(reopened.status).toBe("needs_attention");
   });
@@ -101,6 +106,16 @@ describe("OKF workspace check", () => {
 
     expect(result).toMatchObject({
       status: "blocked",
+      currency: {
+        sealed: false,
+        dangling: [],
+        diagnostics: [
+          expect.objectContaining({
+            code: "OKF_MISSING_FRONTMATTER",
+            path: "wiki/topics/llm-wiki.md",
+          }),
+        ],
+      },
       okfConformance: {
         ok: false,
         findings: [
@@ -138,6 +153,25 @@ describe("OKF workspace check", () => {
         findings: [],
       },
     });
+  });
+
+  it("reports unreadable workspace data at its real path", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    const sourcePath = `${workspaceRoot}/raw/sources/2026/06/karpathy-llm-wiki.md`;
+    await rm(sourcePath);
+    await mkdir(sourcePath);
+
+    const result = await checkWorkspace(workspaceRoot);
+
+    expect(result.harnessLint.findings.high).toContainEqual(
+      expect.objectContaining({
+        code: "WORKSPACE_READ_FAILED",
+        path: "raw/sources/2026/06/karpathy-llm-wiki.md",
+      }),
+    );
+    expect(result.harnessLint.findings.medium).not.toContainEqual(
+      expect.objectContaining({ code: "CONFIG_INVALID" }),
+    );
   });
 
   it("reports source drift as high-priority Harness lint without blocking OKF conformance", async () => {
@@ -272,6 +306,16 @@ describe("OKF workspace check", () => {
 
     expect(result).toMatchObject({
       status: "needs_attention",
+      currency: {
+        sealed: false,
+        dangling: [],
+        diagnostics: [
+          expect.objectContaining({
+            code: "MANIFEST_INVALID",
+            path: ".okfh/manifest.jsonl",
+          }),
+        ],
+      },
       okfConformance: {
         ok: true,
         findings: [],
@@ -289,6 +333,131 @@ describe("OKF workspace check", () => {
           low: [],
         },
       },
+    });
+  });
+
+  it("does not seal currency when the reconciliation ledger is invalid", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await mkdir(`${workspaceRoot}/.okfh`, { recursive: true });
+    await writeFile(`${workspaceRoot}/.okfh/reconciliation.jsonl`, "{not json}\n", "utf8");
+
+    const result = await checkWorkspace(workspaceRoot);
+
+    expect(result.status).toBe("needs_attention");
+    expect(result.currency).toEqual({
+      sealed: false,
+      dangling: [],
+      diagnostics: [
+        expect.objectContaining({
+          code: "RECONCILIATION_LEDGER_INVALID",
+          path: ".okfh/reconciliation.jsonl",
+          line: 1,
+        }),
+      ],
+    });
+  });
+
+  it("does not seal currency when config, manifest, or ledger files cannot be read", async () => {
+    const cases = [
+      { path: "okfh.config.yaml", code: "CONFIG_INVALID" },
+      { path: ".okfh/manifest.jsonl", code: "MANIFEST_INVALID" },
+      { path: ".okfh/reconciliation.jsonl", code: "RECONCILIATION_LEDGER_INVALID" },
+    ];
+
+    for (const testCase of cases) {
+      const workspaceRoot = await copyValidWorkspace();
+      await rm(`${workspaceRoot}/${testCase.path}`, { recursive: true, force: true });
+      await mkdir(`${workspaceRoot}/${testCase.path}`, { recursive: true });
+
+      const result = await checkWorkspace(workspaceRoot);
+
+      expect(result.currency).toEqual({
+        sealed: false,
+        dangling: [],
+        diagnostics: [expect.objectContaining({ code: testCase.code, path: testCase.path })],
+      });
+    }
+  });
+
+  it("preserves OKF failures when another currency input is unreadable", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await writeFile(
+      `${workspaceRoot}/wiki/topics/llm-wiki.md`,
+      "# Overview\nMissing frontmatter.\n",
+      "utf8",
+    );
+    await mkdir(`${workspaceRoot}/.okfh/reconciliation.jsonl`);
+
+    const result = await checkWorkspace(workspaceRoot);
+
+    expect(result.status).toBe("blocked");
+    expect(result.okfConformance.findings).toContainEqual(
+      expect.objectContaining({ code: "OKF_MISSING_FRONTMATTER" }),
+    );
+    expect(result.currency.sealed).toBe(false);
+    expect(result.currency.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "OKF_MISSING_FRONTMATTER" }),
+        expect.objectContaining({ code: "RECONCILIATION_LEDGER_INVALID" }),
+      ]),
+    );
+  });
+
+  it("does not seal currency when the wiki cannot be scanned", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await rm(`${workspaceRoot}/wiki`, { recursive: true });
+    await writeFile(`${workspaceRoot}/wiki`, "not a directory\n", "utf8");
+
+    const result = await checkWorkspace(workspaceRoot);
+
+    expect(result.status).toBe("needs_attention");
+    expect(result.currency).toEqual({
+      sealed: false,
+      dangling: [],
+      diagnostics: [expect.objectContaining({ code: "SCAN_FAILED", path: "wiki" })],
+    });
+    expect(result.harnessLint.findings.medium).toContainEqual(
+      expect.objectContaining({ code: "SCAN_FAILED", path: "wiki" }),
+    );
+  });
+
+  it("does not seal currency when reference linkage is invalid", async () => {
+    const malformedRoot = await copyValidWorkspace();
+    await writeFile(
+      `${malformedRoot}/wiki/references/malformed.md`,
+      "---\ntitle: [unterminated\n---\n# Malformed\n",
+      "utf8",
+    );
+
+    const malformed = await checkWorkspace(malformedRoot);
+    expect(malformed.currency).toEqual({
+      sealed: false,
+      dangling: [],
+      diagnostics: [
+        expect.objectContaining({
+          code: "OKF_INVALID_FRONTMATTER",
+          path: "wiki/references/malformed.md",
+        }),
+      ],
+    });
+
+    const missingRoot = await copyValidWorkspace();
+    await writeFile(
+      `${missingRoot}/wiki/references/unregistered.md`,
+      "---\ntype: Reference\ntitle: Unregistered\nokfh:\n  source_id: src_20260615_9999\n---\n# Unregistered\n",
+      "utf8",
+    );
+
+    const missing = await checkWorkspace(missingRoot);
+    expect(missing.currency).toEqual({
+      sealed: false,
+      dangling: [],
+      diagnostics: [
+        expect.objectContaining({
+          code: "REFERENCE_SOURCE_MISSING",
+          path: "wiki/references/unregistered.md",
+        }),
+      ],
     });
   });
 });

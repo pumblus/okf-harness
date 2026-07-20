@@ -13,8 +13,11 @@ export function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): vo
 function renderHumanResult(envelope: JsonEnvelope): string {
   if (envelope.command === "check") {
     const data = envelope.data as Partial<CheckResult>;
-    const implicatedSources = [
-      ...new Set(data.currency?.dangling.map(({ original }) => original) ?? []),
+    const currencyDetails = [
+      ...new Set([
+        ...(data.currency?.dangling.map(({ original }) => original) ?? []),
+        ...(data.currency?.diagnostics?.map(({ code }) => code) ?? []),
+      ]),
     ];
     const rows = [
       `Status: ${humanCheckStatus(data.status)}`,
@@ -22,7 +25,7 @@ function renderHumanResult(envelope: JsonEnvelope): string {
       `OKF conformance: ${data.okfConformance?.ok === false ? "fail" : "pass"}`,
       `Harness lint: ${data.harnessLint?.ok === false ? "needs attention" : "pass"}`,
       `Currency: ${
-        data.currency?.sealed === false ? `not sealed (${implicatedSources.join(", ")})` : "sealed"
+        data.currency?.sealed === false ? `not sealed (${currencyDetails.join(", ")})` : "sealed"
       }`,
     ];
     for (const priority of ["high", "medium", "low"] as const) {

@@ -3,9 +3,10 @@ import { access, mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { stringify as stringifyYaml } from "yaml";
-import { readWorkspaceConfig, type WorkspaceConfig } from "../config/index.js";
-import { type LintResult, lintWorkspace } from "../lint/index.js";
-import { scanConcepts } from "../okf/concepts.js";
+import { type CheckResult, checkCurrencyFromLineage, checkLintResult } from "../check/index.js";
+import type { WorkspaceConfig } from "../config/index.js";
+import { readWorkspaceLineage } from "../lineage/index.js";
+import { type LintResult, lintWorkspace, lintWorkspaceFromLineage } from "../lint/index.js";
 import { toPosixRelativePath } from "../paths/index.js";
 
 export type WorkspaceWarning = {
@@ -55,6 +56,7 @@ export type WorkspaceStatus = {
   wikiFiles: number;
   concepts: number;
   lint: LintResult;
+  check: CheckResult;
   warnings: WorkspaceWarning[];
 };
 
@@ -156,38 +158,29 @@ async function initializeGit(workspaceRoot: string): Promise<boolean> {
 
 export async function readWorkspaceStatus(workspaceRootInput: string): Promise<WorkspaceStatus> {
   const workspaceRoot = path.resolve(workspaceRootInput);
-  const configResult = await readWorkspaceConfig(workspaceRoot);
-  if (!configResult.ok) {
+  const lineage = await readWorkspaceLineage(workspaceRoot);
+  const lint = await lintWorkspaceFromLineage(workspaceRoot, lineage);
+  const check = checkLintResult(lint, checkCurrencyFromLineage(lineage, lint));
+  if (lineage.config === undefined) {
     return {
       workspaceRoot,
       initialized: false,
       wikiFiles: 0,
       concepts: 0,
-      lint: {
-        ok: false,
-        issues: configResult.issues.map((issue) => ({
-          code: issue.code,
-          severity: "error",
-          message: issue.message,
-          path: issue.path,
-        })),
-      },
+      lint,
+      check,
       warnings: [],
     };
   }
 
-  const [scanResult, lint] = await Promise.all([
-    scanConcepts(workspaceRoot, configResult.config),
-    lintWorkspace(workspaceRoot),
-  ]);
-
   return {
     workspaceRoot,
     initialized: true,
-    name: configResult.config.workspace.name,
-    wikiFiles: scanResult.files.length,
-    concepts: scanResult.concepts.length,
+    name: lineage.config.workspace.name,
+    wikiFiles: lineage.files.length,
+    concepts: lineage.conceptCount,
     lint,
+    check,
     warnings: [],
   };
 }

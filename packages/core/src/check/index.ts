@@ -1,25 +1,22 @@
-import { readWorkspaceConfig } from "../config/index.js";
+import { readWorkspaceLineage, type WorkspaceLineage } from "../lineage/index.js";
 import {
   BROKEN_LINK,
-  danglingReconciliations,
   type LintIssue,
   type LintResult,
   LOG_INVALID_DATE_HEADING,
-  lintWorkspace,
+  lintWorkspaceFromLineage,
   OKF_INVALID_FRONTMATTER,
   OKF_MISSING_FRONTMATTER,
   OKF_MISSING_TYPE,
   REFERENCE_SOURCE_MISSING,
   RESERVED_FILE_HAS_CONCEPT_FRONTMATTER,
-  referenceSourceLinks,
   SOURCE_HASH_DRIFT,
   SOURCE_MISSING,
+  WORKSPACE_READ_FAILED,
 } from "../lint/index.js";
-import { scanConcepts } from "../okf/concepts.js";
-import { readSourceManifest } from "../source/index.js";
 import {
   RECONCILIATION_LEDGER_INVALID,
-  readReconciliationLedger,
+  type ReconciliationEdge,
 } from "../source/reconciliation.js";
 
 export type CheckStatus = "ready" | "needs_attention" | "blocked";
@@ -27,12 +24,13 @@ export type HarnessPriority = "high" | "medium" | "low";
 
 export type CheckCurrency = {
   sealed: boolean;
-  dangling: Array<{
-    original: string;
-    priorSourceId: string;
-    revisionSourceId: string;
-    promotedBy: string[];
-  }>;
+  dangling: Array<ReconciliationEdge & { promotedBy: string[] }>;
+  /**
+   * Deterministic diagnostics explaining why currency could not be verified
+   * (unreadable or invalid config, manifest, ledger, or reference data).
+   * Empty when the seal was computed from fully readable facts.
+   */
+  diagnostics: LintIssue[];
 };
 
 export type CheckResult = {
@@ -50,11 +48,9 @@ export type CheckResult = {
 };
 
 export async function checkWorkspace(workspaceRoot: string): Promise<CheckResult> {
-  const [lint, currency] = await Promise.all([
-    lintWorkspace(workspaceRoot),
-    readCheckCurrency(workspaceRoot),
-  ]);
-  return checkLintResult(lint, currency);
+  const lineage = await readWorkspaceLineage(workspaceRoot);
+  const lint = await lintWorkspaceFromLineage(workspaceRoot, lineage);
+  return checkLintResult(lint, checkCurrencyFromLineage(lineage, lint));
 }
 
 export function checkLintResult(lint: LintResult, currency: CheckCurrency): CheckResult {
@@ -80,35 +76,35 @@ export function checkLintResult(lint: LintResult, currency: CheckCurrency): Chec
 }
 
 export async function readCheckCurrency(workspaceRoot: string): Promise<CheckCurrency> {
-  const configResult = await readWorkspaceConfig(workspaceRoot);
-  if (!configResult.ok) {
-    return { sealed: true, dangling: [] };
+  const lineage = await readWorkspaceLineage(workspaceRoot);
+  const lint = await lintWorkspaceFromLineage(workspaceRoot, lineage);
+  return checkCurrencyFromLineage(lineage, lint);
+}
+
+export function checkCurrencyFromLineage(
+  lineage: WorkspaceLineage,
+  lint: LintResult,
+): CheckCurrency {
+  const diagnostics = lint.issues.filter((issue) => issue.severity === "error");
+  if (diagnostics.length > 0) {
+    return { sealed: false, dangling: [], diagnostics };
   }
 
-  try {
-    const [scan, manifest, ledger] = await Promise.all([
-      scanConcepts(workspaceRoot, configResult.config),
-      readSourceManifest(workspaceRoot, configResult.config),
-      readReconciliationLedger(workspaceRoot, configResult.config),
-    ]);
-    const promotedBySource = new Map<string, string[]>();
-    for (const { sourceId, referencePath } of referenceSourceLinks(scan.files)) {
-      const paths = promotedBySource.get(sourceId) ?? [];
-      paths.push(referencePath);
-      promotedBySource.set(sourceId, paths);
-    }
-
-    const dangling = danglingReconciliations(manifest.entries, ledger.entries).flatMap((edge) => {
-      const promotedBy = [
-        ...(promotedBySource.get(edge.priorSourceId) ?? []),
-        ...(promotedBySource.get(edge.revisionSourceId) ?? []),
-      ];
-      return promotedBy.length === 0 ? [] : [{ ...edge, promotedBy: [...new Set(promotedBy)] }];
-    });
-    return { sealed: dangling.length === 0, dangling };
-  } catch {
-    return { sealed: true, dangling: [] };
+  const promotedBySource = new Map<string, string[]>();
+  for (const { sourceId, referencePath } of lineage.referenceLinks) {
+    const paths = promotedBySource.get(sourceId) ?? [];
+    paths.push(referencePath);
+    promotedBySource.set(sourceId, paths);
   }
+
+  const dangling = lineage.dangling.flatMap((edge) => {
+    const promotedBy = [
+      ...(promotedBySource.get(edge.priorSourceId) ?? []),
+      ...(promotedBySource.get(edge.revisionSourceId) ?? []),
+    ];
+    return promotedBy.length === 0 ? [] : [{ ...edge, promotedBy: [...new Set(promotedBy)] }];
+  });
+  return { sealed: dangling.length === 0, dangling, diagnostics };
 }
 
 function groupHarnessFindings(issues: LintIssue[]): Record<HarnessPriority, LintIssue[]> {
@@ -134,6 +130,7 @@ function harnessPriorityFor(issue: LintIssue): HarnessPriority {
     issue.code.startsWith("MANIFEST_") ||
     issue.code === SOURCE_HASH_DRIFT ||
     issue.code === SOURCE_MISSING ||
+    issue.code === WORKSPACE_READ_FAILED ||
     issue.code === REFERENCE_SOURCE_MISSING ||
     issue.code === RECONCILIATION_LEDGER_INVALID
   ) {
