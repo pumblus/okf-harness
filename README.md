@@ -5,6 +5,7 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 [![Local terminal](https://img.shields.io/badge/platform-local%20terminal-lightgrey.svg)](docs/CLI.md)
 [![BundleDex](https://bundledex.net/badge/okf-harness.svg)](https://bundledex.net/bundles/okf-harness/)
+[![OKF BundleDex](https://bundledex.net/static-badge.svg)](https://bundledex.net)
 
 English | [中文](README.zh-CN.md)
 
