@@ -409,6 +409,10 @@ _Avoid_: check status, OKF conformance severity, raw issue code
 The Harness-computed guarantee inside a workspace check that every promoted raw source has no unreconciled suspected revision. The seal is positive only when workspace validation has no error findings and no promoted source has a dangling reconciliation; otherwise the check reports the workspace as not sealed with deterministic diagnostics rather than a false seal. Currency is a report, never a write gate, and never changes the check status or exit code.
 _Avoid_: freshness score, agent-claimed currency, write gate, version ranking
 
+**Source reconciliation**:
+The agent-owned act of updating synthesized wiki content for a specific suspected source revision and recording that judgment through `okfh source reconcile`. Its acknowledgment applies only to that exact revision edge and never covers a later revision.
+_Avoid_: source review, blanket approval, manual ledger edit
+
 **Source status**:
 A coarse label for where a raw source stands in the knowledge workflow. It describes evidence handling and must not imply that concept documents have already been updated.
 _Avoid_: task status, progress tracker, ingest plan status
@@ -943,6 +947,16 @@ okfh source add https://example.com/article --workspace "$HOME/Documents/OKF Har
 File sources are copied under `raw/sources/YYYY/MM/` and recorded in `.okfh/manifest.jsonl` with a SHA-256 hash. URL sources record the URL as a source pointer. The current CLI does not fetch webpage contents automatically.
 
 Use `--dry-run` to see the planned source record without writing.
+
+##### source reconcile
+
+Records that an agent has reconciled one suspected source revision.
+
+```bash
+okfh source reconcile src_20260615_0001 src_20260615_0002 --note "Updated affected concept documents for the revision." --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+The first source id is the prior source and the second is its revision. `--note` is required and records the agent's judgment. Successful JSON output returns the recorded entry as `data.acknowledgement`. The manifest must support that exact suspected-revision edge; an acknowledgment does not cover a later revision.
 
 ##### source list
 

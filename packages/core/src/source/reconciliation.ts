@@ -177,6 +177,15 @@ export async function clearReconciliation(
     );
   }
 
+  const ledger = await readReconciliationLedger(workspaceRoot, config);
+  if (ledger.issues.length > 0) {
+    throw new SourceManagementError(
+      "Reconciliation ledger contains invalid rows.",
+      RECONCILIATION_LEDGER_INVALID,
+      workspaceRoot,
+    );
+  }
+
   const acknowledgement: ReconciliationAcknowledgement = {
     prior_source_id: edge.priorSourceId,
     revision_source_id: edge.revisionSourceId,

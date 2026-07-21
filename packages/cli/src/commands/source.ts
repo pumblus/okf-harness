@@ -1,5 +1,11 @@
 import path from "node:path";
-import { addSource, createIngestPlan, listSources, SourceManagementError } from "@okf-harness/core";
+import {
+  addSource,
+  clearReconciliation,
+  createIngestPlan,
+  listSources,
+  SourceManagementError,
+} from "@okf-harness/core";
 import type { Command } from "commander";
 import { writeCliError, writeValidationError } from "../errors/index.js";
 import { writeResult } from "../render/result.js";
@@ -11,14 +17,21 @@ export function registerSourceCommands(
   setExitCode: (code: number) => void,
 ): void {
   program
-    .command("source <action> [input]")
-    .description("Register and list OKF Harness raw sources.")
+    .command("source <action> [input] [revision]")
+    .description("Register, list, and reconcile OKF Harness raw sources.")
     .storeOptionsAsProperties(false)
     .requiredOption("--workspace <path>", "workspace path")
     .option("--dry-run", "return the planned source registration without writing files")
+    .option("--note <text>", "reconciliation judgment note")
     .option("--json", "write machine-readable JSON")
-    .action(async (actionInput: string, input: string | undefined, command: Command) => {
-      const options = command.opts() as { workspace: string; dryRun?: boolean; json?: boolean };
+    .action(async (...args: [string, string | undefined, string | undefined, Command]) => {
+      const [actionInput, input, revision, command] = args;
+      const options = command.opts() as {
+        workspace: string;
+        dryRun?: boolean;
+        note?: string;
+        json?: boolean;
+      };
       if (actionInput === "list") {
         try {
           const result = await listSources({ workspaceRoot: options.workspace });
@@ -50,11 +63,47 @@ export function registerSourceCommands(
         return;
       }
 
+      if (actionInput === "reconcile") {
+        try {
+          const result = await clearReconciliation({
+            workspaceRoot: options.workspace,
+            priorSourceId: input ?? "",
+            revisionSourceId: revision ?? "",
+            note: options.note ?? "",
+          });
+          const envelope: JsonEnvelope = {
+            ok: true,
+            command: "source reconcile",
+            workspace: result.workspaceRoot,
+            data: { acknowledgement: result.acknowledgement },
+            warnings: [],
+            next: ["Run okfh check --workspace <path> --json."],
+          };
+
+          writeResult(io, envelope, options.json);
+          setExitCode(0);
+        } catch (error) {
+          if (error instanceof SourceManagementError) {
+            writeCliError(io, {
+              command: "source reconcile",
+              error,
+              workspace: path.resolve(options.workspace),
+              next: ["Review the suspected revision, then rerun okfh source reconcile --json."],
+              json: options.json === true,
+            });
+            setExitCode(1);
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
       if (actionInput !== "add") {
         writeValidationError(io, {
           command: "source",
           code: "INVALID_SOURCE_ACTION",
-          message: "Source action must be one of: add, list.",
+          message: "Source action must be one of: add, list, reconcile.",
           workspace: path.resolve(options.workspace),
           next: ["Use okfh source add <path-or-url> --workspace <path> --json."],
           json: options.json === true,

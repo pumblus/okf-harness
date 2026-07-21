@@ -176,6 +176,10 @@ _Avoid_: check status, OKF conformance severity, raw issue code
 The Harness-computed guarantee inside a workspace check that every promoted raw source has no unreconciled suspected revision. The seal is positive only when workspace validation has no error findings and no promoted source has a dangling reconciliation; otherwise the check reports the workspace as not sealed with deterministic diagnostics rather than a false seal. Currency is a report, never a write gate, and never changes the check status or exit code.
 _Avoid_: freshness score, agent-claimed currency, write gate, version ranking
 
+**Source reconciliation**:
+The agent-owned act of updating synthesized wiki content for a specific suspected source revision and recording that judgment through `okfh source reconcile`. Its acknowledgment applies only to that exact revision edge and never covers a later revision.
+_Avoid_: source review, blanket approval, manual ledger edit
+
 **Source status**:
 A coarse label for where a raw source stands in the knowledge workflow. It describes evidence handling and must not imply that concept documents have already been updated.
 _Avoid_: task status, progress tracker, ingest plan status

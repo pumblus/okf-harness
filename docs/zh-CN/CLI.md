@@ -176,6 +176,16 @@ okfh source add https://example.com/article --workspace "$HOME/Documents/OKF Har
 
 用 `--dry-run` 查看计划注册的来源记录，不实际写入。
 
+### source reconcile
+
+记录智能体已完成一次疑似来源修订的对账。
+
+```bash
+okfh source reconcile src_20260615_0001 src_20260615_0002 --note "已根据修订更新受影响的概念文档。" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+第一个来源 ID 是先前版本，第二个是其修订版本。`--note` 必填，用于记录智能体的判断。成功的 JSON 输出会在 `data.acknowledgement` 中返回已记录的条目。Manifest 必须支持这条准确的疑似修订边；该对账记录不会覆盖后续修订。
+
 ### source list
 
 列出已注册的来源记录。

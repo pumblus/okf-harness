@@ -176,6 +176,16 @@ File sources are copied under `raw/sources/YYYY/MM/` and recorded in `.okfh/mani
 
 Use `--dry-run` to see the planned source record without writing.
 
+### source reconcile
+
+Records that an agent has reconciled one suspected source revision.
+
+```bash
+okfh source reconcile src_20260615_0001 src_20260615_0002 --note "Updated affected concept documents for the revision." --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+The first source id is the prior source and the second is its revision. `--note` is required and records the agent's judgment. Successful JSON output returns the recorded entry as `data.acknowledgement`. The manifest must support that exact suspected-revision edge; an acknowledgment does not cover a later revision.
+
 ### source list
 
 Lists registered source records.
