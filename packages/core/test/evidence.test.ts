@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -325,6 +325,74 @@ Hop Three Answer remains available.
           basis: expect.stringContaining("unregistered source id"),
         },
       ]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("seals every concept when the source manifest is invalid", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(path.join(workspace, ".okfh/manifest.jsonl"), "not-json\n", "utf8");
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+
+      expect(result.evidence).toEqual([]);
+      expect(result.candidates).toEqual([]);
+      expect(result.seals).toEqual([
+        {
+          code: "MANIFEST_INVALID",
+          sealed: ["references/karpathy-llm-wiki", "topics/llm-wiki"],
+          basis: expect.any(String),
+        },
+      ]);
+      expect(result.seals[0]).not.toHaveProperty("sourceId");
+      expect(result.seals[0]).not.toHaveProperty("sourcePath");
+      expect(result.limits).toEqual([]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("seals every concept when the workspace config is invalid", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await rename(path.join(workspace, "wiki"), path.join(workspace, "knowledge"));
+      const configPath = path.join(workspace, "okfh.config.yaml");
+      const config = await readFile(configPath, "utf8");
+      await writeFile(
+        configPath,
+        config
+          .replace("version: 0.1", "version: 1")
+          .replace("bundle_root: wiki", "bundle_root: knowledge")
+          .replace("wiki_root: wiki", "wiki_root: knowledge"),
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+
+      expect(result.evidence).toEqual([]);
+      expect(result.candidates).toEqual([]);
+      expect(result.seals).toEqual([
+        {
+          code: "CONFIG_INVALID",
+          sealed: ["references/karpathy-llm-wiki", "topics/llm-wiki"],
+          basis: expect.any(String),
+        },
+      ]);
+      expect(result.seals[0]).not.toHaveProperty("sourceId");
+      expect(result.seals[0]).not.toHaveProperty("sourcePath");
+      expect(result.limits).toEqual([]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

@@ -76,7 +76,7 @@ export type ConfigIssue = {
 
 export type WorkspaceConfigParseResult =
   | { ok: true; config: WorkspaceConfig }
-  | { ok: false; issues: ConfigIssue[] };
+  | { ok: false; issues: ConfigIssue[]; bundleRoot?: string };
 
 export class WorkspaceConfigError extends Error {
   readonly code = CONFIG_INVALID;
@@ -107,6 +107,7 @@ export function parseWorkspaceConfig(source: string): WorkspaceConfigParseResult
 
   const parsed = workspaceConfigSchema.safeParse(rawConfig);
   if (!parsed.success) {
+    const bundleRoot = bundleRootFromRawConfig(rawConfig);
     return {
       ok: false,
       issues: parsed.error.issues.map((issue) => ({
@@ -114,6 +115,7 @@ export function parseWorkspaceConfig(source: string): WorkspaceConfigParseResult
         path: issue.path.length > 0 ? issue.path.join(".") : "<root>",
         message: issue.message,
       })),
+      ...(bundleRoot === undefined ? {} : { bundleRoot }),
     };
   }
 
@@ -164,6 +166,18 @@ export async function loadWorkspaceConfig(workspaceRoot: string): Promise<Worksp
   }
 
   return result.config;
+}
+
+function bundleRootFromRawConfig(rawConfig: unknown): string | undefined {
+  if (typeof rawConfig !== "object" || rawConfig === null || Array.isArray(rawConfig)) {
+    return undefined;
+  }
+  const okf = (rawConfig as { okf?: unknown }).okf;
+  if (typeof okf !== "object" || okf === null || Array.isArray(okf)) {
+    return undefined;
+  }
+  const parsed = configRelativePathSchema.safeParse((okf as { bundle_root?: unknown }).bundle_root);
+  return parsed.success ? parsed.data : undefined;
 }
 
 function isSafeConfigRelativePath(value: string): boolean {

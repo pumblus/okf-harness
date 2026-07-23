@@ -58,7 +58,7 @@ export type ConceptScanResult = {
 
 export async function scanConcepts(
   workspaceRoot: string,
-  config: WorkspaceConfig,
+  config: { okf: Pick<WorkspaceConfig["okf"], "bundle_root"> },
 ): Promise<ConceptScanResult> {
   let wikiRoot: WorkspacePathResolution;
   let markdownFiles: OkfMarkdownFile[];

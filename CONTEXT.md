@@ -177,7 +177,7 @@ The Harness-computed guarantee inside a workspace check that every promoted raw 
 _Avoid_: freshness score, agent-claimed currency, write gate, version ranking
 
 **Consumption seal**:
-The Harness-computed refusal at the evidence answer layer when physical source damage is anchored by a missing source, changed source hash, or reference to an unregistered source. It withholds the affected reference document and concepts that cite it directly, records the factual basis, and never blocks writes, changes check status, or recommends a repair.
+The Harness-computed refusal at the evidence answer layer when physical source damage is anchored by a missing source, changed source hash, or reference to an unregistered source, or when an invalid config or source manifest leaves no trustworthy chain. Anchored seals withhold the affected reference document and concepts that cite it directly; unanchored seals withhold every concept document. Each seal records the factual basis and never blocks writes, changes check status, or recommends a repair.
 _Avoid_: currency seal, workspace lock, write barrier, automatic repair, semantic contamination analysis
 
 **Source reconciliation**:

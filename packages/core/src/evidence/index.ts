@@ -5,6 +5,7 @@ import {
   checkLintResult,
   type HarnessPriority,
 } from "../check/index.js";
+import { CONFIG_INVALID } from "../config/index.js";
 import { buildWorkspaceGraphData, type GraphBacklinksData } from "../graph/index.js";
 import { readWorkspaceLineage, type WorkspaceLineage } from "../lineage/index.js";
 import {
@@ -16,6 +17,7 @@ import {
   SOURCE_HASH_DRIFT,
   SOURCE_MISSING,
 } from "../lint/index.js";
+import { scanConcepts } from "../okf/concepts.js";
 import {
   type CitationIssue,
   type ReadCitation,
@@ -25,7 +27,7 @@ import {
 } from "../read/index.js";
 import type { SearchResultCard } from "../search/index.js";
 import { type SearchWorkspaceResult, searchWorkspace } from "../search/index.js";
-import type { SourceManifestEntry } from "../source/index.js";
+import { MANIFEST_INVALID, type SourceManifestEntry } from "../source/index.js";
 
 export type EvidenceCandidate = {
   item: number;
@@ -116,7 +118,9 @@ export type EvidenceWarning = SearchWorkspaceResult["warnings"][number] & {
 export type EvidenceSealCode =
   | typeof REFERENCE_SOURCE_MISSING
   | typeof SOURCE_HASH_DRIFT
-  | typeof SOURCE_MISSING;
+  | typeof SOURCE_MISSING
+  | typeof CONFIG_INVALID
+  | typeof MANIFEST_INVALID;
 
 export type EvidenceSeal = {
   code: EvidenceSealCode;
@@ -184,6 +188,7 @@ const maxEvidenceItems = 3;
 const defaultEvidenceBudgetPreset: EvidenceBudgetPreset = "standard";
 const evidenceRiskCodes = new Set([
   BROKEN_LINK,
+  CONFIG_INVALID,
   MISSING_CITATIONS_SECTION,
   REFERENCE_SOURCE_MISSING,
   SOURCE_HASH_DRIFT,
@@ -218,11 +223,55 @@ export async function planEvidenceBrief(
       okfConformanceFindings: check.okfConformance.findings,
     });
   }
+  const riskWarnings = evidenceRiskWarnings(check);
+  const unanchoredWarnings = riskWarnings.filter(
+    (
+      warning,
+    ): warning is EvidenceWarning & {
+      code: typeof CONFIG_INVALID | typeof MANIFEST_INVALID;
+    } => warning.code === CONFIG_INVALID || warning.code === MANIFEST_INVALID,
+  );
+  if (unanchoredWarnings.length > 0) {
+    const files =
+      lineage.config === undefined
+        ? (
+            await scanConcepts(workspaceRoot, {
+              okf: { bundle_root: lineage.bundleRoot ?? "wiki" },
+            })
+          ).files
+        : lineage.files;
+    const sealed = files
+      .filter((file) => !file.isReserved)
+      .map((file) => file.conceptId)
+      .sort();
+    return {
+      workspaceRoot,
+      question: options.question,
+      budget: {
+        preset: budget.preset,
+        maxChars: budget.maxChars,
+        override: budget.override,
+        usedChars: 0,
+      },
+      evidence: [],
+      candidates: [],
+      seals: unanchoredWarnings.map((warning) => ({
+        code: warning.code,
+        sealed,
+        basis: warning.message,
+      })),
+      limits: [],
+      guidance: [
+        "Treat this as a successful withheld-evidence result, not a command failure.",
+        "Do not answer from documents named by a seal.",
+      ],
+      warnings: riskWarnings,
+    };
+  }
   const [search, graph] = await Promise.all([
     searchWorkspace({ workspaceRoot, query: options.question }),
     buildWorkspaceGraphData({ workspaceRoot }),
   ]);
-  const riskWarnings = evidenceRiskWarnings(check);
   const seals = evidenceSeals(riskWarnings, lineage, graph);
   const sealedConceptIds = new Set(seals.flatMap((seal) => seal.sealed));
   const availableResults = search.results.filter(

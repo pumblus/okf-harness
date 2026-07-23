@@ -39,6 +39,7 @@ export type LineageIssue = {
  */
 export type WorkspaceLineage = {
   config: WorkspaceConfig | undefined;
+  bundleRoot: string | undefined;
   files: OkfMarkdownFile[];
   conceptCount: number;
   referenceLinks: ReferenceSourceLink[];
@@ -55,6 +56,7 @@ export async function readWorkspaceLineage(workspaceRoot: string): Promise<Works
   if (!configResult.ok) {
     return emptyLineage(
       undefined,
+      configResult.bundleRoot,
       configResult.issues.map((issue) => ({ ...issue, severity: "error" as const })),
     );
   }
@@ -100,6 +102,7 @@ export async function readWorkspaceLineage(workspaceRoot: string): Promise<Works
 
   return {
     config,
+    bundleRoot: config.okf.bundle_root,
     files: scan?.files ?? [],
     conceptCount: scan?.concepts.length ?? 0,
     referenceLinks: referenceFacts.links,
@@ -185,10 +188,12 @@ function deriveReferenceFacts(
 
 function emptyLineage(
   config: WorkspaceConfig | undefined,
+  bundleRoot: string | undefined,
   issues: LineageIssue[],
 ): WorkspaceLineage {
   return {
     config,
+    bundleRoot,
     files: [],
     conceptCount: 0,
     referenceLinks: [],
