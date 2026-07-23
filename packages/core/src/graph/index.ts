@@ -79,30 +79,37 @@ export type BuildWorkspaceGraphResult = {
   missingTargets: MissingGraphTarget[];
 };
 
-export async function buildWorkspaceGraph(
+export async function buildWorkspaceGraphData(
   options: BuildWorkspaceGraphOptions,
-): Promise<BuildWorkspaceGraphResult> {
+): Promise<GraphBacklinksData> {
   const workspaceRoot = path.resolve(options.workspaceRoot);
   const config = await loadWorkspaceConfig(workspaceRoot);
   const scanResult = await scanConcepts(workspaceRoot, config);
-  const nodes = scanResult.files.filter((file) => !file.isReserved).map(graphNodeFromFile);
-  const nodeIds = new Set(nodes.map((node) => node.id));
+  const files = scanResult.files.filter((file) => !file.isReserved);
+  const nodes = files.map(graphNodeFromFile);
   const { edges, missingTargets, issues } = graphEdgesFromFiles(
-    scanResult.files.filter((file) => !file.isReserved),
-    nodeIds,
+    files,
+    new Set(nodes.map((node) => node.id)),
   );
-  const backlinks = backlinksFromEdges(edges);
-  const backlinksPath = path.join(workspaceRoot, ".okfh/backlinks.json");
-  const htmlPath = path.join(workspaceRoot, ".okfh/reports/graph.html");
-  const data: GraphBacklinksData = {
+
+  return {
     generatedAt: (options.now ?? new Date()).toISOString(),
     workspaceRoot,
     nodes,
     edges,
-    backlinks,
+    backlinks: backlinksFromEdges(edges),
     issues,
     missingTargets,
   };
+}
+
+export async function buildWorkspaceGraph(
+  options: BuildWorkspaceGraphOptions,
+): Promise<BuildWorkspaceGraphResult> {
+  const data = await buildWorkspaceGraphData(options);
+  const { workspaceRoot, nodes, edges, issues, missingTargets } = data;
+  const backlinksPath = path.join(workspaceRoot, ".okfh/backlinks.json");
+  const htmlPath = path.join(workspaceRoot, ".okfh/reports/graph.html");
 
   try {
     await mkdir(path.dirname(backlinksPath), { recursive: true });
@@ -187,7 +194,8 @@ function graphEdgesFromFiles(
       const edge: GraphEdge = {
         from: file.conceptId,
         to: conceptId,
-        kind: target.kind,
+        kind:
+          target.kind === "citation" || conceptId.startsWith("references/") ? "citation" : "link",
       };
       edges.set(`${edge.from}\0${edge.to}\0${edge.kind}`, edge);
     }

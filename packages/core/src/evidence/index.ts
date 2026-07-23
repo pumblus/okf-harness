@@ -1,8 +1,16 @@
 import path from "node:path";
-import { type CheckResult, checkWorkspace, type HarnessPriority } from "../check/index.js";
+import {
+  type CheckResult,
+  checkCurrencyFromLineage,
+  checkLintResult,
+  type HarnessPriority,
+} from "../check/index.js";
+import { buildWorkspaceGraphData, type GraphBacklinksData } from "../graph/index.js";
+import { readWorkspaceLineage, type WorkspaceLineage } from "../lineage/index.js";
 import {
   BROKEN_LINK,
   type LintIssue,
+  lintWorkspaceFromLineage,
   MISSING_CITATIONS_SECTION,
   REFERENCE_SOURCE_MISSING,
   SOURCE_HASH_DRIFT,
@@ -105,6 +113,19 @@ export type EvidenceWarning = SearchWorkspaceResult["warnings"][number] & {
   priority?: HarnessPriority;
 };
 
+export type EvidenceSealCode =
+  | typeof REFERENCE_SOURCE_MISSING
+  | typeof SOURCE_HASH_DRIFT
+  | typeof SOURCE_MISSING;
+
+export type EvidenceSeal = {
+  code: EvidenceSealCode;
+  sourceId?: string;
+  sourcePath?: string;
+  sealed: string[];
+  basis: string;
+};
+
 export type EvidenceBriefResult = {
   workspaceRoot: string;
   question: string;
@@ -116,6 +137,7 @@ export type EvidenceBriefResult = {
   };
   evidence: EvidenceItem[];
   candidates: EvidenceCandidate[];
+  seals: EvidenceSeal[];
   limits: EvidenceLimit[];
   guidance: string[];
   warnings: EvidenceWarning[];
@@ -188,19 +210,26 @@ export async function planEvidenceBrief(
 ): Promise<EvidenceBriefResult> {
   const workspaceRoot = path.resolve(options.workspaceRoot);
   const budget = resolveEvidenceBudget(options);
-  const check = await checkWorkspace(workspaceRoot);
+  const lineage = await readWorkspaceLineage(workspaceRoot);
+  const lint = await lintWorkspaceFromLineage(workspaceRoot, lineage);
+  const check = checkLintResult(lint, checkCurrencyFromLineage(lineage, lint));
   if (check.status === "blocked") {
     throw new EvidenceWorkspaceBlockedError({
       okfConformanceFindings: check.okfConformance.findings,
     });
   }
-  const search = await searchWorkspace({
-    workspaceRoot,
-    query: options.question,
-  });
+  const [search, graph] = await Promise.all([
+    searchWorkspace({ workspaceRoot, query: options.question }),
+    buildWorkspaceGraphData({ workspaceRoot }),
+  ]);
   const riskWarnings = evidenceRiskWarnings(check);
-  const evidenceResults = search.results.slice(0, maxEvidenceItems);
-  const candidates = search.results.slice(maxEvidenceItems).map((result, index) => ({
+  const seals = evidenceSeals(riskWarnings, lineage, graph);
+  const sealedConceptIds = new Set(seals.flatMap((seal) => seal.sealed));
+  const availableResults = search.results.filter(
+    (result) => !sealedConceptIds.has(result.conceptId),
+  );
+  const evidenceResults = availableResults.slice(0, maxEvidenceItems);
+  const candidates = availableResults.slice(maxEvidenceItems).map((result, index) => ({
     item: maxEvidenceItems + index + 1,
     conceptId: result.conceptId,
     path: result.path,
@@ -229,23 +258,26 @@ export async function planEvidenceBrief(
     },
     evidence,
     candidates,
-    limits: [
-      ...evidenceLimits(search.totalMatches, truncated),
-      ...workspaceRiskLimits(riskWarnings),
-    ],
+    seals,
+    limits: evidenceLimits(search.totalMatches, truncated),
     guidance:
       search.totalMatches === 0
         ? [
             "Treat this as a successful no-match result, not a command failure.",
             "Disclose that the synthesized wiki has no evidence for the question unless the user asks to broaden the search.",
           ]
-        : [
-            "Use selected evidence excerpts as the bounded answer context.",
-            "Use thin candidates only for bounded follow-up reads; do not treat unselected candidates as evidence.",
-            ...(truncated
-              ? ["Follow continuation cues with bounded okfh read calls only when needed."]
-              : []),
-          ],
+        : availableResults.length === 0
+          ? [
+              "Treat this as a successful withheld-evidence result, not a command failure.",
+              "Do not answer from documents named by a seal.",
+            ]
+          : [
+              "Use selected evidence excerpts as the bounded answer context.",
+              "Use thin candidates only for bounded follow-up reads; do not treat unselected candidates as evidence.",
+              ...(truncated
+                ? ["Follow continuation cues with bounded okfh read calls only when needed."]
+                : []),
+            ],
     warnings: [...search.warnings, ...riskWarnings],
   };
 }
@@ -548,16 +580,88 @@ function evidenceLimits(totalMatches: number, truncated: boolean): EvidenceLimit
     : [];
 }
 
-function workspaceRiskLimits(warnings: EvidenceWarning[]): EvidenceLimit[] {
-  return warnings.length === 0
-    ? []
-    : [
-        {
-          code: "WORKSPACE_RISK",
-          message:
-            "Harness lint reported citation, provenance, or source-integrity risk; evidence was still returned because the wiki is readable.",
-        },
-      ];
+function evidenceSeals(
+  warnings: EvidenceWarning[],
+  lineage: WorkspaceLineage,
+  graph: GraphBacklinksData,
+): EvidenceSeal[] {
+  const referencesBySource = new Map<string, Set<string>>();
+  for (const { sourceId, referencePath } of lineage.referenceLinks) {
+    const paths = referencesBySource.get(sourceId) ?? new Set<string>();
+    paths.add(referencePath);
+    referencesBySource.set(sourceId, paths);
+  }
+  const conceptIdByPath = new Map(graph.nodes.map((node) => [node.path, node.id]));
+
+  return warnings
+    .flatMap((warning): EvidenceSeal[] => {
+      if (warning.code === SOURCE_MISSING || warning.code === SOURCE_HASH_DRIFT) {
+        const source = lineage.manifestEntries.find((entry) => entry.path === warning.path);
+        return source === undefined
+          ? []
+          : [
+              sealForReferencePaths(
+                warning.code,
+                warning,
+                source.id,
+                source.path,
+                referencesBySource.get(source.id) ?? new Set(),
+                conceptIdByPath,
+                graph,
+              ),
+            ];
+      }
+      if (warning.code !== REFERENCE_SOURCE_MISSING || warning.path === undefined) {
+        return [];
+      }
+      return lineage.referenceLinks
+        .filter((link) => link.referencePath === warning.path)
+        .map((link) =>
+          sealForReferencePaths(
+            REFERENCE_SOURCE_MISSING,
+            warning,
+            link.sourceId,
+            undefined,
+            new Set([link.referencePath]),
+            conceptIdByPath,
+            graph,
+          ),
+        );
+    })
+    .sort(
+      (left, right) =>
+        left.code.localeCompare(right.code) ||
+        (left.sourceId ?? "").localeCompare(right.sourceId ?? ""),
+    );
+}
+
+function sealForReferencePaths(
+  code: EvidenceSealCode,
+  warning: EvidenceWarning,
+  sourceId: string,
+  sourcePath: string | undefined,
+  referencePaths: Set<string>,
+  conceptIdByPath: Map<string, string>,
+  graph: GraphBacklinksData,
+): EvidenceSeal {
+  const referenceIds = new Set(
+    [...referencePaths]
+      .map((referencePath) => conceptIdByPath.get(referencePath))
+      .filter((conceptId): conceptId is string => conceptId !== undefined),
+  );
+  const sealed = new Set(referenceIds);
+  for (const edge of graph.edges) {
+    if (edge.kind === "citation" && referenceIds.has(edge.to)) {
+      sealed.add(edge.from);
+    }
+  }
+  return {
+    code,
+    sourceId,
+    ...(sourcePath === undefined ? {} : { sourcePath }),
+    sealed: [...sealed].sort(),
+    basis: warning.message,
+  };
 }
 
 function evidenceRiskWarnings(check: CheckResult): EvidenceWarning[] {

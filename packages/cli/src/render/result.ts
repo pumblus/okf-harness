@@ -1,4 +1,4 @@
-import type { CheckResult } from "@okf-harness/core";
+import type { CheckResult, EvidenceBriefResult } from "@okf-harness/core";
 import type { CliIo, JsonEnvelope } from "../types.js";
 
 export function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): void {
@@ -64,6 +64,21 @@ function renderHumanResult(envelope: JsonEnvelope): string {
     });
     const summary = `Found ${data.totalMatches ?? rows.length}${data.truncated ? " (truncated)" : ""}`;
     return `${summary}\n${rows.join("\n")}${rows.length > 0 ? "\n" : ""}`;
+  }
+
+  if (envelope.command === "evidence") {
+    const data = envelope.data as Partial<EvidenceBriefResult>;
+    const rows = [
+      `Evidence: ${data.evidence?.length ?? 0}`,
+      `Candidates: ${data.candidates?.length ?? 0}`,
+    ];
+    for (const seal of data.seals ?? []) {
+      const anchor = [seal.sourceId, seal.sourcePath].filter(Boolean).join(" ");
+      rows.push(`Seal ${seal.code}${anchor.length > 0 ? `: ${anchor}` : ""}`);
+      rows.push(`- Sealed: ${seal.sealed.join(", ") || "(none)"}`);
+      rows.push(`- Basis: ${seal.basis}`);
+    }
+    return `${rows.join("\n")}\n`;
   }
 
   if (envelope.command === "read") {

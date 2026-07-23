@@ -1,8 +1,9 @@
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { planEvidenceBrief } from "../src/evidence/index.js";
+import { addSource } from "../src/source/index.js";
 import { validWorkspaceFixture } from "./helpers.js";
 
 describe("OKF evidence brief planning", () => {
@@ -23,6 +24,7 @@ describe("OKF evidence brief planning", () => {
       },
       evidence: [],
       candidates: [],
+      seals: [],
       limits: [
         {
           code: "NO_MATCHES",
@@ -155,7 +157,8 @@ An LLM Wiki keeps raw sources separate from synthesized concept pages.
         sourceIds: [],
         sources: [],
       });
-      expect(result.limits).toEqual(
+      expect(result.seals).toEqual([]);
+      expect(result.limits).not.toEqual(
         expect.arrayContaining([expect.objectContaining({ code: "WORKSPACE_RISK" })]),
       );
       expect(result.warnings).toEqual(
@@ -167,7 +170,93 @@ An LLM Wiki keeps raw sources separate from synthesized concept pages.
     }
   });
 
-  it("returns readable evidence with source-integrity lint risk", async () => {
+  it("withholds the two-hop chain for a missing source while returning unrelated and hop-3 concepts", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      const topicPath = path.join(workspace, "wiki/topics/llm-wiki.md");
+      const topic = await readFile(topicPath, "utf8");
+      await writeFile(
+        topicPath,
+        topic.replace(
+          "- /references/karpathy-llm-wiki.md",
+          "- [Karpathy LLM Wiki](/references/karpathy-llm-wiki.md)",
+        ),
+        "utf8",
+      );
+      await rm(path.join(workspace, "raw/sources/2026/06/karpathy-llm-wiki.md"));
+
+      const sealed = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+      const seal = sealed.seals[0];
+
+      expect(sealed.evidence).toEqual([]);
+      expect(sealed.candidates).toEqual([]);
+      expect(seal).toEqual({
+        code: "SOURCE_MISSING",
+        sourceId: "src_20260615_0001",
+        sourcePath: "raw/sources/2026/06/karpathy-llm-wiki.md",
+        sealed: ["references/karpathy-llm-wiki", "topics/llm-wiki"],
+        basis: expect.stringContaining("Registered source is missing"),
+      });
+      expect(seal).not.toHaveProperty("remedy");
+      expect(seal).not.toHaveProperty("suggestion");
+      expect(seal).not.toHaveProperty("nextStep");
+      expect(sealed.limits).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: "WORKSPACE_RISK" })]),
+      );
+
+      await writeFile(
+        path.join(workspace, "wiki/topics/unrelated.md"),
+        `---
+type: Topic
+title: Unrelated Answer
+description: Unrelated answer fixture.
+---
+# Overview
+
+Unrelated Answer remains available.
+`,
+        "utf8",
+      );
+      await writeFile(
+        path.join(workspace, "wiki/topics/hop-three.md"),
+        `---
+type: Topic
+title: Hop Three Answer
+description: Hop-three answer fixture.
+---
+# Overview
+
+Hop Three Answer remains available.
+
+# Citations
+
+- /topics/llm-wiki.md
+`,
+        "utf8",
+      );
+
+      const unrelated = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "Unrelated Answer",
+      });
+      expect(unrelated.evidence.map(({ conceptId }) => conceptId)).toContain("topics/unrelated");
+
+      const hopThree = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "Hop Three Answer",
+      });
+      expect(hopThree.evidence.map(({ conceptId }) => conceptId)).toContain("topics/hop-three");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("withholds the same chain when a registered source hash drifts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
     const workspace = path.join(root, "workspace");
     await cp(validWorkspaceFixture, workspace, { recursive: true });
@@ -183,10 +272,17 @@ An LLM Wiki keeps raw sources separate from synthesized concept pages.
         question: "LLM Wiki",
       });
 
-      expect(result.evidence[0]?.conceptId).toBe("topics/llm-wiki");
-      expect(result.limits).toEqual(
-        expect.arrayContaining([expect.objectContaining({ code: "WORKSPACE_RISK" })]),
-      );
+      expect(result.evidence).toEqual([]);
+      expect(result.candidates).toEqual([]);
+      expect(result.seals).toEqual([
+        {
+          code: "SOURCE_HASH_DRIFT",
+          sourceId: "src_20260615_0001",
+          sourcePath: "raw/sources/2026/06/karpathy-llm-wiki.md",
+          sealed: ["references/karpathy-llm-wiki", "topics/llm-wiki"],
+          basis: expect.stringContaining("Registered source hash changed"),
+        },
+      ]);
       expect(result.warnings).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -201,7 +297,89 @@ An LLM Wiki keeps raw sources separate from synthesized concept pages.
     }
   });
 
-  it("returns selected evidence plus additional thin candidates in the same brief", async () => {
+  it("withholds the same chain when a reference names an unregistered source", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      const referencePath = path.join(workspace, "wiki/references/karpathy-llm-wiki.md");
+      const reference = await readFile(referencePath, "utf8");
+      await writeFile(
+        referencePath,
+        reference.replace("src_20260615_0001", "src_20260615_9999"),
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+
+      expect(result.evidence).toEqual([]);
+      expect(result.candidates).toEqual([]);
+      expect(result.seals).toEqual([
+        {
+          code: "REFERENCE_SOURCE_MISSING",
+          sourceId: "src_20260615_9999",
+          sealed: ["references/karpathy-llm-wiki", "topics/llm-wiki"],
+          basis: expect.stringContaining("unregistered source id"),
+        },
+      ]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not seal broken links, unregistered raw files, or pending reconciliation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(
+        path.join(workspace, "raw/sources/2026/06/unregistered.md"),
+        "# Unregistered\n",
+        "utf8",
+      );
+      await writeFile(path.join(workspace, "karpathy-llm-wiki.md"), "# Revised source\n", "utf8");
+      await addSource({
+        workspaceRoot: workspace,
+        input: path.join(workspace, "karpathy-llm-wiki.md"),
+      });
+      await writeFile(
+        path.join(workspace, "wiki/topics/llm-wiki.md"),
+        `---
+type: Topic
+title: LLM Wiki
+description: Local markdown bundle maintained by an agent.
+tags: [llm-wiki, okf]
+timestamp: "2026-06-15T12:00:00-07:00"
+---
+
+# Overview
+
+An LLM Wiki keeps raw sources separate from synthesized concept pages.
+See [missing topic](/topics/missing.md).
+
+# Citations
+
+- /references/karpathy-llm-wiki.md
+`,
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+
+      expect(result.evidence.map(({ conceptId }) => conceptId)).toContain("topics/llm-wiki");
+      expect(result.seals).toEqual([]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns thin candidates without letting sealed matches reappear", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
     const workspace = path.join(root, "workspace");
     await cp(validWorkspaceFixture, workspace, { recursive: true });
@@ -224,6 +402,27 @@ Candidate Proof ${suffix.toUpperCase()} keeps candidate cards thin.
           "utf8",
         );
       }
+      await writeFile(
+        path.join(workspace, "wiki/topics/llm-wiki.md"),
+        `---
+type: Topic
+title: Candidate Proof Z
+description: Candidate Proof sealed fixture.
+tags: [candidate-proof]
+timestamp: "2026-06-15T12:00:00-07:00"
+---
+
+# Overview
+
+Candidate Proof Z must not return as evidence or a candidate.
+
+# Citations
+
+- /references/karpathy-llm-wiki.md
+`,
+        "utf8",
+      );
+      await rm(path.join(workspace, "raw/sources/2026/06/karpathy-llm-wiki.md"));
 
       const result = await planEvidenceBrief({
         workspaceRoot: workspace,
@@ -258,6 +457,15 @@ Candidate Proof ${suffix.toUpperCase()} keeps candidate cards thin.
       expect(result.evidence[0]?.excerpt).toContain(
         "Candidate Proof A keeps candidate cards thin.",
       );
+      expect(result.seals).toEqual([
+        expect.objectContaining({
+          code: "SOURCE_MISSING",
+          sealed: ["references/karpathy-llm-wiki", "topics/llm-wiki"],
+        }),
+      ]);
+      expect(
+        [...result.evidence, ...result.candidates].map(({ conceptId }) => conceptId),
+      ).not.toContain("topics/llm-wiki");
       for (const candidate of result.candidates) {
         expect(candidate).not.toHaveProperty("excerpt");
       }

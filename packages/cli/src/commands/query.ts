@@ -109,7 +109,11 @@ export function registerQueryCommands(
           warnings,
           next: result.limits.some((limit) => limit.code === "NO_MATCHES")
             ? ["Try broader keywords only if the user asks to broaden the evidence search."]
-            : ["Run okfh read <concept-id> --json only for a bounded follow-up."],
+            : result.evidence.length === 0 &&
+                result.candidates.length === 0 &&
+                result.seals.length > 0
+              ? []
+              : ["Run okfh read <concept-id> --json only for a bounded follow-up."],
         };
         writeResult(io, envelope, options.json);
         setExitCode(0);

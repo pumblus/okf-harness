@@ -409,6 +409,10 @@ _Avoid_: check status, OKF conformance severity, raw issue code
 The Harness-computed guarantee inside a workspace check that every promoted raw source has no unreconciled suspected revision. The seal is positive only when workspace validation has no error findings and no promoted source has a dangling reconciliation; otherwise the check reports the workspace as not sealed with deterministic diagnostics rather than a false seal. Currency is a report, never a write gate, and never changes the check status or exit code.
 _Avoid_: freshness score, agent-claimed currency, write gate, version ranking
 
+**Consumption seal**:
+The Harness-computed refusal at the evidence answer layer when physical source damage is anchored by a missing source, changed source hash, or reference to an unregistered source. It withholds the affected reference document and concepts that cite it directly, records the factual basis, and never blocks writes, changes check status, or recommends a repair.
+_Avoid_: currency seal, workspace lock, write barrier, automatic repair, semantic contamination analysis
+
 **Source reconciliation**:
 The agent-owned act of updating synthesized wiki content for a specific suspected source revision and recording that judgment through `okfh source reconcile`. Its acknowledgment applies only to that exact revision edge and never covers a later revision.
 _Avoid_: source review, blanket approval, manual ledger edit
@@ -1015,9 +1019,13 @@ Options:
 - `--budget compact|standard|large` selects a deterministic evidence-text character budget. Use compact around 256k, standard around 400k, and large around 1M when either the model or agent client has that context window. These are selection guides, not token estimates or guarantees that the full JSON fits a context window.
 - `--max-chars <number>` overrides the preset with an explicit evidence-text character limit.
 
-The JSON data echoes the question and returns `budget`, selected `evidence`, thin `candidates`, `limits`, and short `guidance`. Empty evidence is a successful result when the workspace is readable: `ok` stays `true`, `evidence` is empty, and `limits` includes a mechanical no-match code.
+The JSON data echoes the question and returns `budget`, selected `evidence`, thin `candidates`, `seals`, `limits`, and short `guidance`. Empty evidence is successful when the workspace is readable: an ordinary miss includes `NO_MATCHES`, while a fully sealed result keeps `ok: true` without returning the damaged documents.
 
-`limits` reports mechanical boundaries such as no matches, truncation, or workspace citation and provenance risk. The agent decides whether the evidence is enough to answer. Evidence items include provenance pointers under `provenance`: citations, citation issues, reference pages, source IDs, and safe source-manifest metadata. Normal answer workflows use the synthesized `wiki/` excerpts returned by evidence and do not read `raw/` source bodies.
+When a registered source is missing, its hash has drifted, or a reference names an unregistered source, evidence withholds that reference document and concepts that cite it directly. Concepts that cite only a sealed concept remain available. Sealed documents are also excluded from `candidates`, so unrelated documents in the same workspace can still be returned.
+
+Each `seals` entry carries the condition `code`, source anchor (`sourceId` and `sourcePath` when registered), affected concept IDs under `sealed`, and a factual `basis`. It contains no repair advice. Human output shows the same seal fields. `limits` now reports only mechanical boundaries such as no matches or truncation; these physical source-damage conditions are carried by `seals`, not `WORKSPACE_RISK`.
+
+The agent decides whether the remaining evidence is enough to answer. Evidence items include provenance pointers under `provenance`: citations, citation issues, reference pages, source IDs, and safe source-manifest metadata. Normal answer workflows use the synthesized `wiki/` excerpts returned by evidence and do not read `raw/` source bodies.
 
 When an evidence item is truncated, its `range` includes `contentLength`, `returnedChars`, and `truncated`, and `continuationCues` gives a bounded `okfh read` command with `--offset` and `--limit`. Use search and read as lower-level tools for retrieval debugging, candidate inspection, or one bounded continuation.
 
