@@ -277,11 +277,9 @@ The wiki is kept current instead of being re-derived on every query.
     try {
       // Legacy workspaces predate automatic recovery: one has no substrate at
       // all, the other only the retired opt-in flag's initialized substrate.
-      const legacy = ["bare", "initialized"].map((kind) => ({
-        kind,
-        workspace: path.join(root, `workspace-${kind}`),
-      }));
-      for (const { workspace } of legacy) {
+      const initialized = path.join(root, "workspace-initialized");
+      const legacy = [path.join(root, "workspace-bare"), initialized];
+      for (const workspace of legacy) {
         await runJsonCli([
           "node",
           "okfh",
@@ -297,10 +295,10 @@ The wiki is kept current instead of being re-derived on every query.
         await rm(path.join(workspace, ".git"), { recursive: true, force: true });
       }
       // The retired flag left an initialized substrate without any revisions.
-      await execFileAsync("git", ["init", "--quiet"], { cwd: legacy[1]!.workspace });
+      await execFileAsync("git", ["init", "--quiet"], { cwd: initialized });
 
-      for (const { kind, workspace } of legacy) {
-        const judgment = `First completion of the ${kind} legacy workspace.`;
+      for (const [index, workspace] of legacy.entries()) {
+        const judgment = `First completion of legacy workspace ${index + 1}.`;
         const checkpoint = await runJsonCli([
           "node",
           "okfh",

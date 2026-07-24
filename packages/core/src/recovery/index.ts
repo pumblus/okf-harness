@@ -53,14 +53,7 @@ export async function initializeRecovery(workspaceRootInput: string): Promise<vo
   await runRecoveryCommand(workspaceRoot, ["add", "--all"], "initialize", env);
   await runRecoveryCommand(
     workspaceRoot,
-    [
-      ...RECOVERY_AUTHOR_FLAGS,
-      "commit",
-      "--quiet",
-      "--no-verify",
-      "-m",
-      INITIAL_RECOVERY_SUBJECT,
-    ],
+    [...RECOVERY_AUTHOR_FLAGS, "commit", "--quiet", "--no-verify", "-m", INITIAL_RECOVERY_SUBJECT],
     "initialize",
     env,
   );
