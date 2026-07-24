@@ -24,7 +24,7 @@ Requirements for normal use:
 
 - macOS, Windows, or Linux
 - Node.js 22 or newer
-- workspace recovery support (verified by setup or `okfh doctor --json`)
+- workspace recovery dependency (checked by setup or `okfh doctor --json`)
 - `@okf-harness/cli`
 
 Repository development additionally requires `pnpm`; check that environment with `okfh doctor --dev --json`.
@@ -66,7 +66,7 @@ For workspace `status` and `check`, `next` reports the top-priority Workspace ne
 
 ### doctor
 
-Checks the running CLI, Node.js, workspace recovery support, runtime platform, native host CLI detection, legacy bootstrap fallback status, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
+Checks the running CLI, Node.js, the workspace recovery dependency, runtime platform, native host CLI detection, legacy bootstrap fallback status, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
 
 ```bash
 okfh doctor --json
@@ -97,7 +97,7 @@ Workspace recovery is established automatically and remains internal. Use the ad
 
 ### history
 
-Lists completed workspace changes newest first. Each entry contains an opaque completion id and the stored judgment. A new workspace has no completed maintenance cycles, so it returns an empty list and exits successfully.
+Lists workspace completions newest first. Each completion contains an opaque completion id and its stored judgment. A new workspace has no completions, so it returns an empty list and exits successfully.
 
 ```bash
 okfh history --workspace "$HOME/Documents/OKF Harness/ai-research" --json

@@ -18,7 +18,7 @@ Try without a global install:
 npx --package @okf-harness/cli okfh doctor --json
 ```
 
-Runtime requirements are macOS, Windows, or Linux; Node.js 22 or newer; workspace recovery support reported by `okfh doctor --json`; and this package. Repository development additionally requires `pnpm` and can be checked with `okfh doctor --dev --json`.
+Runtime requirements are macOS, Windows, or Linux; Node.js 22 or newer; the workspace recovery dependency checked by `okfh doctor --json`; and this package. Repository development additionally requires `pnpm` and can be checked with `okfh doctor --dev --json`.
 
 Direct CLI install does not write agent bootstrap entrypoints. Use `@okf-harness/setup` or a native agent integration for ordinary first setup, and use `okfh doctor --json` or `okfh bootstrap` only when diagnostics or legacy fallback repair need the CLI.
 

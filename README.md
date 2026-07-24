@@ -56,7 +56,7 @@ Already have Node.js 22 or newer?
 npx @okf-harness/setup@latest
 ```
 
-Normal use needs Node.js 22 or newer, workspace recovery support verified by setup, the shared `okfh` runtime, and at least one supported agent integration. Repository development additionally needs `pnpm`.
+Normal use needs Node.js 22 or newer, the workspace recovery dependency checked by setup, the shared `okfh` runtime, and at least one supported agent integration. Repository development additionally needs `pnpm`.
 
 Setup installs or updates the shared global `okfh` runtime after confirmation, detects supported agent clients, and installs the selected native integrations. Direct native install paths are available for users who already know their agent:
 

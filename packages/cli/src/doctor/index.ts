@@ -101,8 +101,8 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     await checkExecutable("git", ["--version"], {
       id: "runtime-recovery",
       label: "Workspace recovery",
-      publicName: "workspace recovery",
-      missingMessage: "workspace recovery support is unavailable.",
+      publicExecutableName: "workspace recovery",
+      missingMessage: "workspace recovery dependency is unavailable.",
       runtimePlatform,
       runExecutable,
     }),
@@ -261,7 +261,7 @@ async function checkExecutable(
     label: string;
     missingMessage: string;
     outputPrefix?: string | undefined;
-    publicName?: string | undefined;
+    publicExecutableName?: string | undefined;
     runtimePlatform: NodeJS.Platform | string;
     runExecutable: RunExecutable;
   },
@@ -276,12 +276,12 @@ async function checkExecutable(
       label: options.label,
       status: "pass",
       message:
-        options.publicName !== undefined
-          ? `Runtime check passed: ${options.publicName} is available.`
+        options.publicExecutableName !== undefined
+          ? `Runtime check passed: ${options.publicExecutableName} is available.`
           : output.length > 0
             ? `Runtime check passed: ${options.outputPrefix ?? ""}${output}`
             : `Runtime check passed: ${executable} is available.`,
-      details: { executable: options.publicName ?? executable },
+      details: { executable: options.publicExecutableName ?? executable },
     };
   } catch (error) {
     const code = nodeErrorCode(error);
@@ -292,14 +292,14 @@ async function checkExecutable(
       message:
         code === "ENOENT"
           ? `Runtime check failed: ${options.missingMessage}`
-          : `Runtime check failed: ${options.publicName ?? executable} check failed.`,
+          : `Runtime check failed: ${options.publicExecutableName ?? executable} check failed.`,
       details:
-        options.publicName === undefined
+        options.publicExecutableName === undefined
           ? {
               executable,
               error: error instanceof Error ? error.message : String(error),
             }
-          : { executable: options.publicName },
+          : { executable: options.publicExecutableName },
     };
   }
 }

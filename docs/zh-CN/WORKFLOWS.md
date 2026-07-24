@@ -40,7 +40,7 @@ irm https://okf-harness.dev/install.ps1 | iex
 npx @okf-harness/setup@latest
 ```
 
-普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、由 setup 验证的工作区恢复支持、共享的 `okfh` 运行时，以及一个受支持的原生智能体集成。`pnpm` 只用于仓库开发。
+普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、由 setup 检查的工作区恢复依赖、共享的 `okfh` 运行时，以及一个受支持的原生智能体集成。`pnpm` 只用于仓库开发。
 
 ## 从你的智能体开始
 

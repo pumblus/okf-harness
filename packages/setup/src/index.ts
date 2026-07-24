@@ -259,7 +259,7 @@ async function createSetupPlan(
     warnings:
       recoverySupport === undefined
         ? [
-            "Warning: workspace recovery support is unavailable, but native integration planning can continue.",
+            "Warning: workspace recovery dependency is unavailable, but native integration planning can continue.",
           ]
         : [],
     agents,

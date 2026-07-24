@@ -82,7 +82,7 @@ Already have Node.js 22 or newer?
 npx @okf-harness/setup@latest
 ```
 
-Normal use needs Node.js 22 or newer, workspace recovery support verified by setup, the shared `okfh` runtime, and at least one supported agent integration. Repository development additionally needs `pnpm`.
+Normal use needs Node.js 22 or newer, the workspace recovery dependency checked by setup, the shared `okfh` runtime, and at least one supported agent integration. Repository development additionally needs `pnpm`.
 
 Setup installs or updates the shared global `okfh` runtime after confirmation, detects supported agent clients, and installs the selected native integrations. Direct native install paths are available for users who already know their agent:
 
@@ -401,6 +401,18 @@ _Avoid_: exit code, lint severity, raw issue list
 A person-facing concrete next action OKF Harness reports for a workspace's current state, especially to help a person continue the first useful loop. It is based on local, deterministic workspace facts such as check status, registered sources, and synthesized wiki content, and should be phrased so the person can hand it to their agent as the next request.
 _Avoid_: state machine, onboarding progress, auto-fix, task list, semantic score
 
+**Workspace recovery**:
+The local capability that records completed workspace states and lets an agent list or revisit them through closed Harness verbs. It remains internal to workspace operation and stays outside the wiki and normal evidence path.
+_Avoid_: backup product, wiki history, user-facing version control
+
+**Completion**:
+A known-good full workspace state recorded when a maintenance cycle completes. It has an opaque completion id and stores only the non-reproducible judgment for that cycle; the initialization baseline is not a completion.
+_Avoid_: individual write, intermediate edit, proposal, raw internal identifier
+
+**Completion history**:
+The newest-first computed list of workspace completions returned by `okfh history`, containing each opaque completion id and stored judgment. It is recovery context, not knowledge evidence or a second history file.
+_Avoid_: wiki log, evidence source, diff feed, audit file
+
 **Harness priority**:
 The priority assigned to Harness lint findings inside a workspace check. High priority covers evidence integrity problems such as source drift, missing registered sources, or reference documents that cannot be tied to source records; medium priority covers maintenance gaps such as ordinary missing citations or missing index entries; low priority covers tolerated navigation or cleanup issues such as broken links.
 _Avoid_: check status, OKF conformance severity, raw issue code
@@ -627,7 +639,7 @@ Already have Node.js 22 or newer?
 npx @okf-harness/setup@latest
 ```
 
-Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; workspace recovery support verified by setup; the shared `okfh` runtime; and a supported native agent integration. `pnpm` is only for repository development.
+Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; the workspace recovery dependency checked by setup; the shared `okfh` runtime; and a supported native agent integration. `pnpm` is only for repository development.
 
 #### Start With Your Agent
 
@@ -831,7 +843,7 @@ Requirements for normal use:
 
 - macOS, Windows, or Linux
 - Node.js 22 or newer
-- workspace recovery support (verified by setup or `okfh doctor --json`)
+- workspace recovery dependency (checked by setup or `okfh doctor --json`)
 - `@okf-harness/cli`
 
 Repository development additionally requires `pnpm`; check that environment with `okfh doctor --dev --json`.
@@ -873,7 +885,7 @@ For workspace `status` and `check`, `next` reports the top-priority Workspace ne
 
 ##### doctor
 
-Checks the running CLI, Node.js, workspace recovery support, runtime platform, native host CLI detection, legacy bootstrap fallback status, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
+Checks the running CLI, Node.js, the workspace recovery dependency, runtime platform, native host CLI detection, legacy bootstrap fallback status, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
 
 ```bash
 okfh doctor --json
@@ -904,7 +916,7 @@ Workspace recovery is established automatically and remains internal. Use the ad
 
 ##### history
 
-Lists completed workspace changes newest first. Each entry contains an opaque completion id and the stored judgment. A new workspace has no completed maintenance cycles, so it returns an empty list and exits successfully.
+Lists workspace completions newest first. Each completion contains an opaque completion id and its stored judgment. A new workspace has no completions, so it returns an empty list and exits successfully.
 
 ```bash
 okfh history --workspace "$HOME/Documents/OKF Harness/ai-research" --json
@@ -1296,7 +1308,7 @@ Try without a global install:
 npx --package @okf-harness/cli okfh doctor --json
 ```
 
-Runtime requirements are macOS, Windows, or Linux; Node.js 22 or newer; workspace recovery support reported by `okfh doctor --json`; and this package. Repository development additionally requires `pnpm` and can be checked with `okfh doctor --dev --json`.
+Runtime requirements are macOS, Windows, or Linux; Node.js 22 or newer; the workspace recovery dependency checked by `okfh doctor --json`; and this package. Repository development additionally requires `pnpm` and can be checked with `okfh doctor --dev --json`.
 
 Direct CLI install does not write agent bootstrap entrypoints. Use `@okf-harness/setup` or a native agent integration for ordinary first setup, and use `okfh doctor --json` or `okfh bootstrap` only when diagnostics or legacy fallback repair need the CLI.
 

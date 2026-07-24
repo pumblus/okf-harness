@@ -216,6 +216,46 @@ describe("@okf-harness/cli init", () => {
     });
   });
 
+  it("leaves the target retryable when workspace recovery is unavailable", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    const originalPath = process.env.PATH;
+    process.env.PATH = "";
+    let stdout = "";
+    let stderr = "";
+
+    try {
+      const exitCode = await runCli(
+        ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+        {
+          writeOut: (chunk) => {
+            stdout += chunk;
+          },
+          writeErr: (chunk) => {
+            stderr += chunk;
+          },
+        },
+      );
+
+      expect(exitCode).toBe(4);
+      expect(stdout).toBe("");
+      expect(JSON.parse(stderr)).toMatchObject({
+        ok: false,
+        command: "init",
+        workspace,
+        error: { code: "RECOVERY_UNAVAILABLE" },
+      });
+      expect(stderr).not.toMatch(/git|commit|hash|branch/i);
+      await expect(stat(workspace)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      if (originalPath === undefined) {
+        delete process.env.PATH;
+      } else {
+        process.env.PATH = originalPath;
+      }
+    }
+  });
+
   it("refuses to initialize a non-empty workspace without writing agent guidance", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");

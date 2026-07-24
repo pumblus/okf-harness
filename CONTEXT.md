@@ -168,6 +168,18 @@ _Avoid_: exit code, lint severity, raw issue list
 A person-facing concrete next action OKF Harness reports for a workspace's current state, especially to help a person continue the first useful loop. It is based on local, deterministic workspace facts such as check status, registered sources, and synthesized wiki content, and should be phrased so the person can hand it to their agent as the next request.
 _Avoid_: state machine, onboarding progress, auto-fix, task list, semantic score
 
+**Workspace recovery**:
+The local capability that records completed workspace states and lets an agent list or revisit them through closed Harness verbs. It remains internal to workspace operation and stays outside the wiki and normal evidence path.
+_Avoid_: backup product, wiki history, user-facing version control
+
+**Completion**:
+A known-good full workspace state recorded when a maintenance cycle completes. It has an opaque completion id and stores only the non-reproducible judgment for that cycle; the initialization baseline is not a completion.
+_Avoid_: individual write, intermediate edit, proposal, raw internal identifier
+
+**Completion history**:
+The newest-first computed list of workspace completions returned by `okfh history`, containing each opaque completion id and stored judgment. It is recovery context, not knowledge evidence or a second history file.
+_Avoid_: wiki log, evidence source, diff feed, audit file
+
 **Harness priority**:
 The priority assigned to Harness lint findings inside a workspace check. High priority covers evidence integrity problems such as source drift, missing registered sources, or reference documents that cannot be tied to source records; medium priority covers maintenance gaps such as ordinary missing citations or missing index entries; low priority covers tolerated navigation or cleanup issues such as broken links.
 _Avoid_: check status, OKF conformance severity, raw issue code

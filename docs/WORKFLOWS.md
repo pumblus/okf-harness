@@ -40,7 +40,7 @@ Already have Node.js 22 or newer?
 npx @okf-harness/setup@latest
 ```
 
-Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; workspace recovery support verified by setup; the shared `okfh` runtime; and a supported native agent integration. `pnpm` is only for repository development.
+Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; the workspace recovery dependency checked by setup; the shared `okfh` runtime; and a supported native agent integration. `pnpm` is only for repository development.
 
 ## Start With Your Agent
 

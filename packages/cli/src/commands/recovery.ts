@@ -11,7 +11,7 @@ export function registerRecoveryCommands(
 ): void {
   program
     .command("history")
-    .description("List completed workspace changes.")
+    .description("List workspace completions.")
     .storeOptionsAsProperties(false)
     .option("--workspace <path>", "workspace path")
     .option("--json", "write machine-readable JSON")

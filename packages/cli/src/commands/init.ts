@@ -1,3 +1,4 @@
+import { mkdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { type InstallAgentAdaptersResult, installAgentAdapters } from "@okf-harness/agent-pack";
 import {
@@ -63,7 +64,10 @@ export function registerInitCommand(
         return;
       }
 
+      const workspaceRoot = path.resolve(workspace);
+      const workspaceExisted = await pathExists(workspaceRoot);
       let result: InitWorkspaceResult;
+      let wroteWorkspace = false;
       let agentInstall: InstallAgentAdaptersResult | undefined;
       try {
         result = await initWorkspace({
@@ -71,6 +75,7 @@ export function registerInitCommand(
           name: options.name,
           dryRun: options.dryRun === true,
         });
+        wroteWorkspace = !result.dryRun;
         agentInstall =
           agentTarget === "none"
             ? undefined
@@ -83,6 +88,9 @@ export function registerInitCommand(
           await initializeRecovery(result.workspaceRoot);
         }
       } catch (error) {
+        if (wroteWorkspace) {
+          await resetFailedInit(workspaceRoot, workspaceExisted);
+        }
         if (error instanceof WorkspaceInitError || error instanceof RecoveryError) {
           writeCliError(io, {
             command: "init",
@@ -157,6 +165,25 @@ function renderInitAgentData(
     return { requested };
   }
   return { requested, install };
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await stat(filePath);
+    return true;
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function resetFailedInit(workspaceRoot: string, workspaceExisted: boolean): Promise<void> {
+  await rm(workspaceRoot, { recursive: true, force: true });
+  if (workspaceExisted) {
+    await mkdir(workspaceRoot, { recursive: true });
+  }
 }
 
 function visibleInitFiles(values: string[]): string[] {

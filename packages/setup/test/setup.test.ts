@@ -25,7 +25,7 @@ describe("@okf-harness/setup", () => {
     expect(result.stdout).toContain("OpenCode: npx @okf-harness/setup@latest --agents opencode");
     expect(result.stdout).toContain("Pi: npx @okf-harness/setup@latest --agents pi");
     expect(result.stdout).toContain("Hermes Agent: npx @okf-harness/setup@latest --agents hermes");
-    expect(result.stdout).toContain("Warning: workspace recovery support is unavailable");
+    expect(result.stdout).toContain("Warning: workspace recovery dependency is unavailable");
     expect(result.stderr).toBe("");
   });
 
@@ -692,7 +692,7 @@ describe("@okf-harness/setup", () => {
                     {
                       id: "runtime-recovery",
                       status: "fail",
-                      message: "workspace recovery support is unavailable.",
+                      message: "workspace recovery dependency is unavailable.",
                     },
                   ],
                   groups: {
@@ -701,7 +701,7 @@ describe("@okf-harness/setup", () => {
                         {
                           id: "runtime-recovery",
                           status: "fail",
-                          message: "workspace recovery support is unavailable.",
+                          message: "workspace recovery dependency is unavailable.",
                         },
                       ],
                     },
@@ -721,7 +721,7 @@ describe("@okf-harness/setup", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain(
-      "Doctor setup warning: workspace recovery support is unavailable.",
+      "Doctor setup warning: workspace recovery dependency is unavailable.",
     );
     expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
     expect(result.stderr).toBe("");

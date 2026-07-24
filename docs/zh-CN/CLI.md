@@ -24,7 +24,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 - macOS、Windows 或 Linux
 - Node.js 22 或更高版本
-- 工作区恢复支持（由 setup 或 `okfh doctor --json` 验证）
+- 工作区恢复依赖（由 setup 或 `okfh doctor --json` 检查）
 - `@okf-harness/cli`
 
 参与仓库开发时额外需要 `pnpm`；用 `okfh doctor --dev --json` 检查开发环境。
@@ -66,7 +66,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 ### doctor
 
-检查 CLI 运行环境、Node.js、工作区恢复支持、运行平台、原生宿主 CLI 检测、旧式引导 fallback 状态，以及可解析到工作区时的工作区就绪状态。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
+检查 CLI 运行环境、Node.js、工作区恢复依赖、运行平台、原生宿主 CLI 检测、旧式引导 fallback 状态，以及可解析到工作区时的工作区就绪状态。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
 
 ```bash
 okfh doctor --json
@@ -97,7 +97,7 @@ okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agent
 
 ### history
 
-按从新到旧的顺序列出已完成的工作区变更。每条记录包含不透明的完成标识和已保存的判断。新工作区尚无已完成的维护周期，因此返回空列表并成功退出。
+按从新到旧的顺序列出工作区完成记录。每条完成记录包含不透明的完成标识和已保存的判断。新工作区尚无完成记录，因此返回空列表并成功退出。
 
 ```bash
 okfh history --workspace "$HOME/Documents/OKF Harness/ai-research" --json
