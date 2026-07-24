@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -364,17 +364,13 @@ Hop Three Answer remains available.
     const workspace = path.join(root, "workspace");
     await cp(validWorkspaceFixture, workspace, { recursive: true });
     try {
-      await rename(path.join(workspace, "wiki"), path.join(workspace, "knowledge"));
+      const container = path.join(workspace, "container");
+      await mkdir(container);
+      await rename(path.join(workspace, "wiki"), path.join(container, "knowledge"));
+      await writeFile(path.join(container, "index.md"), "# Container\n", "utf8");
+      await writeFile(path.join(container, "log.md"), "# Log\n", "utf8");
       const configPath = path.join(workspace, "okfh.config.yaml");
-      const config = await readFile(configPath, "utf8");
-      await writeFile(
-        configPath,
-        config
-          .replace("version: 0.1", "version: 1")
-          .replace("bundle_root: wiki", "bundle_root: knowledge")
-          .replace("wiki_root: wiki", "wiki_root: knowledge"),
-        "utf8",
-      );
+      await writeFile(configPath, "okf:\n  bundle_root: [unterminated\n", "utf8");
 
       const result = await planEvidenceBrief({
         workspaceRoot: workspace,

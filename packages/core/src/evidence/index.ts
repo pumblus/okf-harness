@@ -1,3 +1,4 @@
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import {
   type CheckResult,
@@ -17,7 +18,8 @@ import {
   SOURCE_HASH_DRIFT,
   SOURCE_MISSING,
 } from "../lint/index.js";
-import { scanConcepts } from "../okf/concepts.js";
+import { type OkfMarkdownFile, RESERVED_OKF_FILENAMES, scanConcepts } from "../okf/concepts.js";
+import { safeResolveWorkspacePath, toPosixRelativePath } from "../paths/index.js";
 import {
   type CitationIssue,
   type ReadCitation,
@@ -234,16 +236,17 @@ export async function planEvidenceBrief(
   if (unanchoredWarnings.length > 0) {
     const files =
       lineage.config === undefined
-        ? (
-            await scanConcepts(workspaceRoot, {
-              okf: { bundle_root: lineage.bundleRoot ?? "wiki" },
-            })
-          ).files
+        ? lineage.bundleRoot === undefined
+          ? await discoverBundleFiles(workspaceRoot)
+          : (
+              await scanConcepts(workspaceRoot, {
+                okf: { bundle_root: lineage.bundleRoot },
+              })
+            ).files
         : lineage.files;
-    const sealed = files
-      .filter((file) => !file.isReserved)
-      .map((file) => file.conceptId)
-      .sort();
+    const sealed = [
+      ...new Set(files.filter((file) => !file.isReserved).map((file) => file.conceptId)),
+    ].sort();
     return {
       workspaceRoot,
       question: options.question,
@@ -329,6 +332,53 @@ export async function planEvidenceBrief(
             ],
     warnings: [...search.warnings, ...riskWarnings],
   };
+}
+
+async function discoverBundleFiles(workspaceRoot: string): Promise<OkfMarkdownFile[]> {
+  try {
+    const workspace = await safeResolveWorkspacePath(workspaceRoot, ".");
+    const bundleRoots = await findInnermostBundleRoots(workspace.absolutePath);
+    const files = await Promise.all(
+      bundleRoots.map(async (bundleRoot) => {
+        try {
+          return (
+            await scanConcepts(workspace.workspaceRoot, {
+              okf: {
+                bundle_root: toPosixRelativePath(workspace.workspaceRoot, bundleRoot) || ".",
+              },
+            })
+          ).files;
+        } catch {
+          return [];
+        }
+      }),
+    );
+    return files
+      .flat()
+      .sort((left, right) => left.workspacePath.localeCompare(right.workspacePath));
+  } catch {
+    return [];
+  }
+}
+
+async function findInnermostBundleRoots(directory: string): Promise<string[]> {
+  try {
+    const entries = await readdir(directory, { withFileTypes: true });
+    const nested = (
+      await Promise.all(
+        entries
+          .filter((entry) => entry.isDirectory() && ![".git", "node_modules"].includes(entry.name))
+          .map((entry) => findInnermostBundleRoots(path.join(directory, entry.name))),
+      )
+    ).flat();
+    if (nested.length > 0) {
+      return nested;
+    }
+    const names = new Set(entries.filter((entry) => entry.isFile()).map((entry) => entry.name));
+    return [...RESERVED_OKF_FILENAMES].every((name) => names.has(name)) ? [directory] : [];
+  } catch {
+    return [];
+  }
 }
 
 async function evidenceItemsForResults(
