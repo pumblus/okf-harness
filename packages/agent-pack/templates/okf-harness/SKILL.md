@@ -10,7 +10,7 @@ One Door routes OKF Harness workspace requests to exactly one internal workflow 
 4. Run harness operations through local-shell `okfh --json` commands and read their JSON before deciding the next step.
 5. Load only the reference needed for the current workflow; for combined requests, load the next reference only when that workflow starts.
 6. After any wiki edit, run `okfh check --workspace <workspace> --json` and report the check status before broader cleanup advice.
-7. If files changed, run `git diff` and name the changed files before the final response.
+7. If files changed, review and name the changed files before the final response.
 
 ## First Useful Loop
 

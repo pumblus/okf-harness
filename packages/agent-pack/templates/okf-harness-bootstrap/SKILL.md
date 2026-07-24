@@ -9,7 +9,7 @@ Bootstrap routes OKF Harness setup before a workspace-local `okf-harness` skill 
 3. Load only the reference needed for the current route.
 4. If `okfh` is missing, stop and tell the user to run `npx @okf-harness/setup@latest`; do not create workspaces or edit files until runtime setup is fixed.
 5. Run harness operations through local-shell `okfh --json` commands and read their JSON before deciding the next step.
-6. Before persistent setup writes, state the resolved workspace name, path, agent target, and Git choice unless the user gave all four explicitly.
+6. Before persistent setup writes, state the resolved workspace name, path, and agent target unless the user gave all three explicitly.
 7. Finish from the CLI `data.refresh` object when present; do not invent refresh commands.
 8. In a parent-folder session after selection or setup, only continue with commands that use the resolved `--workspace <path>`.
 9. Treat setup-plus-source requests as a transitional path: resolve or create the workspace, register sources, prepare ingest plans, then stop with a fresh-session handoff.
@@ -18,7 +18,6 @@ Bootstrap routes OKF Harness setup before a workspace-local `okf-harness` skill 
 
 - Do not use this skill for workspace-local check, ingest, answer, or graph work; those belong to the workspace-local `okf-harness` skill.
 - Do not create a workspace skeleton by hand; use `okfh init`.
-- Do not silently initialize Git. Use `--git` only when the user explicitly chooses Git.
 - Do not initialize a non-empty non-workspace directory in place.
 - Do not install or repair extra agent clients unless the user explicitly asks for them.
 - Never edit `raw/sources/` by hand; source registration must use `okfh source add`.

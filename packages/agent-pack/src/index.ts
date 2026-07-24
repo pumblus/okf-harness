@@ -541,7 +541,7 @@ Rules:
 - Desktop App and TUI sessions use the same local shell command workflow.
 - If \`okfh\` or shell access fails, run \`okfh doctor --json\` when possible and report the failed checks.
 - Run \`okfh check --workspace <workspace> --json\` after modifying wiki files.
-- Run \`git diff\` before final response after any file changes.
+- Review changed files before final response after any file changes.
 ${managedBlockEnd}
 `,
   };

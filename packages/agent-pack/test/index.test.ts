@@ -359,8 +359,8 @@ describe("@okf-harness/agent-pack", () => {
     expect(codexSetup).toContain("Documents/OKF Harness");
     expect(codexSetup).toContain("conservative folder slug");
     expect(codexSetup).toContain("allow a UTF-8 folder name");
-    expect(codexSetup).toContain("default and recommended answer is no");
     expect(codexSetup).toContain("Before persistent writes");
+    expect(codexSetup).not.toMatch(/\b(?:git|commit|hash|branch)\b/i);
     expect(codexSetup).toContain("choose an empty directory or a new subdirectory");
     expect(codexSetup).toContain("data.refresh.commands");
     expect(codexSetup).toContain("--dry-run --json");
