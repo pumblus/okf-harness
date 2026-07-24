@@ -105,6 +105,18 @@ okfh history --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 The JSON payload is `data.completions`, with entries shaped as `{ "id": "...", "judgment": "..." }`.
 
+### checkpoint
+
+Creates a durable completion at the end of a maintenance cycle, storing only the judgment that summarizes why the completion happened. Everything else about the completion is computed from the workspace when needed. Workspaces created before workspace recovery became automatic adopt it on their first checkpoint.
+
+```bash
+okfh checkpoint --judgment "Folded the source revision into the wiki." --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+- `--judgment <text>` is required and must be non-blank.
+
+The JSON payload is `data.completion`, shaped as `{ "id": "...", "judgment": "..." }`. The completion then appears in `okfh history`.
+
 ### agent install
 
 Installs or repairs workspace-local adapter files in an existing workspace. This command currently covers the `codex` and `claude` adapters.

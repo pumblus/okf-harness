@@ -1,4 +1,4 @@
-import { listCompletions, resolveWorkspaceRoot } from "@okf-harness/core";
+import { createCheckpoint, listCompletions, resolveWorkspaceRoot } from "@okf-harness/core";
 import type { Command } from "commander";
 import { writeCliError } from "../errors/index.js";
 import { writeResult } from "../render/result.js";
@@ -9,6 +9,45 @@ export function registerRecoveryCommands(
   io: CliIo,
   setExitCode: (code: number) => void,
 ): void {
+  program
+    .command("checkpoint")
+    .description("Create a completion checkpoint for the workspace.")
+    .storeOptionsAsProperties(false)
+    .requiredOption("--judgment <text>", "judgment summarizing why the completion happened")
+    .option("--workspace <path>", "workspace path")
+    .option("--json", "write machine-readable JSON")
+    .action(async (command: Command) => {
+      const options = command.opts() as { judgment: string; workspace?: string; json?: boolean };
+      let workspaceRoot: string | null = null;
+      try {
+        workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+        const completion = await createCheckpoint(workspaceRoot, options.judgment);
+        const envelope: JsonEnvelope = {
+          ok: true,
+          command: "checkpoint",
+          workspace: workspaceRoot,
+          data: { completion },
+          warnings: [],
+          next: [],
+        };
+        writeResult(io, envelope, options.json);
+        setExitCode(0);
+      } catch (error) {
+        const handled = writeCliError(io, {
+          command: "checkpoint",
+          error,
+          workspace: workspaceRoot,
+          next: ["Check the workspace path and rerun okfh checkpoint --json."],
+          json: options.json === true,
+        });
+        if (handled) {
+          setExitCode(1);
+          return;
+        }
+        throw error;
+      }
+    });
+
   program
     .command("history")
     .description("List workspace completions.")

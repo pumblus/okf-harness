@@ -105,6 +105,18 @@ okfh history --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 JSON 数据位于 `data.completions`，每项格式为 `{ "id": "...", "judgment": "..." }`。
 
+### checkpoint
+
+在维护周期结束时创建一条持久的完成记录，只保存说明本次完成原因的判断。完成记录的其他信息都按需从工作区计算得出。在工作区恢复机制自动建立之前创建的旧工作区，会在首次 checkpoint 时自动建立恢复机制。
+
+```bash
+okfh checkpoint --judgment "已把来源修订并入 wiki。" --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+- `--judgment <text>` 必填，且不能为空白。
+
+JSON 数据位于 `data.completion`，格式为 `{ "id": "...", "judgment": "..." }`。创建的完成记录随后会出现在 `okfh history` 中。
+
 ### agent install
 
 在已有工作区中安装或修复工作区本地适配文件。这个命令当前覆盖 `codex` 和 `claude` 适配器。

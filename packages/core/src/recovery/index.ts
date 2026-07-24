@@ -20,7 +20,30 @@ export class RecoveryError extends Error {
 }
 
 const INITIAL_RECOVERY_SUBJECT = "OKF Harness workspace initialized";
+const CHECKPOINT_SUBJECT = "OKF Harness workspace checkpoint";
+const RECOVERY_AUTHOR_FLAGS = [
+  "-c",
+  "user.name=OKF Harness",
+  "-c",
+  "user.email=workspace@okf-harness.local",
+  "-c",
+  "commit.gpgSign=false",
+];
 const execFileAsync = promisify(execFile);
+
+type RecoveryAction = "initialize" | "read" | "write";
+
+const RECOVERY_FAILURE: Record<RecoveryAction, { message: string; code: string }> = {
+  initialize: {
+    message: "Workspace recovery could not be initialized.",
+    code: "RECOVERY_INIT_FAILED",
+  },
+  read: { message: "Workspace recovery could not be read.", code: "RECOVERY_READ_FAILED" },
+  write: {
+    message: "Workspace recovery could not be completed.",
+    code: "RECOVERY_WRITE_FAILED",
+  },
+};
 
 export async function initializeRecovery(workspaceRootInput: string): Promise<void> {
   const workspaceRoot = path.resolve(workspaceRootInput);
@@ -31,12 +54,7 @@ export async function initializeRecovery(workspaceRootInput: string): Promise<vo
   await runRecoveryCommand(
     workspaceRoot,
     [
-      "-c",
-      "user.name=OKF Harness",
-      "-c",
-      "user.email=workspace@okf-harness.local",
-      "-c",
-      "commit.gpgSign=false",
+      ...RECOVERY_AUTHOR_FLAGS,
       "commit",
       "--quiet",
       "--no-verify",
@@ -48,6 +66,45 @@ export async function initializeRecovery(workspaceRootInput: string): Promise<vo
   );
 }
 
+export async function createCheckpoint(
+  workspaceRootInput: string,
+  judgment: string,
+): Promise<Completion> {
+  const trimmedJudgment = judgment.trim();
+  if (trimmedJudgment.length === 0) {
+    throw new RecoveryError("A judgment is required to create a checkpoint.", "JUDGMENT_REQUIRED");
+  }
+  const workspaceRoot = path.resolve(workspaceRootInput);
+  await loadWorkspaceConfig(workspaceRoot);
+  // Workspaces created before recovery became automatic adopt the substrate on
+  // their first checkpoint: either no substrate yet, or an initialized but
+  // revision-less one from the retired opt-in init flag.
+  if (!(await hasRecoverySubstrate(workspaceRoot)) || (await revisionCount(workspaceRoot)) === 0) {
+    await initializeRecovery(workspaceRoot);
+  }
+  await runRecoveryCommand(workspaceRoot, ["add", "--all"], "write");
+  await runRecoveryCommand(
+    workspaceRoot,
+    [
+      ...RECOVERY_AUTHOR_FLAGS,
+      "commit",
+      "--quiet",
+      "--no-verify",
+      "--allow-empty",
+      "-m",
+      CHECKPOINT_SUBJECT,
+      "-m",
+      trimmedJudgment,
+    ],
+    "write",
+  );
+  const [completion] = await listCompletions(workspaceRoot);
+  if (completion === undefined) {
+    throw new RecoveryError("Workspace recovery could not be read.", "RECOVERY_READ_FAILED");
+  }
+  return completion;
+}
+
 export async function listCompletions(workspaceRootInput: string): Promise<Completion[]> {
   const workspaceRoot = path.resolve(workspaceRootInput);
   await loadWorkspaceConfig(workspaceRoot);
@@ -55,8 +112,7 @@ export async function listCompletions(workspaceRootInput: string): Promise<Compl
     return [];
   }
 
-  const count = await runRecoveryCommand(workspaceRoot, ["rev-list", "--all", "--count"], "read");
-  if (count.trim() === "0") {
+  if ((await revisionCount(workspaceRoot)) === 0) {
     return [];
   }
 
@@ -85,6 +141,11 @@ export async function listCompletions(workspaceRootInput: string): Promise<Compl
     : revisions.slice(0, baseline).map(({ id, judgment }) => ({ id, judgment }));
 }
 
+async function revisionCount(workspaceRoot: string): Promise<number> {
+  const count = await runRecoveryCommand(workspaceRoot, ["rev-list", "--all", "--count"], "read");
+  return Number.parseInt(count.trim(), 10) || 0;
+}
+
 async function hasRecoverySubstrate(workspaceRoot: string): Promise<boolean> {
   try {
     await lstat(path.join(workspaceRoot, ".git"));
@@ -101,7 +162,7 @@ async function hasRecoverySubstrate(workspaceRoot: string): Promise<boolean> {
 async function runRecoveryCommand(
   workspaceRoot: string,
   args: string[],
-  action: "initialize" | "read",
+  action: RecoveryAction,
   env: NodeJS.ProcessEnv = recoveryEnvironment(),
 ): Promise<string> {
   try {
@@ -114,12 +175,8 @@ async function runRecoveryCommand(
         "RECOVERY_UNAVAILABLE",
       );
     }
-    throw new RecoveryError(
-      action === "initialize"
-        ? "Workspace recovery could not be initialized."
-        : "Workspace recovery could not be read.",
-      action === "initialize" ? "RECOVERY_INIT_FAILED" : "RECOVERY_READ_FAILED",
-    );
+    const failure = RECOVERY_FAILURE[action];
+    throw new RecoveryError(failure.message, failure.code);
   }
 }
 
