@@ -24,7 +24,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 - macOS、Windows 或 Linux
 - Node.js 22 或更高版本
-- git
+- 工作区恢复支持（由 setup 或 `okfh doctor --json` 验证）
 - `@okf-harness/cli`
 
 参与仓库开发时额外需要 `pnpm`；用 `okfh doctor --dev --json` 检查开发环境。
@@ -66,7 +66,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 ### doctor
 
-检查 CLI 运行环境、Node.js、git、运行平台、原生宿主 CLI 检测、旧式引导 fallback 状态，以及可解析到工作区时的工作区就绪状态。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
+检查 CLI 运行环境、Node.js、工作区恢复支持、运行平台、原生宿主 CLI 检测、旧式引导 fallback 状态，以及可解析到工作区时的工作区就绪状态。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
 
 ```bash
 okfh doctor --json
@@ -83,18 +83,27 @@ JSON 输出中，`data.checks` 仍保留兼容用的扁平列表。`data.groups`
 创建工作区，可选渲染工作区本地适配文件。当前 CLI 工作区适配器是 `codex` 和 `claude`；v0.6 原生集成通过 setup 或各宿主包安装，不表示 `okfh init --agents` 已支持这些集成。
 
 ```bash
-okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --git --json
-okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents claude --git --json
+okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --json
+okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents claude --json
 ```
 
 选项：
 
 - `--name <name>` 必填。
 - `--agents codex|claude|all|none|claude,codex` 必填，用来控制适配文件的渲染。
-- `--git` 初始化 git 仓库但不提交。
 - `--dry-run` 返回计划的写入内容，不实际创建文件。
 
-使用当前工作区本地智能体对应的适配器（Adapter）：Codex 使用 `codex`，Claude Code 使用 `claude`。只有明确需要两个工作区适配器时才使用 `all`。`none` 仅用于高级或开发场景。
+工作区恢复会自动建立，并作为内部机制保持隐藏。使用当前工作区本地智能体对应的适配器（Adapter）：Codex 使用 `codex`，Claude Code 使用 `claude`。只有明确需要两个工作区适配器时才使用 `all`。`none` 仅用于高级或开发场景。
+
+### history
+
+按从新到旧的顺序列出已完成的工作区变更。每条记录包含不透明的完成标识和已保存的判断。新工作区尚无已完成的维护周期，因此返回空列表并成功退出。
+
+```bash
+okfh history --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+JSON 数据位于 `data.completions`，每项格式为 `{ "id": "...", "judgment": "..." }`。
 
 ### agent install
 

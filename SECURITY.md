@@ -36,7 +36,7 @@ wiki/
 .gitignore
 ```
 
-It may also initialize git in that workspace when you pass `--git`.
+It also establishes local workspace recovery state automatically.
 
 `okfh source add <file>` copies a source file into `raw/sources/YYYY/MM/` and records a hash in `.okfh/manifest.jsonl`. It does not move or rewrite the original file.
 

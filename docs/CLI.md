@@ -24,7 +24,7 @@ Requirements for normal use:
 
 - macOS, Windows, or Linux
 - Node.js 22 or newer
-- git
+- workspace recovery support (verified by setup or `okfh doctor --json`)
 - `@okf-harness/cli`
 
 Repository development additionally requires `pnpm`; check that environment with `okfh doctor --dev --json`.
@@ -66,7 +66,7 @@ For workspace `status` and `check`, `next` reports the top-priority Workspace ne
 
 ### doctor
 
-Checks the running CLI, Node.js, git, runtime platform, native host CLI detection, legacy bootstrap fallback status, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
+Checks the running CLI, Node.js, workspace recovery support, runtime platform, native host CLI detection, legacy bootstrap fallback status, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
 
 ```bash
 okfh doctor --json
@@ -83,18 +83,27 @@ In JSON output, `data.checks` remains the flat compatibility list. `data.groups`
 Creates a workspace and optionally renders workspace-local adapter files. The current CLI workspace adapters are `codex` and `claude`; v0.6 native integrations are installed through setup or their host package surfaces and do not imply `okfh init --agents` support.
 
 ```bash
-okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --git --json
-okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents claude --git --json
+okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --json
+okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents claude --json
 ```
 
 Options:
 
 - `--name <name>` is required.
 - `--agents codex|claude|all|none|claude,codex` is required and controls adapter rendering.
-- `--git` initializes a git repository without committing.
 - `--dry-run` returns the planned writes without creating files.
 
-Use the adapter for the workspace-local agent you are currently setting up: `codex` for Codex or `claude` for Claude Code. Use `all` only when you explicitly want both workspace adapters. Use `none` only for advanced or developer setup.
+Workspace recovery is established automatically and remains internal. Use the adapter for the workspace-local agent you are currently setting up: `codex` for Codex or `claude` for Claude Code. Use `all` only when you explicitly want both workspace adapters. Use `none` only for advanced or developer setup.
+
+### history
+
+Lists completed workspace changes newest first. Each entry contains an opaque completion id and the stored judgment. A new workspace has no completed maintenance cycles, so it returns an empty list and exits successfully.
+
+```bash
+okfh history --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+The JSON payload is `data.completions`, with entries shaped as `{ "id": "...", "judgment": "..." }`.
 
 ### agent install
 

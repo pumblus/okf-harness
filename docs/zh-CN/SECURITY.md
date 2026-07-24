@@ -36,7 +36,7 @@ wiki/
 .gitignore
 ```
 
-当你使用 `--git` 时，它也可能在 workspace 中初始化 git。
+它也会自动建立本地工作区恢复状态。
 
 `okfh source add <file>` 将源文件复制到 `raw/sources/YYYY/MM/` 并在 `.okfh/manifest.jsonl` 中记录哈希。它不会移动或改写原始文件。
 

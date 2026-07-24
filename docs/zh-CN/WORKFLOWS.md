@@ -40,7 +40,7 @@ irm https://okf-harness.dev/install.ps1 | iex
 npx @okf-harness/setup@latest
 ```
 
-普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、git、共享的 `okfh` 运行时，以及一个受支持的原生智能体集成。`pnpm` 只用于仓库开发。
+普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、由 setup 验证的工作区恢复支持、共享的 `okfh` 运行时，以及一个受支持的原生智能体集成。`pnpm` 只用于仓库开发。
 
 ## 从你的智能体开始
 
@@ -54,7 +54,7 @@ npx @okf-harness/setup@latest
 <okf-harness-bootstrap> 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区，然后告诉我如何刷新当前智能体上下文。
 ```
 
-全局引导入口会先从浅层本地工作区集合（Workspace collection）中发现或选择已有工作区。没有选中工作区时，再进入当前智能体设置（Current-agent setup）：推断显示名称和目标目录；细节缺失或有歧义时先询问，再做持久写入；没有明确说明 Git 选择时先确认。当当前智能体有工作区本地适配器（Workspace-local adapter）时，引导入口可以用对应适配器调用 `okfh init`。目前工作区本地适配器是 `codex` 和 `claude`；其他原生集成在工作区适配器出现前使用自己的引导入口。
+全局引导入口会先从浅层本地工作区集合（Workspace collection）中发现或选择已有工作区。没有选中工作区时，再进入当前智能体设置（Current-agent setup）：推断显示名称、目标目录和当前智能体；细节缺失或有歧义时先询问，再做持久写入。工作区恢复会自动建立，并作为内部机制保持隐藏。当当前智能体有工作区本地适配器（Workspace-local adapter）时，引导入口可以用对应适配器调用 `okfh init`。目前工作区本地适配器是 `codex` 和 `claude`；其他原生集成在工作区适配器出现前使用自己的引导入口。
 
 设置完成后，如果该智能体支持工作区本地指引，全局引导入口会修复它，并返回智能体上下文刷新（Agent context refresh）提示。通常是让你从工作区文件夹开启新的智能体会话，让客户端加载新的指引。
 

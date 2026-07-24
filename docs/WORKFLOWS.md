@@ -40,7 +40,7 @@ Already have Node.js 22 or newer?
 npx @okf-harness/setup@latest
 ```
 
-Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; git; the shared `okfh` runtime; and a supported native agent integration. `pnpm` is only for repository development.
+Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; workspace recovery support verified by setup; the shared `okfh` runtime; and a supported native agent integration. `pnpm` is only for repository development.
 
 ## Start With Your Agent
 
@@ -54,7 +54,7 @@ No workspace yet:
 <okf-harness-bootstrap> Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
 ```
 
-Bootstrap should discover or select an existing workspace from a shallow local workspace collection when possible. If none is selected, it should perform current-agent setup: infer the display name and target folder, ask before persistent writes when details are missing or ambiguous, and confirm Git when it was not explicit. When the current agent has a workspace-local adapter, bootstrap can call `okfh init` with that adapter. Today the workspace-local adapters are `codex` and `claude`; other native integrations use their bootstrap surface until a workspace adapter exists.
+Bootstrap should discover or select an existing workspace from a shallow local workspace collection when possible. If none is selected, it should perform current-agent setup: infer the display name, target folder, and current agent, then ask before persistent writes when details are missing or ambiguous. Workspace recovery is established automatically and remains internal. When the current agent has a workspace-local adapter, bootstrap can call `okfh init` with that adapter. Today the workspace-local adapters are `codex` and `claude`; other native integrations use their bootstrap surface until a workspace adapter exists.
 
 After setup, bootstrap should repair workspace-local guidance when that agent supports it and give an agent context refresh hint, usually opening a fresh agent session from the workspace folder so the client can load the new guidance.
 
