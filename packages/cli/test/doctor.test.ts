@@ -396,23 +396,11 @@ async function useFakeDoctorEnv(): Promise<{
   restore: () => void;
 }> {
   const root = await mkdtemp(path.join(tmpdir(), "okfh-doctor-env-"));
-  const bin = path.join(root, "bin");
   const home = path.join(root, "home");
   const codexStateDirectory = path.join(root, ".codex");
   const claudeHome = path.join(root, ".claude");
-  await mkdir(bin, { recursive: true });
-  await writeExecutable(
-    path.join(bin, "git"),
-    '#!/bin/sh\nif [ "$1" = "init" ]; then mkdir -p .git; exit 0; fi\nif [ "$1" = "--version" ]; then echo "git version 2.50.0"; exit 0; fi\nexit 0\n',
-  );
-  await writeExecutable(
-    path.join(bin, "git.cmd"),
-    '@echo off\r\nif "%1"=="init" (mkdir .git & exit /b 0)\r\nif "%1"=="--version" (echo git version 2.50.0 & exit /b 0)\r\nexit /b 0\r\n',
-  );
-  await writeExecutable(path.join(bin, "pnpm"), "#!/bin/sh\necho 11.0.6\n");
-  await writeExecutable(path.join(bin, "pnpm.cmd"), "@echo off\r\necho 11.0.6\r\n");
 
-  const keys = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "HOME", "PATH", "USERPROFILE"] as const;
+  const keys = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "HOME", "USERPROFILE"] as const;
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]])) as Record<
     (typeof keys)[number],
     string | undefined
@@ -420,7 +408,6 @@ async function useFakeDoctorEnv(): Promise<{
   process.env.CLAUDE_CONFIG_DIR = claudeHome;
   process.env.CODEX_HOME = codexStateDirectory;
   process.env.HOME = home;
-  process.env.PATH = bin;
   delete process.env.USERPROFILE;
 
   return {
@@ -436,11 +423,6 @@ async function useFakeDoctorEnv(): Promise<{
       }
     },
   };
-}
-
-async function writeExecutable(filePath: string, contents: string): Promise<void> {
-  await writeFile(filePath, contents, "utf8");
-  await chmod(filePath, 0o755);
 }
 
 function fakeBootstrapStatus(
