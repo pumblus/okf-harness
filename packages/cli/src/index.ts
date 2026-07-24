@@ -27,9 +27,10 @@ export async function runCli(
     writeErr: (chunk) => process.stderr.write(chunk),
   },
 ): Promise<number> {
+  const normalizedArgv = withoutRetiredInitFlag(argv);
   const program = new Command();
   let exitCode = 0;
-  const jsonRequested = argv.includes("--json");
+  const jsonRequested = normalizedArgv.includes("--json");
   const capturedCommanderErrors: string[] = [];
 
   program.name("okfh").description("OKF Harness command line interface.");
@@ -57,17 +58,29 @@ export async function runCli(
 
   const restoreConsoleError = captureCommanderConsoleError(capturedCommanderErrors);
   try {
-    await program.parseAsync(argv);
+    await program.parseAsync(normalizedArgv);
     return exitCode;
   } catch (error) {
     return handleCliError(error, io, {
-      command: commandFromArgv(argv),
+      command: commandFromArgv(normalizedArgv),
       json: jsonRequested,
       capturedStderr: capturedCommanderErrors.join(""),
     });
   } finally {
     restoreConsoleError();
   }
+}
+
+function withoutRetiredInitFlag(argv: string[]): string[] {
+  const commandIndex = argv.indexOf("init", 2);
+  if (commandIndex === -1) {
+    return argv;
+  }
+  const optionsEnd = argv.indexOf("--", commandIndex + 1);
+  return argv.filter(
+    (argument, index) =>
+      argument !== "--git" || index <= commandIndex || (optionsEnd !== -1 && index > optionsEnd),
+  );
 }
 
 function captureCommanderConsoleError(capturedErrors: string[]): () => void {

@@ -345,6 +345,41 @@ describe("@okf-harness/cli init", () => {
     await expect(stat(nestedWorkspace)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("silently accepts the retired initialization flag", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(
+      [
+        "node",
+        "okfh",
+        "init",
+        workspace,
+        "--name",
+        "AI Research",
+        "--agents",
+        "none",
+        "--git",
+        "--json",
+      ],
+      {
+        writeOut: (chunk) => {
+          stdout += chunk;
+        },
+        writeErr: (chunk) => {
+          stderr += chunk;
+        },
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe("");
+    expect(JSON.parse(stdout)).toMatchObject({ ok: true, command: "init", workspace });
+    expect(stdout).not.toMatch(/git|commit|hash|branch/i);
+  });
+
   it("returns command usage errors as JSON when requested", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
