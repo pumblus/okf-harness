@@ -359,11 +359,46 @@ Hop Three Answer remains available.
     }
   });
 
+  it("seals concepts from the bundle root when a category directory nests its own index", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      const nested = path.join(workspace, "wiki/topics/llm");
+      await mkdir(nested, { recursive: true });
+      await writeFile(path.join(workspace, "wiki/topics/index.md"), "# Topics\n", "utf8");
+      await writeFile(path.join(nested, "index.md"), "# LLM\n", "utf8");
+      await writeFile(
+        path.join(workspace, "okfh.config.yaml"),
+        "okf:\n  bundle_root: [unterminated\n",
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+
+      expect(result.seals).toEqual([
+        {
+          code: "CONFIG_INVALID",
+          sealed: ["references/karpathy-llm-wiki", "topics/llm-wiki"],
+          basis: expect.any(String),
+        },
+      ]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("seals every concept when the workspace config is invalid", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
     const workspace = path.join(root, "workspace");
     await cp(validWorkspaceFixture, workspace, { recursive: true });
     try {
+      // A container that holds an index of its own is indistinguishable from a bundle
+      // holding a nested bundle, so the guess seals from the outer directory: an
+      // over-broad seal withholds too much, an under-broad one leaks knowledge.
       const container = path.join(workspace, "container");
       await mkdir(container);
       await rename(path.join(workspace, "wiki"), path.join(container, "knowledge"));
@@ -381,7 +416,7 @@ Hop Three Answer remains available.
       expect(result.seals).toEqual([
         {
           code: "CONFIG_INVALID",
-          sealed: ["references/karpathy-llm-wiki", "topics/llm-wiki"],
+          sealed: ["knowledge/references/karpathy-llm-wiki", "knowledge/topics/llm-wiki"],
           basis: expect.any(String),
         },
       ]);

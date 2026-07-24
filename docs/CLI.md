@@ -286,7 +286,7 @@ When an evidence item is truncated, its `range` includes `contentLength`, `retur
 
 ### read
 
-Reads a bounded OKF wiki document by concept ID, path, `index`, or `log`.
+Reads a bounded OKF wiki document by concept ID, path, or `index`.
 
 ```bash
 okfh read index --workspace "$HOME/Documents/OKF Harness/ai-research" --json

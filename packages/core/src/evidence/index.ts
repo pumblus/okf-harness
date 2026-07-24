@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import {
   type CheckResult,
@@ -337,63 +337,70 @@ export async function planEvidenceBrief(
 async function discoverBundleFiles(workspaceRoot: string): Promise<OkfMarkdownFile[]> {
   try {
     const workspace = await safeResolveWorkspacePath(workspaceRoot, ".");
-    const bundleRoots = await findInnermostBundleRoots(workspace.absolutePath);
-    const files = await Promise.all(
-      bundleRoots.map(async (bundleRoot) => {
-        try {
-          return (
-            await scanConcepts(workspace.workspaceRoot, {
-              okf: {
-                bundle_root: toPosixRelativePath(workspace.workspaceRoot, bundleRoot) || ".",
-              },
-            })
-          ).files;
-        } catch {
-          return [];
-        }
-      }),
-    );
-    return files
-      .flat()
-      .sort((left, right) => left.workspacePath.localeCompare(right.workspacePath));
+    const bundleRoot = await findBundleRoot(workspace.absolutePath);
+    if (bundleRoot === undefined) {
+      return [];
+    }
+    return (
+      await scanConcepts(workspace.workspaceRoot, {
+        okf: { bundle_root: toPosixRelativePath(workspace.workspaceRoot, bundleRoot) || "." },
+      })
+    ).files.sort((left, right) => left.workspacePath.localeCompare(right.workspacePath));
   } catch {
     return [];
   }
 }
 
-async function findInnermostBundleRoots(directory: string): Promise<string[]> {
+type BundleRootCandidate = {
+  directory: string;
+  depth: number;
+  categories: number;
+};
+
+const nonBundleDirectories = new Set(["node_modules", "raw"]);
+
+/**
+ * Guesses the bundle root of a workspace whose config cannot be read. Every directory
+ * holding an index is a candidate; the one indexing the most category directories wins,
+ * and a shallower directory breaks ties, so a container that merely holds an index of
+ * its own does not outrank the bundle nested inside it.
+ */
+async function findBundleRoot(directory: string): Promise<string | undefined> {
+  const candidates = await collectBundleRootCandidates(directory, 0);
+  return candidates.sort(
+    (left, right) =>
+      right.categories - left.categories ||
+      left.depth - right.depth ||
+      left.directory.localeCompare(right.directory),
+  )[0]?.directory;
+}
+
+async function collectBundleRootCandidates(
+  directory: string,
+  depth: number,
+): Promise<BundleRootCandidate[]> {
   try {
     const entries = await readdir(directory, { withFileTypes: true });
     const subdirectories = entries.filter(
-      (entry) => entry.isDirectory() && ![".git", "node_modules"].includes(entry.name),
+      (entry) =>
+        entry.isDirectory() && !entry.name.startsWith(".") && !nonBundleDirectories.has(entry.name),
     );
     const nested = (
       await Promise.all(
-        subdirectories.map((entry) => findInnermostBundleRoots(path.join(directory, entry.name))),
+        subdirectories.map((entry) =>
+          collectBundleRootCandidates(path.join(directory, entry.name), depth + 1),
+        ),
       )
     ).flat();
-    if (nested.length > 0) {
+    if (!entries.some((entry) => entry.isFile() && entry.name === "index.md")) {
       return nested;
     }
-    // A bundle root carries its own index and at least one indexed category directory,
-    // which is what separates it from the category directories below it.
-    if (!entries.some((entry) => entry.isFile() && entry.name === "index.md")) {
-      return [];
-    }
-    const categories = await Promise.all(
-      subdirectories.map((entry) => hasIndexFile(path.join(directory, entry.name))),
-    );
-    return categories.includes(true) ? [directory] : [];
+    const categories = nested.filter(
+      (candidate) => path.dirname(candidate.directory) === directory,
+    ).length;
+    return [{ directory, depth, categories }, ...nested];
   } catch {
     return [];
-  }
-}
-
-async function hasIndexFile(directory: string): Promise<boolean> {
-  try {
-    return (await stat(path.join(directory, "index.md"))).isFile();
-  } catch {
-    return false;
   }
 }
 

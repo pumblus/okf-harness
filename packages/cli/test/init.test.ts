@@ -333,6 +333,22 @@ describe("@okf-harness/cli init", () => {
         message: "No OKF concept document matched the read target.",
       },
     });
+
+    // A workspace scaffolded before the removal still carries the file; it stays unreadable.
+    await writeFile(path.join(workspace, "wiki/log.md"), "# Log\n\n## 2026-06-15\n", "utf8");
+    const legacy = await runJsonCli([
+      "node",
+      "okfh",
+      "read",
+      "log",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+    expect(legacy.exitCode).toBe(1);
+    expect(JSON.parse(legacy.stderr)).toMatchObject({
+      error: { code: "TARGET_NOT_FOUND" },
+    });
   });
 
   it("refuses to initialize a nested workspace", async () => {

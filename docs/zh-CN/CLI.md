@@ -286,7 +286,7 @@ JSON 数据会回显问题，并返回 `budget`、选中的 `evidence`、轻量 
 
 ### read
 
-按概念 ID、路径、`index` 或 `log` 读取 Wiki 文档，输出长度受控。
+按概念 ID、路径或 `index` 读取 Wiki 文档，输出长度受控。
 
 ```bash
 okfh read index --workspace "$HOME/Documents/OKF Harness/ai-research" --json
