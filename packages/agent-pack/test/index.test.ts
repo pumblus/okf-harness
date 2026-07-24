@@ -251,6 +251,13 @@ describe("@okf-harness/agent-pack", () => {
     expect(skill).toContain("an unresolved contradiction");
     expect(skill).toContain("a suspected removal");
     expect(skill).toContain("examples, not a closed boundary");
+    expect(skill).toContain("exists in neither workspace evidence nor the user's knowledge");
+    expect(skill).toContain(
+      "If the current workflow already permits recording that exact unknown, record it there; otherwise disclose it in the response.",
+    );
+    expect(skill).toContain(
+      "Do not replace that unknown with a guess or manufactured certainty, and do not interrupt the user with a question they cannot answer.",
+    );
     expect(skill).toContain('"shall I" always means investigate, never repair');
     expect(skill).toContain("Never re-register drifted bytes to lift a seal.");
     expect(reconciliation).toContain("read both registered revisions");

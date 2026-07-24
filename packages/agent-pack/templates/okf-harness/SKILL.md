@@ -24,6 +24,8 @@ An Agent stop is permitted only when the information needed to decide safely exi
 
 If reading the source or wiki can settle the decision, read it and continue instead of asking. After that reading is exhausted, instances that pass the predicate include cases where revision identity remains in doubt, an unresolved contradiction requires the user's intended truth, or a suspected removal requires the user's intent. These are examples, not a closed boundary.
 
+When relevant source and wiki reading is exhausted and the needed information exists in neither workspace evidence nor the user's knowledge, preserve the unresolved unknown faithfully. If the current workflow already permits recording that exact unknown, record it there; otherwise disclose it in the response. Do not replace that unknown with a guess or manufactured certainty, and do not interrupt the user with a question they cannot answer.
+
 Every permitted stop ends with an offer. In every offer, "shall I" always means investigate, never repair. An accepted investigation returns a sharper question, not a fix. Keep drifted bytes unauthoritative. Never re-register drifted bytes to lift a seal.
 
 ## Hard Rules
