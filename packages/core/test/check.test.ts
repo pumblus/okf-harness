@@ -205,34 +205,6 @@ describe("OKF workspace check", () => {
     });
   });
 
-  it("reports unenforced checkpoint policy as Harness lint without blocking OKF conformance", async () => {
-    const workspaceRoot = await copyValidWorkspace();
-    await rm(`${workspaceRoot}/.git`, { recursive: true });
-
-    const result = await checkWorkspace(workspaceRoot);
-
-    expect(result).toMatchObject({
-      status: "needs_attention",
-      okfConformance: {
-        ok: true,
-        findings: [],
-      },
-      harnessLint: {
-        ok: false,
-        findings: {
-          high: [],
-          medium: [
-            expect.objectContaining({
-              code: "GIT_CHECKPOINT_POLICY_NOT_ENFORCED",
-              path: "okfh.config.yaml",
-            }),
-          ],
-          low: [],
-        },
-      },
-    });
-  });
-
   it("reports broken internal links as low-priority Harness lint", async () => {
     const workspaceRoot = await copyValidWorkspace();
     await writeFile(

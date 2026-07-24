@@ -300,22 +300,6 @@ describe("OKF hard linter", () => {
     ]);
   });
 
-  it("warns when checkpoint policy is enabled outside a Git work tree", async () => {
-    const workspaceRoot = await copyValidWorkspace();
-    await rm(`${workspaceRoot}/.git`, { recursive: true });
-
-    const result = await lintWorkspace(workspaceRoot);
-
-    expect(result.ok).toBe(true);
-    expect(result.issues).toEqual([
-      expect.objectContaining({
-        code: "GIT_CHECKPOINT_POLICY_NOT_ENFORCED",
-        severity: "warning",
-        path: "okfh.config.yaml",
-      }),
-    ]);
-  });
-
   it("warns about broken OKF markdown links without failing lint", async () => {
     const workspaceRoot = await copyValidWorkspace();
     await writeFile(

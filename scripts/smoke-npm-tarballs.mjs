@@ -276,7 +276,6 @@ async function main() {
       "Smoke Workspace",
       "--agents",
       "codex",
-      "--git",
       "--json",
     ]);
     await assertGeneratedSkill(

@@ -1,6 +1,12 @@
 import path from "node:path";
 import { type InstallAgentAdaptersResult, installAgentAdapters } from "@okf-harness/agent-pack";
-import { type InitWorkspaceResult, initWorkspace, WorkspaceInitError } from "@okf-harness/core";
+import {
+  type InitWorkspaceResult,
+  initializeRecovery,
+  initWorkspace,
+  RecoveryError,
+  WorkspaceInitError,
+} from "@okf-harness/core";
 import type { Command } from "commander";
 import { writeCliError, writeValidationError } from "../errors/index.js";
 import { type InitAgentTarget, parseInitAgentTarget } from "../options/index.js";
@@ -20,14 +26,12 @@ export function registerInitCommand(
     .requiredOption("--name <name>", "workspace display name")
     .option("--agents <agents>", "agent adapters to install: claude, codex, all, none")
     .option("--dry-run", "return the planned writes without creating files")
-    .option("--git", "initialize a git repository without committing")
     .option("--json", "write machine-readable JSON")
     .action(async (workspace: string, command: Command) => {
       const options = command.opts() as {
         name: string;
         agents?: string;
         dryRun?: boolean;
-        git?: boolean;
         json?: boolean;
       };
       if (options.agents === undefined) {
@@ -60,15 +64,26 @@ export function registerInitCommand(
       }
 
       let result: InitWorkspaceResult;
+      let agentInstall: InstallAgentAdaptersResult | undefined;
       try {
         result = await initWorkspace({
           workspaceRoot: workspace,
           name: options.name,
           dryRun: options.dryRun === true,
-          git: options.git === true,
         });
+        agentInstall =
+          agentTarget === "none"
+            ? undefined
+            : await installAgentAdapters({
+                workspaceRoot: result.workspaceRoot,
+                adapter: agentTarget,
+                dryRun: result.dryRun,
+              });
+        if (!result.dryRun) {
+          await initializeRecovery(result.workspaceRoot);
+        }
       } catch (error) {
-        if (error instanceof WorkspaceInitError) {
+        if (error instanceof WorkspaceInitError || error instanceof RecoveryError) {
           writeCliError(io, {
             command: "init",
             error,
@@ -78,28 +93,22 @@ export function registerInitCommand(
                 ? ["Choose an empty directory, or run okfh doctor --workspace <path> --json."]
                 : error.code === "INIT_NESTED_WORKSPACE"
                   ? ["Use the existing workspace, or choose an empty directory outside it."]
-                  : ["Fix the initialization input and rerun okfh init --json."],
+                  : error instanceof RecoveryError
+                    ? ["Check the local runtime and rerun okfh init --json."]
+                    : ["Fix the initialization input and rerun okfh init --json."],
             json: options.json === true,
           });
-          setExitCode(error.code === "DEPENDENCY_MISSING" ? 4 : 1);
+          setExitCode(error.code === "RECOVERY_UNAVAILABLE" ? 4 : 1);
           return;
         }
         throw error;
       }
 
-      const agentInstall =
-        agentTarget === "none"
-          ? undefined
-          : await installAgentAdapters({
-              workspaceRoot: result.workspaceRoot,
-              adapter: agentTarget,
-              dryRun: result.dryRun,
-            });
       const ok = result.lint.ok && (agentInstall?.conflicts.length ?? 0) === 0;
-      const plannedFiles = uniqueStrings(
+      const plannedFiles = visibleInitFiles(
         result.dryRun ? [...result.files, ...(agentInstall?.plannedFiles ?? [])] : [],
       );
-      const files = uniqueStrings(
+      const files = visibleInitFiles(
         result.dryRun
           ? result.files
           : [
@@ -121,7 +130,6 @@ export function registerInitCommand(
         data: {
           name: result.name,
           dryRun: result.dryRun,
-          git: result.git,
           agents: renderInitAgentData(agentTarget, agentInstall),
           refresh,
           files,
@@ -151,8 +159,8 @@ function renderInitAgentData(
   return { requested, install };
 }
 
-function uniqueStrings(values: string[]): string[] {
-  return [...new Set(values)];
+function visibleInitFiles(values: string[]): string[] {
+  return [...new Set(values)].filter((file) => !/(^|\/)\.git/.test(file));
 }
 
 function renderRefreshHint(options: {

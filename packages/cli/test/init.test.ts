@@ -50,7 +50,7 @@ describe("@okf-harness/cli init", () => {
     }
     const originalPath = process.env.PATH;
     const originalShell = process.env.SHELL;
-    process.env.PATH = bin;
+    process.env.PATH = [bin, originalPath].filter(Boolean).join(path.delimiter);
     if (process.platform === "win32") {
       process.env.SHELL = "cmd.exe";
     }
@@ -124,7 +124,6 @@ describe("@okf-harness/cli init", () => {
     ).rejects.toMatchObject({
       code: "ENOENT",
     });
-    await expect(stat(path.join(workspace, ".git"))).rejects.toMatchObject({ code: "ENOENT" });
     expect((await stat(path.join(workspace, "raw/inbox/README.md"))).isFile()).toBe(true);
   });
 
@@ -331,51 +330,6 @@ describe("@okf-harness/cli init", () => {
         code: "commander.missingMandatoryOptionValue",
         message: "error: required option '--name <name>' not specified",
       },
-    });
-  });
-
-  it("optionally initializes git without creating a commit", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
-    const workspace = path.join(root, "ai-research");
-    let stdout = "";
-    let stderr = "";
-
-    const exitCode = await runCli(
-      [
-        "node",
-        "okfh",
-        "init",
-        workspace,
-        "--name",
-        "AI Research",
-        "--agents",
-        "none",
-        "--git",
-        "--json",
-      ],
-      {
-        writeOut: (chunk) => {
-          stdout += chunk;
-        },
-        writeErr: (chunk) => {
-          stderr += chunk;
-        },
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(stderr).toBe("");
-    expect(JSON.parse(stdout)).toMatchObject({
-      ok: true,
-      command: "init",
-      workspace,
-      data: {
-        git: { initialized: true },
-      },
-    });
-    expect((await stat(path.join(workspace, ".git"))).isDirectory()).toBe(true);
-    await expect(stat(path.join(workspace, ".git/COMMIT_EDITMSG"))).rejects.toMatchObject({
-      code: "ENOENT",
     });
   });
 });

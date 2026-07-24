@@ -19,5 +19,4 @@ paths:
   manifest: .okfh/manifest.jsonl
 safety:
   raw_sources_immutable: true
-  require_git_checkpoint_before_agent_write: true
   max_files_changed_per_ingest: 20

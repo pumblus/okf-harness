@@ -247,7 +247,7 @@ async function createSetupPlan(
       };
     }),
   );
-  const git = await findExecutable("git", options.env);
+  const recoverySupport = await findExecutable("git", options.env);
   return {
     setupVersion: packageVersion.version,
     nodeVersion: options.nodeVersion,
@@ -257,9 +257,9 @@ async function createSetupPlan(
     yes: options.yes,
     runtime: await createRuntimePlan(options),
     warnings:
-      git === undefined
+      recoverySupport === undefined
         ? [
-            "Warning: git was not found; workspace management may need git later, but native integration planning can continue.",
+            "Warning: workspace recovery support is unavailable, but native integration planning can continue.",
           ]
         : [],
     agents,
@@ -591,7 +591,7 @@ type DoctorCheckLike = { id: string; status: string; message: string };
 function reportSetupDoctorWarnings(writeOut: (chunk: string) => void, doctor: unknown): void {
   const runtimeChecks =
     doctorGroupChecks(doctor, "runtime") ??
-    doctorChecks(doctor).filter((check) => check.id === "runtime-git");
+    doctorChecks(doctor).filter((check) => check.id === "runtime-recovery");
   const workspaceChecks =
     doctorGroupChecks(doctor, "workspace") ??
     doctorChecks(doctor).filter((check) => check.id.startsWith("workspace-"));
@@ -600,7 +600,7 @@ function reportSetupDoctorWarnings(writeOut: (chunk: string) => void, doctor: un
     if (check.status !== "warn" && check.status !== "fail") {
       continue;
     }
-    if (check.id === "runtime-git") {
+    if (check.id === "runtime-recovery") {
       writeOut(`Doctor setup warning: ${check.message}\n`);
     }
   }
@@ -625,13 +625,13 @@ function hasBlockingDoctorFailure(doctor: unknown): boolean {
     );
     const ungroupedChecks = doctorChecks(doctor).filter((check) => !groupedCheckIds.has(check.id));
     const hasBlockingProblem = [...runtimeChecks, ...nativeChecks, ...ungroupedChecks].some(
-      (check) => check.status === "fail" && check.id !== "runtime-git",
+      (check) => check.status === "fail" && check.id !== "runtime-recovery",
     );
     if (hasBlockingProblem) {
       return true;
     }
     const hasKnownNonBlockingProblem = [
-      ...runtimeChecks.filter((check) => check.id === "runtime-git"),
+      ...runtimeChecks.filter((check) => check.id === "runtime-recovery"),
       ...legacyChecks,
       ...workspaceChecks,
     ].some((check) => check.status === "warn" || check.status === "fail");
@@ -650,7 +650,7 @@ function hasBlockingDoctorFailure(doctor: unknown): boolean {
 }
 
 function isSetupNonBlockingDoctorCheck(check: { id: string }): boolean {
-  return check.id === "runtime-git" || check.id.startsWith("workspace-");
+  return check.id === "runtime-recovery" || check.id.startsWith("workspace-");
 }
 
 function doctorOk(doctor: unknown): boolean | undefined {

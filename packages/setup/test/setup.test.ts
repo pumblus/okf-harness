@@ -25,7 +25,7 @@ describe("@okf-harness/setup", () => {
     expect(result.stdout).toContain("OpenCode: npx @okf-harness/setup@latest --agents opencode");
     expect(result.stdout).toContain("Pi: npx @okf-harness/setup@latest --agents pi");
     expect(result.stdout).toContain("Hermes Agent: npx @okf-harness/setup@latest --agents hermes");
-    expect(result.stdout).toContain("Warning: git was not found");
+    expect(result.stdout).toContain("Warning: workspace recovery support is unavailable");
     expect(result.stderr).toBe("");
   });
 
@@ -667,7 +667,7 @@ describe("@okf-harness/setup", () => {
     expect(result.stderr).toBe("");
   });
 
-  it("reports missing git doctor failures without failing setup", async () => {
+  it("reports unavailable recovery support without failing setup", async () => {
     const result = await runSetup(
       ["node", "okf-harness-setup", "--runtime-only", "--yes"],
       captureIo(),
@@ -690,18 +690,18 @@ describe("@okf-harness/setup", () => {
                 data: {
                   checks: [
                     {
-                      id: "runtime-git",
+                      id: "runtime-recovery",
                       status: "fail",
-                      message: "git executable was not found.",
+                      message: "workspace recovery support is unavailable.",
                     },
                   ],
                   groups: {
                     runtime: {
                       checks: [
                         {
-                          id: "runtime-git",
+                          id: "runtime-recovery",
                           status: "fail",
-                          message: "git executable was not found.",
+                          message: "workspace recovery support is unavailable.",
                         },
                       ],
                     },
@@ -720,7 +720,9 @@ describe("@okf-harness/setup", () => {
     );
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Doctor setup warning: git executable was not found.");
+    expect(result.stdout).toContain(
+      "Doctor setup warning: workspace recovery support is unavailable.",
+    );
     expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
     expect(result.stderr).toBe("");
   });

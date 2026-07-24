@@ -55,7 +55,7 @@ export const workspaceConfigSchema = z
     safety: z
       .object({
         raw_sources_immutable: z.boolean().optional(),
-        require_git_checkpoint_before_agent_write: z.boolean(),
+        require_git_checkpoint_before_agent_write: z.boolean().optional(),
         max_files_changed_per_ingest: z.number().int().positive(),
       })
       .strict(),

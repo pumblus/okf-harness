@@ -26,24 +26,12 @@ describe("@okf-harness/cli doctor", () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     await runCli(
-      [
-        "node",
-        "okfh",
-        "init",
-        workspace,
-        "--name",
-        "AI Research",
-        "--agents",
-        "all",
-        "--git",
-        "--json",
-      ],
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "all", "--json"],
       {
         writeOut: () => {},
         writeErr: () => {},
       },
     );
-    await mkdir(path.join(workspace, ".git"), { recursive: true });
     await mkdir(fakeEnv.codexStateDirectory, { recursive: true });
     await mkdir(fakeEnv.claudeHome, { recursive: true });
     await runJsonCli(["node", "okfh", "bootstrap", "install", "--agents", "all", "--json"]);
@@ -96,7 +84,7 @@ describe("@okf-harness/cli doctor", () => {
             expect.objectContaining({ id: "runtime-okfh", status: "pass" }),
             expect.objectContaining({ id: "runtime-platform", status: "pass" }),
             expect.objectContaining({ id: "runtime-node", status: "pass" }),
-            expect.objectContaining({ id: "runtime-git", status: "pass" }),
+            expect.objectContaining({ id: "runtime-recovery", status: "pass" }),
             expect.objectContaining({ id: "global-bootstrap-codex", status: "pass" }),
             expect.objectContaining({ id: "global-bootstrap-claude", status: "pass" }),
             expect.objectContaining({ id: "workspace-status", status: "pass" }),
@@ -316,37 +304,6 @@ describe("@okf-harness/cli doctor", () => {
     } finally {
       process.chdir(previousCwd);
     }
-  });
-
-  it("warns when checkpoint policy is enabled outside a Git work tree", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
-    const workspace = path.join(root, "ai-research");
-    await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
-      {
-        writeOut: () => {},
-        writeErr: () => {},
-      },
-    );
-
-    const result = await runJsonCli(["node", "okfh", "doctor", "--workspace", workspace, "--json"]);
-
-    expect(result).toMatchObject({
-      exitCode: 0,
-      result: {
-        ok: true,
-        data: {
-          checks: expect.arrayContaining([
-            expect.objectContaining({ id: "workspace-safety-policy", status: "warn" }),
-          ]),
-        },
-        warnings: expect.arrayContaining([
-          expect.objectContaining({
-            code: "WORKSPACE_SAFETY_POLICY",
-          }),
-        ]),
-      },
-    });
   });
 
   it("checks Windows npm shims through a controlled shell path", async () => {

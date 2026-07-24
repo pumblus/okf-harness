@@ -10,7 +10,6 @@ import {
   supportedNativeIntegrationProfiles,
 } from "@okf-harness/agent-pack";
 import {
-  GIT_CHECKPOINT_POLICY_NOT_ENFORCED,
   readWorkspaceStatus,
   resolveWorkspaceRoot,
   WorkspaceResolutionError,
@@ -100,9 +99,10 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     checkPlatform(runtimePlatform),
     checkNode(),
     await checkExecutable("git", ["--version"], {
-      id: "runtime-git",
-      label: "git",
-      missingMessage: "git executable was not found.",
+      id: "runtime-recovery",
+      label: "Workspace recovery",
+      publicName: "workspace recovery",
+      missingMessage: "workspace recovery support is unavailable.",
       runtimePlatform,
       runExecutable,
     }),
@@ -153,7 +153,6 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     );
   } else {
     workspaceChecks.push(await checkWorkspaceStatus(workspaceRoot));
-    workspaceChecks.push(...(await checkSafetyPolicy(workspaceRoot)));
     workspaceChecks.push(await checkAdapter(workspaceRoot, "claude"));
     workspaceChecks.push(await checkAdapter(workspaceRoot, "codex"));
   }
@@ -262,6 +261,7 @@ async function checkExecutable(
     label: string;
     missingMessage: string;
     outputPrefix?: string | undefined;
+    publicName?: string | undefined;
     runtimePlatform: NodeJS.Platform | string;
     runExecutable: RunExecutable;
   },
@@ -276,10 +276,12 @@ async function checkExecutable(
       label: options.label,
       status: "pass",
       message:
-        output.length > 0
-          ? `Runtime check passed: ${options.outputPrefix ?? ""}${output}`
-          : `Runtime check passed: ${executable} is available.`,
-      details: { executable },
+        options.publicName !== undefined
+          ? `Runtime check passed: ${options.publicName} is available.`
+          : output.length > 0
+            ? `Runtime check passed: ${options.outputPrefix ?? ""}${output}`
+            : `Runtime check passed: ${executable} is available.`,
+      details: { executable: options.publicName ?? executable },
     };
   } catch (error) {
     const code = nodeErrorCode(error);
@@ -290,11 +292,14 @@ async function checkExecutable(
       message:
         code === "ENOENT"
           ? `Runtime check failed: ${options.missingMessage}`
-          : `Runtime check failed: ${executable} check failed.`,
-      details: {
-        executable,
-        error: error instanceof Error ? error.message : String(error),
-      },
+          : `Runtime check failed: ${options.publicName ?? executable} check failed.`,
+      details:
+        options.publicName === undefined
+          ? {
+              executable,
+              error: error instanceof Error ? error.message : String(error),
+            }
+          : { executable: options.publicName },
     };
   }
 }
@@ -471,30 +476,6 @@ async function checkWorkspaceStatus(workspaceRoot: string): Promise<DoctorCheck>
       lintIssues: status.lint.issues.length,
     },
   };
-}
-
-async function checkSafetyPolicy(workspaceRoot: string): Promise<DoctorCheck[]> {
-  const status = await readWorkspaceStatus(workspaceRoot);
-  const checkpointWarning = status.lint.issues.find(
-    (issue) => issue.code === GIT_CHECKPOINT_POLICY_NOT_ENFORCED,
-  );
-  if (checkpointWarning === undefined) {
-    return [];
-  }
-
-  return [
-    {
-      id: "workspace-safety-policy",
-      label: "Safety policy",
-      status: "warn",
-      message: `Workspace check warning: ${checkpointWarning.message}`,
-      details: {
-        workspace: status.workspaceRoot,
-        issueCode: checkpointWarning.code,
-        path: checkpointWarning.path ?? null,
-      },
-    },
-  ];
 }
 
 async function checkAdapter(

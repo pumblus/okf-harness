@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
-import { lstat, readdir, readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import type { WorkspaceConfig } from "../config/index.js";
 import { readWorkspaceLineage, toErrorIssue, type WorkspaceLineage } from "../lineage/index.js";
 import type { OkfMarkdownFile } from "../okf/concepts.js";
 import { okfDocumentView } from "../okf/document.js";
@@ -42,7 +41,6 @@ export const SOURCE_MISSING = "SOURCE_MISSING" as const;
 export const BROKEN_LINK = "BROKEN_LINK" as const;
 export const MISSING_INDEX_ENTRY = "MISSING_INDEX_ENTRY" as const;
 export const MISSING_CITATIONS_SECTION = "MISSING_CITATIONS_SECTION" as const;
-export const GIT_CHECKPOINT_POLICY_NOT_ENFORCED = "GIT_CHECKPOINT_POLICY_NOT_ENFORCED" as const;
 export const WORKSPACE_READ_FAILED = "WORKSPACE_READ_FAILED" as const;
 
 export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> {
@@ -75,7 +73,6 @@ export async function lintWorkspaceFromLineage(
   const issues = [
     ...files.flatMap((file) => lintMarkdownFile(file)),
     ...lintWikiWarnings(files),
-    ...(await lintSafetyWarnings(workspaceRoot, lineage.config)),
     ...lineage.issues,
     ...lineage.ledgerIssues.map(toErrorIssue),
     ...lineage.manifestIssues.map(toErrorIssue),
@@ -85,28 +82,6 @@ export async function lintWorkspaceFromLineage(
     ok: issues.every((issue) => issue.severity !== "error"),
     issues,
   };
-}
-
-async function lintSafetyWarnings(
-  workspaceRoot: string,
-  config: WorkspaceConfig,
-): Promise<LintIssue[]> {
-  if (
-    !config.safety.require_git_checkpoint_before_agent_write ||
-    (await isInsideGitWorkTree(workspaceRoot))
-  ) {
-    return [];
-  }
-
-  return [
-    {
-      code: GIT_CHECKPOINT_POLICY_NOT_ENFORCED,
-      severity: "warning",
-      path: "okfh.config.yaml",
-      message:
-        "Safety policy requires a Git checkpoint before agent writes, but this workspace is not inside a Git work tree. OKF Harness does not enforce automatic checkpoints in v0.3.2.",
-    },
-  ];
 }
 
 async function lintUnregisteredRawSources(
@@ -425,24 +400,4 @@ function errorCode(error: unknown): string | undefined {
 
   const code = (error as { code?: unknown }).code;
   return typeof code === "string" ? code : undefined;
-}
-
-async function isInsideGitWorkTree(workspaceRoot: string): Promise<boolean> {
-  let current = path.resolve(workspaceRoot);
-  while (true) {
-    try {
-      await lstat(path.join(current, ".git"));
-      return true;
-    } catch (error) {
-      if (errorCode(error) !== "ENOENT") {
-        return false;
-      }
-    }
-
-    const parent = path.dirname(current);
-    if (parent === current) {
-      return false;
-    }
-    current = parent;
-  }
 }

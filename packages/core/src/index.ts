@@ -19,7 +19,6 @@ export * from "./evidence/index.js";
 export * from "./graph/index.js";
 export {
   BROKEN_LINK,
-  GIT_CHECKPOINT_POLICY_NOT_ENFORCED,
   type LintIssue,
   type LintResult,
   type LintSeverity,
@@ -44,6 +43,7 @@ export * from "./okf/frontmatter.js";
 export * from "./okf/links.js";
 export * from "./paths/index.js";
 export * from "./read/index.js";
+export * from "./recovery/index.js";
 export * from "./search/index.js";
 export * from "./source/index.js";
 export * from "./source/ingest.js";

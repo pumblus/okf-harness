@@ -4,6 +4,7 @@ import { registerBootstrapCommands } from "./commands/bootstrap.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerQueryCommands } from "./commands/query.js";
+import { registerRecoveryCommands } from "./commands/recovery.js";
 import { registerSourceCommands } from "./commands/source.js";
 import { registerWorkspaceCommands } from "./commands/workspace.js";
 import { handleCliError } from "./errors/index.js";
@@ -43,6 +44,8 @@ export async function runCli(
   registerWorkspaceCommands(program, io, setExitCode);
 
   registerQueryCommands(program, io, setExitCode);
+
+  registerRecoveryCommands(program, io, setExitCode);
 
   registerDoctorCommand(program, io, setExitCode);
 

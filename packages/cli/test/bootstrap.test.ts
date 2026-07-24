@@ -1,4 +1,5 @@
-import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -66,7 +67,6 @@ describe("@okf-harness/cli bootstrap", () => {
             command: "init",
             workspace,
             data: {
-              git: { requested: false, initialized: false },
               agents: {
                 requested: scenario.agent,
                 install: { adapter: scenario.agent, conflicts: [] },
@@ -1243,7 +1243,7 @@ async function withFakeBootstrapEnv(
   process.env.CLAUDE_CONFIG_DIR = claudeHome;
   process.env.CODEX_HOME = codexStateDirectory;
   process.env.HOME = home;
-  process.env.PATH = bin;
+  process.env.PATH = [bin, await executableDirectory("git", previous.PATH)].join(path.delimiter);
   delete process.env.USERPROFILE;
   try {
     await run({ bin, claudeHome, codexHome, codexStateDirectory });
@@ -1257,6 +1257,21 @@ async function withFakeBootstrapEnv(
       }
     }
   }
+}
+
+async function executableDirectory(name: string, searchPath: string | undefined): Promise<string> {
+  const names = process.platform === "win32" ? [`${name}.exe`, `${name}.cmd`, name] : [name];
+  for (const directory of searchPath?.split(path.delimiter) ?? []) {
+    for (const candidate of names) {
+      try {
+        await access(path.join(directory, candidate), constants.X_OK);
+        return directory;
+      } catch {
+        // Keep searching.
+      }
+    }
+  }
+  throw new Error(`Required test executable was not found: ${name}`);
 }
 
 async function writeFakeExecutable(bin: string, name: string): Promise<void> {

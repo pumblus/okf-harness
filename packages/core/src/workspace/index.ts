@@ -1,7 +1,5 @@
-import { execFile } from "node:child_process";
 import { access, lstat, mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
 import { stringify as stringifyYaml } from "yaml";
 import { type CheckResult, checkCurrencyFromLineage, checkLintResult } from "../check/index.js";
 import type { WorkspaceConfig } from "../config/index.js";
@@ -19,17 +17,12 @@ export type InitWorkspaceOptions = {
   name: string;
   now?: Date;
   dryRun?: boolean;
-  git?: boolean;
 };
 
 export type InitWorkspaceResult = {
   workspaceRoot: string;
   name: string;
   dryRun: boolean;
-  git: {
-    requested: boolean;
-    initialized: boolean;
-  };
   files: string[];
   directories: string[];
   lint: LintResult;
@@ -84,8 +77,6 @@ export class WorkspaceInitError extends Error {
   }
 }
 
-const execFileAsync = promisify(execFile);
-
 export async function initWorkspace(options: InitWorkspaceOptions): Promise<InitWorkspaceResult> {
   const workspaceRoot = path.resolve(options.workspaceRoot);
   const plan =
@@ -100,10 +91,6 @@ export async function initWorkspace(options: InitWorkspaceOptions): Promise<Init
       workspaceRoot,
       name: plan.name,
       dryRun: true,
-      git: {
-        requested: options.git === true,
-        initialized: false,
-      },
       files: plan.files.map((file) => file.path),
       directories: plan.directories,
       lint: {
@@ -126,34 +113,17 @@ export async function initWorkspace(options: InitWorkspaceOptions): Promise<Init
     plan.files.map((file) => writeTextFile(path.join(workspaceRoot, file.path), file.contents)),
   );
 
-  const gitInitialized = options.git === true ? await initializeGit(workspaceRoot) : false;
   const lint = await lintWorkspace(workspaceRoot);
 
   return {
     workspaceRoot,
     name: plan.name,
     dryRun: false,
-    git: {
-      requested: options.git === true,
-      initialized: gitInitialized,
-    },
     files: plan.files.map((file) => file.path),
     directories: plan.directories,
     lint,
     warnings: plan.warnings,
   };
-}
-
-async function initializeGit(workspaceRoot: string): Promise<boolean> {
-  try {
-    await execFileAsync("git", ["init"], { cwd: workspaceRoot });
-    return true;
-  } catch (error) {
-    if (errorCode(error) === "ENOENT") {
-      throw new WorkspaceInitError("git executable was not found.", "DEPENDENCY_MISSING");
-    }
-    throw error;
-  }
 }
 
 export async function readWorkspaceStatus(workspaceRootInput: string): Promise<WorkspaceStatus> {
@@ -315,7 +285,6 @@ function createWorkspaceConfig(name: string, createdAt: string): WorkspaceConfig
       manifest: ".okfh/manifest.jsonl",
     },
     safety: {
-      require_git_checkpoint_before_agent_write: true,
       max_files_changed_per_ingest: 20,
     },
   };
