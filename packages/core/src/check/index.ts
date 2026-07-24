@@ -3,7 +3,6 @@ import {
   BROKEN_LINK,
   type LintIssue,
   type LintResult,
-  LOG_INVALID_DATE_HEADING,
   lintWorkspaceFromLineage,
   OKF_INVALID_FRONTMATTER,
   OKF_MISSING_FRONTMATTER,
@@ -145,7 +144,6 @@ function isOkfConformanceFinding(issue: LintIssue): boolean {
     issue.code === OKF_MISSING_FRONTMATTER ||
     issue.code === OKF_INVALID_FRONTMATTER ||
     issue.code === OKF_MISSING_TYPE ||
-    issue.code === RESERVED_FILE_HAS_CONCEPT_FRONTMATTER ||
-    issue.code === LOG_INVALID_DATE_HEADING
+    issue.code === RESERVED_FILE_HAS_CONCEPT_FRONTMATTER
   );
 }

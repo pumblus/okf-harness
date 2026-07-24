@@ -136,7 +136,6 @@ export type ReadWorkspaceResult = {
   content: ReadContent;
   source?: SourceManifestEntry;
   indexLinks?: Array<{ title: string; target: string; conceptId?: string; exists: boolean }>;
-  logEntries?: Array<{ date: string; line: number; text: string }>;
   warnings: Array<{ code: string; message: string; path?: string }>;
 };
 
@@ -208,9 +207,6 @@ export async function readWorkspaceDocument(
   if (file.bundlePath === "index.md") {
     result.indexLinks = parseIndexLinks(file, body, conceptIds);
   }
-  if (path.posix.basename(file.bundlePath) === "log.md") {
-    result.logEntries = parseLogEntries(body);
-  }
   return result;
 }
 
@@ -246,14 +242,18 @@ function resolveReadTarget(files: OkfMarkdownFile[], targetInput: string): OkfMa
   }
 
   const candidates = targetAliases(target);
-  const file = files.find((candidate) =>
-    candidates.some(
-      (alias) =>
-        candidate.conceptId === alias ||
-        candidate.workspacePath === alias ||
-        candidate.bundlePath === alias ||
-        `/${candidate.bundlePath}` === alias,
-    ),
+  const file = files.find(
+    (candidate) =>
+      // A workspace created before the history surface was removed may still carry a log file.
+      // It is no longer readable knowledge.
+      path.posix.basename(candidate.bundlePath) !== "log.md" &&
+      candidates.some(
+        (alias) =>
+          candidate.conceptId === alias ||
+          candidate.workspacePath === alias ||
+          candidate.bundlePath === alias ||
+          `/${candidate.bundlePath}` === alias,
+      ),
   );
 
   if (file === undefined) {
@@ -272,10 +272,6 @@ function targetAliases(target: string): string[] {
   if (target === "index" || target === "wiki/index.md") {
     return ["index", "wiki/index.md", "index.md", "/index.md"];
   }
-  if (target === "log" || target === "wiki/log.md") {
-    return ["log", "wiki/log.md", "log.md", "/log.md"];
-  }
-
   const withoutWiki = target.startsWith("wiki/") ? target.slice("wiki/".length) : target;
   const withoutSlash = withoutWiki.startsWith("/") ? withoutWiki.slice(1) : withoutWiki;
   const withExtension = withoutSlash.endsWith(".md") ? withoutSlash : `${withoutSlash}.md`;
@@ -582,23 +578,6 @@ function parseIndexLinks(
     };
     return conceptId === undefined ? indexLink : { ...indexLink, conceptId };
   });
-}
-
-function parseLogEntries(body: string): Array<{ date: string; line: number; text: string }> {
-  const lines = body.split(/\r?\n/);
-  const entries: Array<{ date: string; line: number; text: string }> = [];
-  let currentDate: string | undefined;
-  lines.forEach((line, index) => {
-    const heading = /^##\s+(\d{4}-\d{2}-\d{2})\s*$/.exec(line);
-    if (heading?.[1] !== undefined) {
-      currentDate = heading[1];
-      return;
-    }
-    if (currentDate !== undefined && line.trim().startsWith("- ")) {
-      entries.push({ date: currentDate, line: index + 1, text: line.trim().slice(2) });
-    }
-  });
-  return entries;
 }
 
 function renderFrontmatter(file: OkfMarkdownFile): ReadFrontmatter {

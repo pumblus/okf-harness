@@ -22,7 +22,6 @@ export {
   type LintIssue,
   type LintResult,
   type LintSeverity,
-  LOG_INVALID_DATE_HEADING,
   lintWorkspace,
   MISSING_CITATIONS_SECTION,
   MISSING_INDEX_ENTRY,

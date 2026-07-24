@@ -206,14 +206,13 @@ async function findNearestWorkspaceRoot(startDir: string): Promise<string | unde
 
 export function createWorkspacePlan(options: { name: string; now?: Date }): WorkspacePlan {
   const createdAt = (options.now ?? new Date()).toISOString();
-  const logDate = createdAt.slice(0, "YYYY-MM-DD".length);
   const config = createWorkspaceConfig(options.name, createdAt);
 
   return {
     name: options.name,
     createdAt,
     directories: workspaceDirectories(),
-    files: workspaceFiles(options.name, logDate, config),
+    files: workspaceFiles(options.name, config),
     warnings: [],
   };
 }
@@ -290,11 +289,7 @@ function createWorkspaceConfig(name: string, createdAt: string): WorkspaceConfig
   };
 }
 
-function workspaceFiles(
-  name: string,
-  logDate: string,
-  config: WorkspaceConfig,
-): WorkspacePlanFile[] {
+function workspaceFiles(name: string, config: WorkspaceConfig): WorkspacePlanFile[] {
   return [
     {
       path: "README.md",
@@ -359,10 +354,6 @@ function workspaceFiles(
     {
       path: "wiki/index.md",
       contents: `# ${name} Wiki\n\n## Concepts\n\n- [Topics](/topics/index.md)\n- [References](/references/index.md)\n`,
-    },
-    {
-      path: "wiki/log.md",
-      contents: `# Log\n\n## ${logDate}\n\n- Initialized the OKF Harness workspace.\n`,
     },
     ...workspaceIndexFiles([
       "decisions",

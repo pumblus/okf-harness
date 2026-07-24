@@ -368,7 +368,6 @@ Hop Three Answer remains available.
       await mkdir(container);
       await rename(path.join(workspace, "wiki"), path.join(container, "knowledge"));
       await writeFile(path.join(container, "index.md"), "# Container\n", "utf8");
-      await writeFile(path.join(container, "log.md"), "# Log\n", "utf8");
       const configPath = path.join(workspace, "okfh.config.yaml");
       await writeFile(configPath, "okf:\n  bundle_root: [unterminated\n", "utf8");
 

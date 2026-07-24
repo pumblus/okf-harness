@@ -10,6 +10,8 @@ import {
 import { okfDocumentView } from "./document.js";
 import { type MarkdownFrontmatter, parseMarkdownFrontmatter } from "./frontmatter.js";
 
+// log.md is no longer scaffolded; it stays reserved so a leftover log file in an older
+// workspace is ignored instead of being scanned as a concept document.
 export const RESERVED_OKF_FILENAMES = new Set(["index.md", "log.md"]);
 export const SCAN_FAILED = "SCAN_FAILED" as const;
 

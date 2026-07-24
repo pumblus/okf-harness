@@ -461,7 +461,7 @@ describe("@okf-harness/cli workspace", () => {
         writeErr: () => {},
       },
     );
-    await writeFile(path.join(workspace, "wiki/log.md"), "# Log\n\n## June 15\n", "utf8");
+    await writeFile(path.join(workspace, "wiki/topics/drifted.md"), "# Drifted\n", "utf8");
     let stdout = "";
     let stderr = "";
 
@@ -493,7 +493,7 @@ describe("@okf-harness/cli workspace", () => {
         status: "blocked",
         okfConformance: {
           ok: false,
-          findings: [expect.objectContaining({ code: "LOG_INVALID_DATE_HEADING" })],
+          findings: [expect.objectContaining({ code: "OKF_MISSING_FRONTMATTER" })],
         },
       },
       next: [NEXT_FIX_OKF_CONFORMANCE],
@@ -510,7 +510,7 @@ describe("@okf-harness/cli workspace", () => {
         writeErr: () => {},
       },
     );
-    await writeFile(path.join(workspace, "wiki/log.md"), "# Log\n\n## June 15\n", "utf8");
+    await writeFile(path.join(workspace, "wiki/topics/drifted.md"), "# Drifted\n", "utf8");
     let stdout = "";
     let stderr = "";
 

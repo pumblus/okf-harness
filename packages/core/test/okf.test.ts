@@ -62,13 +62,12 @@ describe("OKF concept scanning", () => {
     expect(conceptIdFromPath("wiki/references/source.md")).toBe("references/source");
   });
 
-  it("scans non-reserved concept files and skips index/log files", async () => {
+  it("scans non-reserved concept files and skips index files", async () => {
     const config = await loadWorkspaceConfig(validWorkspaceFixture);
     const result = await scanConcepts(validWorkspaceFixture, config);
 
     expect(result.files.map((file) => file.bundlePath)).toEqual([
       "index.md",
-      "log.md",
       "references/index.md",
       "references/karpathy-llm-wiki.md",
       "topics/llm-wiki.md",

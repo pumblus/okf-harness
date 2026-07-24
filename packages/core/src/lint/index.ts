@@ -34,7 +34,6 @@ export const OKF_INVALID_FRONTMATTER = "OKF_INVALID_FRONTMATTER" as const;
 export const OKF_MISSING_TYPE = "OKF_MISSING_TYPE" as const;
 export const RESERVED_FILE_HAS_CONCEPT_FRONTMATTER =
   "RESERVED_FILE_HAS_CONCEPT_FRONTMATTER" as const;
-export const LOG_INVALID_DATE_HEADING = "LOG_INVALID_DATE_HEADING" as const;
 export const SOURCE_HASH_DRIFT = "SOURCE_HASH_DRIFT" as const;
 export const SOURCE_LINEAGE_SUSPECTED = "SOURCE_LINEAGE_SUSPECTED" as const;
 export const SOURCE_MISSING = "SOURCE_MISSING" as const;
@@ -255,10 +254,6 @@ function lintMarkdownFile(file: OkfMarkdownFile): LintIssue[] {
     }
   }
 
-  if (file.bundlePath.split("/").at(-1) === "log.md") {
-    issues.push(...lintLogDateHeadings(file));
-  }
-
   return issues;
 }
 
@@ -354,34 +349,6 @@ function indexMentionedConceptIds(files: OkfMarkdownFile[]): Set<string> {
     }
   }
   return indexed;
-}
-
-function lintLogDateHeadings(file: OkfMarkdownFile): LintIssue[] {
-  return file.markdown.split(/\r?\n/).flatMap((line, index) => {
-    const heading = /^(#{2,6})\s+(.+?)\s*$/.exec(line);
-    if (heading === null) {
-      return [];
-    }
-
-    const headingText = heading[2];
-    if (headingText === undefined) {
-      return [];
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}$/.test(headingText)) {
-      return [];
-    }
-
-    return [
-      {
-        code: LOG_INVALID_DATE_HEADING,
-        severity: "error",
-        path: file.workspacePath,
-        line: index + 1,
-        message: `Log heading must be YYYY-MM-DD: ${headingText}`,
-      } satisfies LintIssue,
-    ];
-  });
 }
 
 function hasOkfhSources(frontmatter: Record<string, unknown>): boolean {

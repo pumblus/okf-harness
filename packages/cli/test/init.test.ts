@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
+import { runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli init", () => {
   it("requires an explicit agent adapter for direct CLI initialization", async () => {
@@ -297,6 +298,40 @@ describe("@okf-harness/cli init", () => {
       stat(path.join(workspace, ".agents/skills/okf-harness/SKILL.md")),
     ).rejects.toMatchObject({
       code: "ENOENT",
+    });
+  });
+
+  it("scaffolds no history surface and leaves the log read target unresolvable", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+    );
+
+    await expect(stat(path.join(workspace, "wiki/log.md"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    const read = await runJsonCli([
+      "node",
+      "okfh",
+      "read",
+      "log",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+    expect(read.exitCode).toBe(1);
+    expect(JSON.parse(read.stderr)).toMatchObject({
+      ok: false,
+      command: "read",
+      error: {
+        code: "TARGET_NOT_FOUND",
+        message: "No OKF concept document matched the read target.",
+      },
     });
   });
 

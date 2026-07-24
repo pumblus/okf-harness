@@ -79,38 +79,6 @@ describe("OKF hard linter", () => {
     expect(result.issues).toEqual([]);
   });
 
-  it("reports invalid log date headings", async () => {
-    const workspaceRoot = await copyValidWorkspace();
-    await writeFile(`${workspaceRoot}/wiki/log.md`, "# Log\n\n## June 15\n");
-
-    const result = await lintWorkspace(workspaceRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.issues).toEqual([
-      expect.objectContaining({
-        code: "LOG_INVALID_DATE_HEADING",
-        line: 3,
-        path: "wiki/log.md",
-      }),
-    ]);
-  });
-
-  it("reports invalid date headings in nested log files", async () => {
-    const workspaceRoot = await copyValidWorkspace();
-    await writeFile(`${workspaceRoot}/wiki/references/log.md`, "# Reference Log\n\n## June 15\n");
-
-    const result = await lintWorkspace(workspaceRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.issues).toEqual([
-      expect.objectContaining({
-        code: "LOG_INVALID_DATE_HEADING",
-        line: 3,
-        path: "wiki/references/log.md",
-      }),
-    ]);
-  });
-
   it("reports invalid manifest rows with line numbers", async () => {
     const workspaceRoot = await copyValidWorkspace();
     await mkdir(`${workspaceRoot}/.okfh`, { recursive: true });

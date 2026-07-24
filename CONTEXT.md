@@ -253,7 +253,7 @@ The bounded content view and metadata for one concept document in an OKF bundle.
 _Avoid_: raw source read, attachment fetch, source dump
 
 **Reserved wiki document**:
-An OKF bundle file with a special workspace role, such as `wiki/index.md` or `wiki/log.md`, rather than a normal concept document. It may be read explicitly for orientation or activity history, but it should not be presented as a concept.
+An OKF bundle file with a special workspace role, such as `wiki/index.md`, rather than a normal concept document. It may be read explicitly for orientation, but it should not be presented as a concept.
 _Avoid_: concept document, arbitrary workspace file, wiki page
 
 **Index document**:

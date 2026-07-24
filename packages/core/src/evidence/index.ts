@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import {
   type CheckResult,
@@ -18,7 +18,7 @@ import {
   SOURCE_HASH_DRIFT,
   SOURCE_MISSING,
 } from "../lint/index.js";
-import { type OkfMarkdownFile, RESERVED_OKF_FILENAMES, scanConcepts } from "../okf/concepts.js";
+import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
 import { safeResolveWorkspacePath, toPosixRelativePath } from "../paths/index.js";
 import {
   type CitationIssue,
@@ -364,20 +364,36 @@ async function discoverBundleFiles(workspaceRoot: string): Promise<OkfMarkdownFi
 async function findInnermostBundleRoots(directory: string): Promise<string[]> {
   try {
     const entries = await readdir(directory, { withFileTypes: true });
+    const subdirectories = entries.filter(
+      (entry) => entry.isDirectory() && ![".git", "node_modules"].includes(entry.name),
+    );
     const nested = (
       await Promise.all(
-        entries
-          .filter((entry) => entry.isDirectory() && ![".git", "node_modules"].includes(entry.name))
-          .map((entry) => findInnermostBundleRoots(path.join(directory, entry.name))),
+        subdirectories.map((entry) => findInnermostBundleRoots(path.join(directory, entry.name))),
       )
     ).flat();
     if (nested.length > 0) {
       return nested;
     }
-    const names = new Set(entries.filter((entry) => entry.isFile()).map((entry) => entry.name));
-    return [...RESERVED_OKF_FILENAMES].every((name) => names.has(name)) ? [directory] : [];
+    // A bundle root carries its own index and at least one indexed category directory,
+    // which is what separates it from the category directories below it.
+    if (!entries.some((entry) => entry.isFile() && entry.name === "index.md")) {
+      return [];
+    }
+    const categories = await Promise.all(
+      subdirectories.map((entry) => hasIndexFile(path.join(directory, entry.name))),
+    );
+    return categories.includes(true) ? [directory] : [];
   } catch {
     return [];
+  }
+}
+
+async function hasIndexFile(directory: string): Promise<boolean> {
+  try {
+    return (await stat(path.join(directory, "index.md"))).isFile();
+  } catch {
+    return false;
   }
 }
 
