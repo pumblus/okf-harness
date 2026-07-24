@@ -117,6 +117,16 @@ okfh checkpoint --judgment "Folded the source revision into the wiki." --workspa
 
 The JSON payload is `data.completion`, shaped as `{ "id": "...", "judgment": "..." }`. The completion then appears in `okfh history`.
 
+### restore
+
+Steps the workspace back to the state at a prior completion, addressed by the opaque completion id from `okfh history`. Restore reaches any completion, not only the latest, and the completions moved through remain listed in `okfh history`, so you can move back and forth. Restore refuses to run while the workspace has changes that are not part of a completion yet.
+
+```bash
+okfh restore <completion-id> --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+The JSON payload is `data.completion`, the completion the workspace was restored to.
+
 ### agent install
 
 Installs or repairs workspace-local adapter files in an existing workspace. This command currently covers the `codex` and `claude` adapters.

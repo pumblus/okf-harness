@@ -21,6 +21,8 @@ export class RecoveryError extends Error {
 
 const INITIAL_RECOVERY_SUBJECT = "OKF Harness workspace initialized";
 const CHECKPOINT_SUBJECT = "OKF Harness workspace checkpoint";
+const RESTORE_SUBJECT = "OKF Harness workspace restore";
+const COMPLETION_ID_PREFIX = "completion_";
 const RECOVERY_AUTHOR_FLAGS = [
   "-c",
   "user.name=OKF Harness",
@@ -98,6 +100,47 @@ export async function createCheckpoint(
   return completion;
 }
 
+export async function restoreCompletion(
+  workspaceRootInput: string,
+  completionId: string,
+): Promise<Completion> {
+  const workspaceRoot = path.resolve(workspaceRootInput);
+  await loadWorkspaceConfig(workspaceRoot);
+  const completions = await listCompletions(workspaceRoot);
+  const completion = completions.find((candidate) => candidate.id === completionId);
+  if (completion === undefined) {
+    throw new RecoveryError("The completion could not be found.", "COMPLETION_NOT_FOUND");
+  }
+  const pending = await runRecoveryCommand(workspaceRoot, ["status", "--porcelain"], "read");
+  if (pending.trim().length > 0) {
+    throw new RecoveryError(
+      "The workspace has changes that are not part of a completion yet.",
+      "WORKSPACE_NOT_SEALED",
+    );
+  }
+  // Rewind the workspace to the completion's exact state and seal the move as
+  // its own entry, so the completions moved through stay reachable in history.
+  const revision = Buffer.from(
+    completion.id.slice(COMPLETION_ID_PREFIX.length),
+    "base64url",
+  ).toString("hex");
+  await runRecoveryCommand(workspaceRoot, ["read-tree", "--reset", "-u", revision], "write");
+  await runRecoveryCommand(
+    workspaceRoot,
+    [
+      ...RECOVERY_AUTHOR_FLAGS,
+      "commit",
+      "--quiet",
+      "--no-verify",
+      "--allow-empty",
+      "-m",
+      RESTORE_SUBJECT,
+    ],
+    "write",
+  );
+  return completion;
+}
+
 export async function listCompletions(workspaceRootInput: string): Promise<Completion[]> {
   const workspaceRoot = path.resolve(workspaceRootInput);
   await loadWorkspaceConfig(workspaceRoot);
@@ -122,7 +165,7 @@ export async function listCompletions(workspaceRootInput: string): Promise<Compl
       continue;
     }
     revisions.push({
-      id: `completion_${Buffer.from(revision, "hex").toString("base64url")}`,
+      id: `${COMPLETION_ID_PREFIX}${Buffer.from(revision, "hex").toString("base64url")}`,
       subject: fields[index + 1] ?? "",
       judgment: fields[index + 2]?.trim() ?? "",
     });
@@ -131,7 +174,10 @@ export async function listCompletions(workspaceRootInput: string): Promise<Compl
   const baseline = revisions.findIndex((revision) => revision.subject === INITIAL_RECOVERY_SUBJECT);
   return baseline === -1
     ? []
-    : revisions.slice(0, baseline).map(({ id, judgment }) => ({ id, judgment }));
+    : revisions
+        .slice(0, baseline)
+        .filter((revision) => revision.subject !== RESTORE_SUBJECT)
+        .map(({ id, judgment }) => ({ id, judgment }));
 }
 
 async function revisionCount(workspaceRoot: string): Promise<number> {

@@ -117,6 +117,16 @@ okfh checkpoint --judgment "已把来源修订并入 wiki。" --workspace "$HOME
 
 JSON 数据位于 `data.completion`，格式为 `{ "id": "...", "judgment": "..." }`。创建的完成记录随后会出现在 `okfh history` 中。
 
+### restore
+
+把工作区回退到某条既往完成记录时的状态，目标用 `okfh history` 返回的不透明完成标识指定。restore 可以回到任意一条完成记录，而不仅是最新一条；回退过程中经过的完成记录仍会列在 `okfh history` 中，因此可以来回移动。当工作区还有尚未纳入任何完成记录的改动时，restore 会拒绝执行。
+
+```bash
+okfh restore <completion-id> --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+```
+
+JSON 数据位于 `data.completion`，即工作区回退到的那条完成记录。
+
 ### agent install
 
 在已有工作区中安装或修复工作区本地适配文件。这个命令当前覆盖 `codex` 和 `claude` 适配器。

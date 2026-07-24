@@ -1,4 +1,9 @@
-import { createCheckpoint, listCompletions, resolveWorkspaceRoot } from "@okf-harness/core";
+import {
+  createCheckpoint,
+  listCompletions,
+  resolveWorkspaceRoot,
+  restoreCompletion,
+} from "@okf-harness/core";
 import type { Command } from "commander";
 import { writeCliError } from "../errors/index.js";
 import { writeResult } from "../render/result.js";
@@ -38,6 +43,46 @@ export function registerRecoveryCommands(
           error,
           workspace: workspaceRoot,
           next: ["Check the workspace path and rerun okfh checkpoint --json."],
+          json: options.json === true,
+        });
+        if (handled) {
+          setExitCode(1);
+          return;
+        }
+        throw error;
+      }
+    });
+
+  program
+    .command("restore <completion-id>")
+    .description("Restore the workspace to a prior completion.")
+    .storeOptionsAsProperties(false)
+    .option("--workspace <path>", "workspace path")
+    .option("--json", "write machine-readable JSON")
+    .action(async (completionId: string, command: Command) => {
+      const options = command.opts() as { workspace?: string; json?: boolean };
+      let workspaceRoot: string | null = null;
+      try {
+        workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+        const completion = await restoreCompletion(workspaceRoot, completionId);
+        const envelope: JsonEnvelope = {
+          ok: true,
+          command: "restore",
+          workspace: workspaceRoot,
+          data: { completion },
+          warnings: [],
+          next: [],
+        };
+        writeResult(io, envelope, options.json);
+        setExitCode(0);
+      } catch (error) {
+        const handled = writeCliError(io, {
+          command: "restore",
+          error,
+          workspace: workspaceRoot,
+          next: [
+            "Run okfh history --json to list completions, then rerun okfh restore <completion-id> --json.",
+          ],
           json: options.json === true,
         });
         if (handled) {
