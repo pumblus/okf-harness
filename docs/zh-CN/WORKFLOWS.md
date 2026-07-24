@@ -93,6 +93,37 @@ URL 来源只作为来源指针保存。OKF Harness 会记录 URL，但不会自
 
 `okfh status` 和 `okfh check` 可以在 JSON 的 `next` 中返回工作区下一步，人类可读输出也可以把它显示为 `Next: ...`。把这行当作这个闭环里给智能体的下一条提示：添加一份本地来源文件、把网页内容保存成本地文件而不是只依赖 URL 指针、带引用更新 Wiki、处理 check 发现的问题，或执行 first-answer check。CLI 只报告下一步；它不会抓取网页、自动修复问题、给内容质量打语义分，或替你整理 Wiki 页面。
 
+## 对账来源修订
+
+```text
+<okf-harness> 将修订后的研究笔记与这个工作区对账，更新所有受影响的 Wiki 论述，并核验工作区的对账封印。
+```
+
+当后来登记的本地来源与先前登记文件的原始文件名相同、内容不同时，OKF Harness 会把它识别为疑似来源修订。如果修订后的本地文件尚未登记，智能体先调用：
+
+```bash
+okfh source add <revised-path> --workspace <workspace> --json
+```
+
+如果 `check` 已发现登记过的疑似修订，则跳过这次登记。无论哪种情况，智能体都用以下命令确定准确的先前版本和修订版本记录：
+
+```bash
+okfh source list --workspace <workspace> --json
+okfh check --workspace <workspace> --json
+```
+
+智能体根据返回的来源 ID 和记录路径，读取两份不可变的已登记副本，并检查由它们提升或受它们影响的参考、概念、索引和日志文件。然后，智能体编辑所有受影响的 Wiki 论述，使其反映修订内容。对账意味着 Wiki 已反映修订内容；仅检查两个版本不算完成对账。CLI 只报告修订，不会自动修复 Wiki。
+
+更新 Wiki 后，智能体先校验编辑结果，再为这组准确的先前版本和修订版本记录判断，最后再次检查对账封印：
+
+```bash
+okfh check --workspace <workspace> --json
+okfh source reconcile <prior-source-id> <revision-source-id> --note "<Wiki 中更新了哪些内容>" --workspace <workspace> --json
+okfh check --workspace <workspace> --json
+```
+
+第一个来源 ID 必须是先前版本，第二个必须是它的修订版本。最后一次 `check` 会核验这组版本已不再悬置；只有没有其他已提升来源的悬置对账且没有校验错误时，`data.currency.sealed` 才为 `true`。不要手动编辑 `raw/sources/` 下的已登记文件或 Harness 管理的对账状态。
+
 ## 提问
 
 ```text

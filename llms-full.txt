@@ -680,6 +680,37 @@ URL sources stay as source pointers. OKF Harness records the URL, but does not f
 
 `okfh status` and `okfh check` can return a Workspace next step in JSON `next`, and human-readable output can show it as `Next: ...`. Treat that line as the next prompt for your agent in this loop: add one local source file, save webpage content as a local file instead of relying on a URL pointer, update the wiki with citations, handle check findings, or run the first-answer check. The CLI reports the step; it does not fetch pages, repair findings, score content quality, or synthesize wiki pages for you.
 
+#### Reconcile A Source Revision
+
+```text
+<okf-harness> Reconcile the revised research note with this workspace, update every affected wiki claim, and verify the workspace currency seal.
+```
+
+OKF Harness detects a suspected source revision when a later local source has the same original filename as an earlier registered file but different contents. If the revised local file is not registered yet, the agent first calls:
+
+```bash
+okfh source add <revised-path> --workspace <workspace> --json
+```
+
+If `check` already detected a registered suspected revision, skip that registration. In either case, the agent identifies the exact prior and revision records with:
+
+```bash
+okfh source list --workspace <workspace> --json
+okfh check --workspace <workspace> --json
+```
+
+Using the returned source IDs and recorded paths, the agent reads both immutable registered copies and inspects the reference, concept, index, and log files promoted from or affected by them. It then edits every affected wiki claim to reflect the revision. Reconciliation means the wiki reflects the revision; merely inspecting both copies is not reconciliation. The CLI reports the revision but does not repair the wiki automatically.
+
+After updating the wiki, the agent validates the edits, records its judgment for that exact prior-and-revision pair, and checks the currency seal again:
+
+```bash
+okfh check --workspace <workspace> --json
+okfh source reconcile <prior-source-id> <revision-source-id> --note "<what changed in the wiki>" --workspace <workspace> --json
+okfh check --workspace <workspace> --json
+```
+
+The first source ID must be the prior copy and the second its revision. The final `check` verifies that this pair is no longer pending; `data.currency.sealed` is `true` only when no other promoted source has a pending reconciliation and no validation error remains. Never edit registered files under `raw/sources/` or Harness-managed reconciliation state by hand.
+
 #### Ask A Question
 
 ```text
