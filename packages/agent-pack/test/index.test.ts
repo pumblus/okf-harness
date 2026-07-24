@@ -113,6 +113,7 @@ describe("@okf-harness/agent-pack", () => {
       ".claude/skills/okf-harness/references/setup.md",
       ".claude/skills/okf-harness/references/check.md",
       ".claude/skills/okf-harness/references/ingest.md",
+      ".claude/skills/okf-harness/references/reconcile.md",
       ".claude/skills/okf-harness/references/answer.md",
       ".claude/skills/okf-harness/references/graph.md",
     ]);
@@ -122,6 +123,7 @@ describe("@okf-harness/agent-pack", () => {
       ".agents/skills/okf-harness/references/setup.md",
       ".agents/skills/okf-harness/references/check.md",
       ".agents/skills/okf-harness/references/ingest.md",
+      ".agents/skills/okf-harness/references/reconcile.md",
       ".agents/skills/okf-harness/references/answer.md",
       ".agents/skills/okf-harness/references/graph.md",
     ]);
@@ -137,6 +139,7 @@ describe("@okf-harness/agent-pack", () => {
     expect(claudeSkill).toContain("references/setup.md");
     expect(claudeSkill).toContain("references/check.md");
     expect(claudeSkill).toContain("references/ingest.md");
+    expect(claudeSkill).toContain("references/reconcile.md");
     expect(claudeSkill).toContain("references/answer.md");
     expect(claudeSkill).toContain("references/graph.md");
     expect(claudeSkill).not.toContain("allowed-tools");
@@ -196,6 +199,7 @@ describe("@okf-harness/agent-pack", () => {
       ".agents/skills/okf-harness/references/setup.md",
       ".agents/skills/okf-harness/references/check.md",
       ".agents/skills/okf-harness/references/ingest.md",
+      ".agents/skills/okf-harness/references/reconcile.md",
       ".agents/skills/okf-harness/references/answer.md",
       ".agents/skills/okf-harness/references/graph.md",
     ] as const;
@@ -221,13 +225,49 @@ describe("@okf-harness/agent-pack", () => {
     expect(ingestReference).toContain("Their reasons are mechanical metadata matches");
     expect(ingestReference).toContain("If it is present, the CLI has not created the file");
     expect(ingestReference).not.toContain("v0.3.2");
-    expect(fileContents(codex.files, referencePaths[3])).toContain("No such command exists");
-    expect(fileContents(codex.files, referencePaths[3])).toContain(
+    expect(fileContents(codex.files, referencePaths[4])).toContain("No such command exists");
+    expect(fileContents(codex.files, referencePaths[4])).toContain(
       'okfh evidence "<question>" --workspace <workspace> --json',
     );
-    expect(fileContents(codex.files, referencePaths[4])).toContain(
+    expect(fileContents(codex.files, referencePaths[5])).toContain(
       "not a repository dependency graph",
     );
+  });
+
+  it("renders the reconciliation workflow and stop contract", () => {
+    const codex = renderAgentAdapter({ adapter: "codex" });
+    const skill = fileContents(codex.files, ".agents/skills/okf-harness/SKILL.md");
+    const reconciliation = fileContents(
+      codex.files,
+      ".agents/skills/okf-harness/references/reconcile.md",
+    );
+    const answer = fileContents(codex.files, ".agents/skills/okf-harness/references/answer.md");
+    const stopPredicate =
+      "An Agent stop is permitted only when the information needed to decide safely exists solely in the user's head.";
+    const renderedGuidance = codex.files.map((file) => file.contents).join("\n");
+
+    expect(renderedGuidance.split(stopPredicate)).toHaveLength(2);
+    expect(skill).toContain("revision identity remains in doubt");
+    expect(skill).toContain("an unresolved contradiction");
+    expect(skill).toContain("a suspected removal");
+    expect(skill).toContain("examples, not a closed boundary");
+    expect(skill).toContain('"shall I" always means investigate, never repair');
+    expect(skill).toContain("Never re-register drifted bytes to lift a seal.");
+    expect(reconciliation).toContain("read both registered revisions");
+    expect(reconciliation).toContain("reviewing it is not reconciliation");
+    expect(reconciliation).toContain("update every affected concept's prose directly");
+    expect(reconciliation).toContain("the end of the reconciliation workflow");
+    expect(reconciliation).toContain(
+      "okfh source reconcile <prior-source-id> <revision-source-id>",
+    );
+    expect(reconciliation).toContain("A destructive replacement does not stop");
+    expect(reconciliation).toContain("prior claim will no longer be served");
+    expect(answer).toContain("one plain sentence naming which questions");
+    expect(answer).toContain(
+      "Keep condition codes, seal payloads, and seal vocabulary out of the user response",
+    );
+    expect(answer).toContain("Widen the internal seal beyond the Harness's two computed hops");
+    expect(answer).toContain("report the widening instead of interrupting the user");
   });
 
   it("renders strict skill metadata from the package version", async () => {

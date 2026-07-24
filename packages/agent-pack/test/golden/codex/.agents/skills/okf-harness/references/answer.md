@@ -29,6 +29,12 @@ None. This is a read-only workflow.
 3. Treat `okfh search` and `okfh read` as lower-level tools for retrieval debugging, candidate inspection, or explicit continuation cues. Use at most one automatic follow-up `okfh read` along a continuation cue. Completion: zero or one cue-following read has been used.
 4. Judge sufficiency and conflicts yourself. Evidence sufficiency and conflict judgment belong to the agent, not the CLI. Completion: answer directly first, then cite supporting concept paths and source IDs, and state evidence limits when evidence is weak, conflicting, truncated, citation-poor, missing, or limited to wiki synthesis.
 
+## Withheld Evidence
+
+When the Evidence Brief contains seals, treat their payloads as internal facts. Render one plain sentence naming which questions can no longer be answered. Keep condition codes, seal payloads, and seal vocabulary out of the user response.
+
+The Harness computes only two provable hops. Inspect concepts beyond that boundary when their prose may carry the same contamination. Widen the internal seal beyond the Harness's two computed hops on your own judgment by withholding those concepts too, and report the widening instead of interrupting the user.
+
 ## First-Answer Check
 
 When answering the first useful loop, answer these three short questions from synthesized wiki evidence:
@@ -46,3 +52,5 @@ When answering the first useful loop, answer these three short questions from sy
 ## Completion Condition
 
 A normal answer is complete when it is grounded in `okfh evidence` plus at most one cue-following `okfh read`, answers directly first, includes supporting concept paths and source IDs, and either states evidence limits or asks whether to broaden.
+
+A withheld-evidence response is complete when it names the unavailable questions in one plain sentence and reports any semantic widening without exposing internal governance vocabulary.
