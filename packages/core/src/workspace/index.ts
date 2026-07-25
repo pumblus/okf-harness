@@ -6,6 +6,7 @@ import type { WorkspaceConfig } from "../config/index.js";
 import { readWorkspaceLineage } from "../lineage/index.js";
 import { type LintResult, lintWorkspace, lintWorkspaceFromLineage } from "../lint/index.js";
 import { toPosixRelativePath } from "../paths/index.js";
+import { harnessRuntimeVersion } from "../version.js";
 
 export type WorkspaceWarning = {
   code: string;
@@ -272,6 +273,9 @@ function createWorkspaceConfig(name: string, createdAt: string): WorkspaceConfig
     workspace: {
       name,
       created_at: createdAt,
+    },
+    runtime: {
+      version: harnessRuntimeVersion,
     },
     okf: {
       bundle_root: "wiki",

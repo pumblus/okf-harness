@@ -184,6 +184,17 @@ The JSON response reports the OKF version as `data.okfVersion`, currently `0.1`.
 
 `ready` and `needs_attention` return top-level `ok: true` and exit `0`. `blocked` returns top-level `ok: false` and exits non-zero.
 
+### adopt-runtime
+
+Records the running Harness runtime's version as the workspace runtime pin, the exact runtime version allowed to write the workspace. It takes no version argument: `okfh init` already stamps new workspaces, and this command records one into a workspace created before pins existed.
+
+```bash
+okfh adopt-runtime --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh adopt-runtime --workspace "$HOME/Documents/OKF Harness/ai-research" --dry-run --json
+```
+
+The JSON payload reports `data.runtime.version` and `data.state`, one of `recorded`, `already-pinned`, or `would-record`. An already-pinned workspace is left untouched, so the command is safe to rerun, and `--dry-run` reports the pin it would record without writing. A pin is an exact version in the `runtime` block of `okfh.config.yaml`, separate from the top-level `version` key, which stays the workspace format version. A malformed pin or an unreadable config is reported as `CONFIG_INVALID` and nothing is written. `okfh doctor` reports the pin, or reports it missing with this command in the check details, and never fails the run over it.
+
 ### lint
 
 `lint` is retired as the normal validation command. It points callers to `check`.

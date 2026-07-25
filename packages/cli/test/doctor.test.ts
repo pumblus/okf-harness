@@ -2,10 +2,11 @@ import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { BootstrapAgent, BootstrapStatus } from "@okf-harness/agent-pack";
+import { harnessRuntimeVersion } from "@okf-harness/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type RunExecutable, runDoctor } from "../src/doctor/index.js";
 import { runCli } from "../src/index.js";
-import { runJsonCli } from "./helpers.js";
+import { removeRuntimePin, runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli doctor", () => {
   let restoreEnv: (() => void) | undefined;
@@ -77,6 +78,11 @@ describe("@okf-harness/cli doctor", () => {
             workspace: {
               checks: expect.arrayContaining([
                 expect.objectContaining({ id: "workspace-status", status: "pass" }),
+                expect.objectContaining({
+                  id: "workspace-runtime-pin",
+                  status: "pass",
+                  details: expect.objectContaining({ pinnedVersion: harnessRuntimeVersion }),
+                }),
               ]),
             },
           },
@@ -96,6 +102,63 @@ describe("@okf-harness/cli doctor", () => {
         next: [expect.stringContaining("okfh --json")],
       },
     });
+  });
+
+  it("reports a missing runtime pin with its adopt command without failing the run", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      { writeOut: () => {}, writeErr: () => {} },
+    );
+    await removeRuntimePin(workspace);
+
+    const result = await runJsonCli(["node", "okfh", "doctor", "--workspace", workspace, "--json"]);
+
+    expect(result).toMatchObject({
+      exitCode: 0,
+      stderr: "",
+      result: {
+        ok: true,
+        data: {
+          summary: { fail: 0 },
+          checks: expect.arrayContaining([
+            expect.objectContaining({
+              id: "workspace-runtime-pin",
+              status: "warn",
+              details: expect.objectContaining({
+                pinnedVersion: null,
+                adoptCommand: `okfh adopt-runtime --workspace "${workspace}" --json`,
+              }),
+            }),
+          ]),
+        },
+      },
+    });
+
+    const adopted = await runJsonCli([
+      "node",
+      "okfh",
+      "adopt-runtime",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+    expect(adopted.exitCode).toBe(0);
+
+    const rechecked = await runJsonCli([
+      "node",
+      "okfh",
+      "doctor",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+    expect(rechecked.result.data.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "workspace-runtime-pin", status: "pass" }),
+      ]),
+    );
   });
 
   it("warns but succeeds when no workspace can be resolved", async () => {

@@ -184,6 +184,17 @@ JSON 响应会在 `data.okfVersion` 中报告 OKF version，目前固定为 `0.1
 
 `ready` 和 `needs_attention` 的顶层 `ok` 为 `true`，退出码为 `0`。`blocked` 的顶层 `ok` 为 `false`，退出码非 `0`。
 
+### adopt-runtime
+
+把当前运行的 Harness 运行时版本记录为工作区运行时 pin，即允许写入该工作区的确切运行时版本。该命令不接受版本参数：`okfh init` 已经会为新工作区写入 pin，这个命令用于给 pin 出现之前创建的工作区补上一个。
+
+```bash
+okfh adopt-runtime --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh adopt-runtime --workspace "$HOME/Documents/OKF Harness/ai-research" --dry-run --json
+```
+
+JSON 载荷会报告 `data.runtime.version` 和 `data.state`，`state` 取值为 `recorded`、`already-pinned` 或 `would-record`。已经带有 pin 的工作区不会被改动，因此可以安全地重复执行；`--dry-run` 只报告将要记录的 pin，不写入文件。pin 是 `okfh.config.yaml` 中 `runtime` 块内的确切版本号，与顶层 `version` 键相互独立，后者仍然是工作区格式版本。pin 格式错误或配置文件不可读时会报告 `CONFIG_INVALID`，并且不写入任何内容。`okfh doctor` 会报告 pin，缺失时在检查详情中给出这条命令，两种情况都不会让检查失败。
+
 ### lint
 
 `lint` 已不再是常规验证命令。它会提示调用方改用 `check`。

@@ -1,6 +1,17 @@
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { runCli } from "../src/index.js";
+
+/** Turns an initialized workspace back into one created before runtime pins existed. */
+export async function removeRuntimePin(workspace: string): Promise<void> {
+  const configPath = path.join(workspace, "okfh.config.yaml");
+  const config = await readFile(configPath, "utf8");
+  const withoutPin = config.replace(/runtime:\n {2}version: .*\n/, "");
+  if (withoutPin === config) {
+    throw new Error("workspace config carries no runtime pin to remove");
+  }
+  await writeFile(configPath, withoutPin, "utf8");
+}
 
 export async function runJsonCli(argv: string[]): Promise<{
   exitCode: number;

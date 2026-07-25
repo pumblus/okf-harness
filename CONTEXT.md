@@ -124,6 +124,10 @@ _Avoid_: setup doc, user-facing checklist, installer script
 The way OKF Harness decides which local workspace a command should operate on, either from an explicit workspace path or by finding the nearest `okfh.config.yaml` from the current directory. Command output should expose the resolved workspace so agents and people can verify the target.
 _Avoid_: current project guess, global default workspace, hidden app state
 
+**Workspace runtime pin**:
+The exact Harness runtime version a workspace records in the `runtime` block of its `okfh.config.yaml`, answering which code may write those files. It is separate from the workspace format version (`version: "0.1"`), which answers what shape the files are, so a runtime patch is not a format migration. The Harness runtime is its only writer; a workspace created before pins existed keeps working and adopts one in a single step without the person choosing a version.
+_Avoid_: workspace format version, version range, dist-tag, user-chosen version
+
 **Source material**:
 Original material that a person wants to bring into the knowledge base, such as a file, URL, markdown document, text snippet, or clipboard content. It is evidence for later synthesis, not the synthesized wiki content itself.
 _Avoid_: data, document, note

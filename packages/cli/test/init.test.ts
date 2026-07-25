@@ -1,6 +1,7 @@
 import { chmod, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { harnessRuntimeVersion, parseWorkspaceConfig } from "@okf-harness/core";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
 import { runJsonCli } from "./helpers.js";
@@ -114,6 +115,10 @@ describe("@okf-harness/cli init", () => {
     const config = await readFile(path.join(workspace, "okfh.config.yaml"), "utf8");
     expect(config).toContain("name: AI Research");
     expect(config).not.toContain("platform:");
+    expect(parseWorkspaceConfig(config)).toMatchObject({
+      ok: true,
+      config: { version: "0.1", runtime: { version: harnessRuntimeVersion } },
+    });
     await expect(readFile(path.join(workspace, "wiki/index.md"), "utf8")).resolves.toContain(
       "# AI Research Wiki",
     );

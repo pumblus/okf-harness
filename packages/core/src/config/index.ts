@@ -1,7 +1,8 @@
-import { readFile } from "node:fs/promises";
-import { parse as parseYaml } from "yaml";
+import { readFile, writeFile } from "node:fs/promises";
+import { parseDocument, parse as parseYaml } from "yaml";
 import { z } from "zod";
 import { safeResolveWorkspacePath } from "../paths/index.js";
+import { harnessRuntimeVersion } from "../version.js";
 
 export const CONFIG_INVALID = "CONFIG_INVALID" as const;
 
@@ -10,6 +11,14 @@ const configRelativePathSchema = z
   .min(1)
   .refine((value) => isSafeConfigRelativePath(value), {
     message: "Path must be a non-empty workspace-relative POSIX path without traversal.",
+  });
+
+// The pin answers "which code may write this workspace", so it must be one exact
+// version. A range or a dist-tag would leave that unanswerable from the workspace alone.
+const exactVersionSchema = z
+  .string()
+  .regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/, {
+    message: "Runtime pin must be an exact version such as 0.6.0, not a range or a dist-tag.",
   });
 
 export const workspaceConfigSchema = z
@@ -21,6 +30,13 @@ export const workspaceConfigSchema = z
         created_at: z.string().min(1),
       })
       .strict(),
+    // Optional: workspaces created before pins existed keep parsing and report a missing pin.
+    runtime: z
+      .object({
+        version: exactVersionSchema,
+      })
+      .strict()
+      .optional(),
     okf: z
       .object({
         bundle_root: configRelativePathSchema,
@@ -167,6 +183,61 @@ export async function loadWorkspaceConfig(workspaceRoot: string): Promise<Worksp
   }
 
   return result.config;
+}
+
+export type RuntimePinRecord = {
+  version: string;
+  state: "recorded" | "already-pinned" | "would-record";
+};
+
+/**
+ * Records the running Harness runtime's version as the workspace runtime pin.
+ * Already-pinned workspaces are left untouched, so this is safe to rerun.
+ */
+export async function recordRuntimePin(
+  workspaceRoot: string,
+  options: { dryRun?: boolean | undefined } = {},
+): Promise<RuntimePinRecord> {
+  const source = await readWorkspaceConfigSource(workspaceRoot);
+  const parsed = parseWorkspaceConfig(source.contents);
+  if (!parsed.ok) {
+    throw new WorkspaceConfigError(parsed.issues);
+  }
+
+  const pinned = parsed.config.runtime?.version;
+  if (pinned !== undefined) {
+    return { version: pinned, state: "already-pinned" };
+  }
+
+  if (options.dryRun === true) {
+    return { version: harnessRuntimeVersion, state: "would-record" };
+  }
+
+  // Edit the document rather than restringify the parsed config, so user comments survive.
+  const document = parseDocument(source.contents);
+  document.setIn(["runtime", "version"], harnessRuntimeVersion);
+  await writeFile(source.path, String(document), "utf8");
+
+  return { version: harnessRuntimeVersion, state: "recorded" };
+}
+
+/** Reads the config as text, reporting an unresolvable or unreadable file as CONFIG_INVALID. */
+async function readWorkspaceConfigSource(
+  workspaceRoot: string,
+): Promise<{ path: string; contents: string }> {
+  try {
+    const configPath = (await safeResolveWorkspacePath(workspaceRoot, "okfh.config.yaml"))
+      .absolutePath;
+    return { path: configPath, contents: await readFile(configPath, "utf8") };
+  } catch (error) {
+    throw new WorkspaceConfigError([
+      {
+        code: CONFIG_INVALID,
+        path: "okfh.config.yaml",
+        message: error instanceof Error ? error.message : "Could not read workspace config.",
+      },
+    ]);
+  }
 }
 
 function bundleRootFromRawConfig(rawConfig: unknown): string | undefined {

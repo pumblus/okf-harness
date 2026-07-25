@@ -2,7 +2,9 @@ import {
   type CheckResult,
   listSources,
   readWorkspaceStatus,
+  recordRuntimePin,
   resolveWorkspaceRoot,
+  WorkspaceConfigError,
   type WorkspaceStatus,
 } from "@okf-harness/core";
 import type { Command } from "commander";
@@ -22,6 +24,9 @@ const NEXT_REPLACE_URL_POINTERS =
   "Ask your agent to add a local source file or save the webpage content as a file; URL sources are pointers only.";
 const NEXT_UPDATE_WIKI =
   "Ask your agent to update the wiki with citations from the registered local source.";
+const NEXT_FIX_WORKSPACE_CONFIG =
+  "Ask your agent to fix okfh.config.yaml before recording the workspace runtime pin.";
+const NEXT_CONTINUE_AFTER_ADOPT = "Continue the workspace request that needed a runtime pin.";
 const NEXT_FIRST_ANSWER_CHECK =
   "Ask your agent to answer these questions from synthesized wiki evidence: what is the source mainly about, what are its key conclusions, and where does the evidence come from?";
 
@@ -104,6 +109,57 @@ export function registerWorkspaceCommands(
 
       writeResult(io, envelope, options.json);
       setExitCode(blocked ? 1 : 0);
+    });
+
+  program
+    .command("adopt-runtime")
+    .description("Record this Harness runtime's version as the workspace runtime pin.")
+    .storeOptionsAsProperties(false)
+    .option("--workspace <path>", "workspace path")
+    .option("--dry-run", "report the pin that would be recorded without writing it")
+    .option("--json", "write machine-readable JSON")
+    .action(async (command: Command) => {
+      const options = command.opts() as {
+        workspace?: string;
+        dryRun?: boolean;
+        json?: boolean;
+      };
+      const workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
+      let pin: Awaited<ReturnType<typeof recordRuntimePin>>;
+      try {
+        pin = await recordRuntimePin(workspaceRoot, { dryRun: options.dryRun === true });
+      } catch (error) {
+        if (!(error instanceof WorkspaceConfigError)) {
+          throw error;
+        }
+        writeValidationError(io, {
+          command: "adopt-runtime",
+          code: error.code,
+          message: error.message,
+          workspace: workspaceRoot,
+          details: { issues: error.issues },
+          next: [NEXT_FIX_WORKSPACE_CONFIG],
+          json: options.json === true,
+        });
+        setExitCode(1);
+        return;
+      }
+
+      const envelope: JsonEnvelope = {
+        ok: true,
+        command: "adopt-runtime",
+        workspace: workspaceRoot,
+        data: {
+          runtime: { version: pin.version },
+          state: pin.state,
+          dryRun: options.dryRun === true,
+        },
+        warnings: [],
+        next: [NEXT_CONTINUE_AFTER_ADOPT],
+      };
+
+      writeResult(io, envelope, options.json);
+      setExitCode(0);
     });
 
   program

@@ -357,6 +357,10 @@ _Avoid_: setup doc, user-facing checklist, installer script
 The way OKF Harness decides which local workspace a command should operate on, either from an explicit workspace path or by finding the nearest `okfh.config.yaml` from the current directory. Command output should expose the resolved workspace so agents and people can verify the target.
 _Avoid_: current project guess, global default workspace, hidden app state
 
+**Workspace runtime pin**:
+The exact Harness runtime version a workspace records in the `runtime` block of its `okfh.config.yaml`, answering which code may write those files. It is separate from the workspace format version (`version: "0.1"`), which answers what shape the files are, so a runtime patch is not a format migration. The Harness runtime is its only writer; a workspace created before pins existed keeps working and adopts one in a single step without the person choosing a version.
+_Avoid_: workspace format version, version range, dist-tag, user-chosen version
+
 **Source material**:
 Original material that a person wants to bring into the knowledge base, such as a file, URL, markdown document, text snippet, or clipboard content. It is evidence for later synthesis, not the synthesized wiki content itself.
 _Avoid_: data, document, note
@@ -1021,6 +1025,17 @@ The JSON response reports the OKF version as `data.okfVersion`, currently `0.1`.
 `check` uses the same Workspace next-step decision as `status` and reports it through the existing top-level `next` field. When human-readable output has a next step, `check` shows the first one as `Next: ...`.
 
 `ready` and `needs_attention` return top-level `ok: true` and exit `0`. `blocked` returns top-level `ok: false` and exits non-zero.
+
+##### adopt-runtime
+
+Records the running Harness runtime's version as the workspace runtime pin, the exact runtime version allowed to write the workspace. It takes no version argument: `okfh init` already stamps new workspaces, and this command records one into a workspace created before pins existed.
+
+```bash
+okfh adopt-runtime --workspace "$HOME/Documents/OKF Harness/ai-research" --json
+okfh adopt-runtime --workspace "$HOME/Documents/OKF Harness/ai-research" --dry-run --json
+```
+
+The JSON payload reports `data.runtime.version` and `data.state`, one of `recorded`, `already-pinned`, or `would-record`. An already-pinned workspace is left untouched, so the command is safe to rerun, and `--dry-run` reports the pin it would record without writing. A pin is an exact version in the `runtime` block of `okfh.config.yaml`, separate from the top-level `version` key, which stays the workspace format version. A malformed pin or an unreadable config is reported as `CONFIG_INVALID` and nothing is written. `okfh doctor` reports the pin, or reports it missing with this command in the check details, and never fails the run over it.
 
 ##### lint
 

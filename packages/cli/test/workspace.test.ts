@@ -1,9 +1,10 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { harnessRuntimeVersion, parseWorkspaceConfig } from "@okf-harness/core";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
-import { runJsonCli } from "./helpers.js";
+import { removeRuntimePin, runJsonCli } from "./helpers.js";
 
 const NEXT_INITIALIZE_WORKSPACE =
   "Ask your agent to initialize this folder as an OKF Harness workspace before continuing.";
@@ -612,6 +613,128 @@ describe("@okf-harness/cli workspace", () => {
         next: [NEXT_INITIALIZE_WORKSPACE],
       },
     });
+  });
+
+  it("records a runtime pin into a workspace created before pins existed", async () => {
+    const { workspace } = await initWorkspace();
+    const configPath = path.join(workspace, "okfh.config.yaml");
+    await removeRuntimePin(workspace);
+    await writeFile(configPath, `${await readFile(configPath, "utf8")}# keep me\n`, "utf8");
+
+    const planned = await runJsonCli([
+      "node",
+      "okfh",
+      "adopt-runtime",
+      "--workspace",
+      workspace,
+      "--dry-run",
+      "--json",
+    ]);
+
+    expect(planned.exitCode).toBe(0);
+    expect(planned.result.data).toMatchObject({
+      runtime: { version: harnessRuntimeVersion },
+      state: "would-record",
+      dryRun: true,
+    });
+    expect(await readFile(configPath, "utf8")).not.toContain("runtime:");
+
+    const adopted = await runJsonCli([
+      "node",
+      "okfh",
+      "adopt-runtime",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+
+    expect(adopted).toMatchObject({
+      exitCode: 0,
+      stderr: "",
+      result: {
+        ok: true,
+        command: "adopt-runtime",
+        workspace,
+        data: {
+          runtime: { version: harnessRuntimeVersion },
+          state: "recorded",
+          dryRun: false,
+        },
+      },
+    });
+    const written = await readFile(configPath, "utf8");
+    expect(parseWorkspaceConfig(written)).toMatchObject({
+      ok: true,
+      config: { version: "0.1", runtime: { version: harnessRuntimeVersion } },
+    });
+    expect(written).toContain("# keep me");
+
+    const rerun = await runJsonCli([
+      "node",
+      "okfh",
+      "adopt-runtime",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+
+    expect(rerun.exitCode).toBe(0);
+    expect(rerun.result.data).toMatchObject({
+      runtime: { version: harnessRuntimeVersion },
+      state: "already-pinned",
+    });
+  });
+
+  it("reports an unreadable workspace config as CONFIG_INVALID", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+
+    const adopted = await runJsonCli([
+      "node",
+      "okfh",
+      "adopt-runtime",
+      "--workspace",
+      root,
+      "--json",
+    ]);
+
+    expect(adopted.exitCode).toBe(1);
+    expect(JSON.parse(adopted.stderr)).toMatchObject({
+      ok: false,
+      command: "adopt-runtime",
+      error: { code: "CONFIG_INVALID" },
+    });
+  });
+
+  it("reports a malformed pin as CONFIG_INVALID instead of recording one", async () => {
+    const { workspace } = await initWorkspace();
+    const configPath = path.join(workspace, "okfh.config.yaml");
+    await writeFile(
+      configPath,
+      (await readFile(configPath, "utf8")).replace(
+        /runtime:\n {2}version: .*\n/,
+        "runtime:\n  version: latest\n",
+      ),
+      "utf8",
+    );
+
+    const adopted = await runJsonCli([
+      "node",
+      "okfh",
+      "adopt-runtime",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+
+    expect(adopted.exitCode).toBe(1);
+    expect(adopted.stdout).toBe("");
+    expect(JSON.parse(adopted.stderr)).toMatchObject({
+      ok: false,
+      command: "adopt-runtime",
+      workspace,
+      error: { code: "CONFIG_INVALID" },
+    });
+    expect(await readFile(configPath, "utf8")).toContain("version: latest");
   });
 });
 

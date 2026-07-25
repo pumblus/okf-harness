@@ -10,6 +10,7 @@ import {
   supportedNativeIntegrationProfiles,
 } from "@okf-harness/agent-pack";
 import {
+  readWorkspaceConfig,
   readWorkspaceStatus,
   resolveWorkspaceRoot,
   WorkspaceResolutionError,
@@ -139,6 +140,13 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     );
     workspaceChecks.push(
       skipCheck(
+        "workspace-runtime-pin",
+        "Workspace runtime pin",
+        "Workspace runtime pin check skipped: no workspace was resolved.",
+      ),
+    );
+    workspaceChecks.push(
+      skipCheck(
         "workspace-adapter-claude",
         "Claude Code adapter",
         "Workspace adapter check skipped: no workspace was resolved.",
@@ -153,6 +161,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     );
   } else {
     workspaceChecks.push(await checkWorkspaceStatus(workspaceRoot));
+    workspaceChecks.push(await checkRuntimePin(workspaceRoot));
     workspaceChecks.push(await checkAdapter(workspaceRoot, "claude"));
     workspaceChecks.push(await checkAdapter(workspaceRoot, "codex"));
   }
@@ -475,6 +484,48 @@ async function checkWorkspaceStatus(workspaceRoot: string): Promise<DoctorCheck>
       lintOk: status.lint.ok,
       lintIssues: status.lint.issues.length,
     },
+  };
+}
+
+/**
+ * Reports which Harness runtime may write this workspace. A missing pin is a
+ * one-shot recordable state, so it never fails the run.
+ */
+async function checkRuntimePin(workspaceRoot: string): Promise<DoctorCheck> {
+  const config = await readWorkspaceConfig(workspaceRoot);
+  if (!config.ok) {
+    return {
+      id: "workspace-runtime-pin",
+      label: "Workspace runtime pin",
+      status: "warn",
+      message: "Workspace runtime pin check warning: okfh.config.yaml could not be read.",
+      details: { workspace: workspaceRoot, issues: config.issues },
+    };
+  }
+
+  const pinnedVersion = config.config.runtime?.version;
+  if (pinnedVersion === undefined) {
+    return {
+      id: "workspace-runtime-pin",
+      label: "Workspace runtime pin",
+      status: "warn",
+      message: "Workspace runtime pin check warning: this workspace records no runtime pin.",
+      details: {
+        workspace: workspaceRoot,
+        pinnedVersion: null,
+        // Plain quotes, not JSON escaping: the command is pasted into a shell, where a
+        // JSON-escaped Windows path would no longer name the workspace.
+        adoptCommand: `okfh adopt-runtime --workspace "${workspaceRoot}" --json`,
+      },
+    };
+  }
+
+  return {
+    id: "workspace-runtime-pin",
+    label: "Workspace runtime pin",
+    status: "pass",
+    message: `Workspace runtime pin check passed: this workspace is pinned to Harness runtime ${pinnedVersion}.`,
+    details: { workspace: workspaceRoot, pinnedVersion },
   };
 }
 

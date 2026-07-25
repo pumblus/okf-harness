@@ -47,4 +47,5 @@ export * from "./search/index.js";
 export * from "./source/index.js";
 export * from "./source/ingest.js";
 export * from "./source/reconciliation.js";
+export * from "./version.js";
 export * from "./workspace/index.js";

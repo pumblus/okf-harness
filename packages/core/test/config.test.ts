@@ -35,6 +35,52 @@ describe("workspace config", () => {
     }
   });
 
+  it("parses a workspace created before runtime pins existed and reports a missing pin", async () => {
+    const config = await loadWorkspaceConfig(validWorkspaceFixture);
+
+    expect(config.runtime).toBeUndefined();
+  });
+
+  it("reads an exact runtime pin", async () => {
+    const source = await readFile(`${validWorkspaceFixture}/okfh.config.yaml`, "utf8");
+    const result = parseWorkspaceConfig(`${source}runtime:\n  version: 0.6.0\n`);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.config.runtime?.version).toBe("0.6.0");
+      expect(result.config.version).toBe("0.1");
+    }
+  });
+
+  it.each([
+    "^0.6.0",
+    "latest",
+    "0.6",
+    "",
+  ])("returns CONFIG_INVALID for the non-exact runtime pin %j", async (pin) => {
+    const source = await readFile(`${validWorkspaceFixture}/okfh.config.yaml`, "utf8");
+    const result = parseWorkspaceConfig(`${source}runtime:\n  version: "${pin}"\n`);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: "CONFIG_INVALID",
+            path: "runtime.version",
+          }),
+        ]),
+      );
+    }
+  });
+
+  it("returns CONFIG_INVALID for unknown keys in the runtime block", async () => {
+    const source = await readFile(`${validWorkspaceFixture}/okfh.config.yaml`, "utf8");
+    const result = parseWorkspaceConfig(`${source}runtime:\n  channel: nightly\n`);
+
+    expect(result.ok).toBe(false);
+  });
+
   it("returns CONFIG_INVALID issues for unsafe paths", async () => {
     const source = await readFile(`${validWorkspaceFixture}/okfh.config.yaml`, "utf8");
     const result = parseWorkspaceConfig(source.replace("raw/sources", "../raw/sources"));
