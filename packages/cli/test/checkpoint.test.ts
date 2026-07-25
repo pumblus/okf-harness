@@ -4,145 +4,23 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { runJsonCli } from "./helpers.js";
+import {
+  addSource,
+  compoundingKnowledgeTopic,
+  llmWikiV2,
+  NO_SUBSTRATE_WORDS,
+  runJsonCli,
+  seedPublicEvolutionWorkspace,
+} from "./helpers.js";
 
 const execFileAsync = promisify(execFile);
-
-const llmWikiV1 = `# LLM Wiki
-
-Source: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
-
-The LLM incrementally builds and maintains a persistent wiki between the user and raw sources.
-`;
-const llmWikiV2 = `${llmWikiV1}
-The wiki is a persistent, compounding artifact that is kept current instead of re-derived on every query.
-`;
-const okfSpec = `# Open Knowledge Format
-
-Source: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
-
-OKF is an open, human- and agent-friendly format for representing knowledge.
-It is intentionally minimal: a directory of markdown files with YAML frontmatter.
-`;
-
-const NO_SUBSTRATE_WORDS = /git|commit|hash|branch/i;
 
 describe("@okf-harness/cli checkpoint", () => {
   it("creates completions at cycle completion that history lists with only their judgments", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-checkpoint-"));
-    const workspace = path.join(root, "workspace");
-    const inputs = path.join(root, "public-sources");
-    const llmWikiInput = path.join(inputs, "llm-wiki.md");
-    const okfInput = path.join(inputs, "okf-spec.md");
 
     try {
-      await runJsonCli([
-        "node",
-        "okfh",
-        "init",
-        workspace,
-        "--name",
-        "Public Knowledge",
-        "--agents",
-        "none",
-        "--json",
-      ]);
-      await mkdir(inputs, { recursive: true });
-      await writeFile(llmWikiInput, llmWikiV1, "utf8");
-      await writeFile(okfInput, okfSpec, "utf8");
-
-      const llmWiki = await runJsonCli([
-        "node",
-        "okfh",
-        "source",
-        "add",
-        llmWikiInput,
-        "--workspace",
-        workspace,
-        "--json",
-      ]);
-      const okf = await runJsonCli([
-        "node",
-        "okfh",
-        "source",
-        "add",
-        okfInput,
-        "--workspace",
-        workspace,
-        "--json",
-      ]);
-      expect([llmWiki.exitCode, okf.exitCode]).toEqual([0, 0]);
-
-      await writeFile(
-        path.join(workspace, "wiki/references/llm-wiki-source.md"),
-        `---
-type: Reference
-title: LLM Wiki Source
-description: Public source for the agent-maintained wiki pattern.
-resource: ${llmWiki.result.data.source.path}
-okfh:
-  source_id: ${llmWiki.result.data.source.id}
----
-
-# Summary
-
-The source describes an LLM-maintained wiki between users and raw source material.
-`,
-        "utf8",
-      );
-      await writeFile(
-        path.join(workspace, "wiki/topics/compounding-knowledge.md"),
-        `---
-type: Topic
-title: Compounding Knowledge
-description: Persistent synthesis maintained by an agent.
----
-
-# Overview
-
-Compounding Knowledge is built once in a persistent wiki and maintained as sources evolve.
-
-# Citations
-
-- [LLM Wiki Source](/references/llm-wiki-source.md)
-`,
-        "utf8",
-      );
-      await writeFile(
-        path.join(workspace, "wiki/references/okf-source.md"),
-        `---
-type: Reference
-title: OKF Specification Source
-description: Public source for the Open Knowledge Format.
-resource: ${okf.result.data.source.path}
-okfh:
-  source_id: ${okf.result.data.source.id}
----
-
-# Summary
-
-The source specifies a portable markdown knowledge format.
-`,
-        "utf8",
-      );
-      await writeFile(
-        path.join(workspace, "wiki/topics/portable-knowledge.md"),
-        `---
-type: Topic
-title: Portable Knowledge
-description: Knowledge represented in portable files.
----
-
-# Overview
-
-Portable Knowledge uses markdown files with YAML frontmatter.
-
-# Citations
-
-- [OKF Specification Source](/references/okf-source.md)
-`,
-        "utf8",
-      );
+      const { workspace, llmWikiInput, llmWiki } = await seedPublicEvolutionWorkspace(root);
 
       const firstJudgment = "Built the initial wiki from the two public sources.";
       const first = await runJsonCli([
@@ -183,24 +61,14 @@ Portable Knowledge uses markdown files with YAML frontmatter.
       expect(JSON.stringify(afterFirst.result)).not.toMatch(NO_SUBSTRATE_WORDS);
 
       await writeFile(llmWikiInput, llmWikiV2, "utf8");
-      const revision = await runJsonCli([
-        "node",
-        "okfh",
-        "source",
-        "add",
-        llmWikiInput,
-        "--workspace",
-        workspace,
-        "--json",
-      ]);
-      expect(revision.exitCode).toBe(0);
+      const revision = await addSource(workspace, llmWikiInput);
       const reconciled = await runJsonCli([
         "node",
         "okfh",
         "source",
         "reconcile",
-        llmWiki.result.data.source.id,
-        revision.result.data.source.id,
+        llmWiki.id,
+        revision.id,
         "--note",
         "Reconciled the public LLM Wiki revision.",
         "--workspace",
@@ -211,21 +79,10 @@ Portable Knowledge uses markdown files with YAML frontmatter.
 
       await writeFile(
         path.join(workspace, "wiki/topics/compounding-knowledge.md"),
-        `---
-type: Topic
-title: Compounding Knowledge
-description: Persistent synthesis maintained by an agent.
----
-
-# Overview
-
-Compounding Knowledge is built once in a persistent wiki and maintained as sources evolve.
-The wiki is kept current instead of being re-derived on every query.
-
-# Citations
-
-- [LLM Wiki Source](/references/llm-wiki-source.md)
-`,
+        compoundingKnowledgeTopic(
+          `Compounding Knowledge is built once in a persistent wiki and maintained as sources evolve.
+The wiki is kept current instead of being re-derived on every query.`,
+        ),
         "utf8",
       );
       const verified = await runJsonCli([

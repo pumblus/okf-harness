@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
-import { runJsonCli } from "./helpers.js";
+import { addSource, runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli ingest", () => {
   it("returns capped metadata matches without reference documents or scores", async () => {
@@ -29,7 +29,7 @@ describe("@okf-harness/cli ingest", () => {
     await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
     const added = await addSource(workspace, sourcePath);
 
-    const plan = await planIngest(workspace, added.result.data.source.id);
+    const plan = await planIngest(workspace, added.id);
 
     expect(plan).toMatchObject({
       exitCode: 0,
@@ -40,8 +40,8 @@ describe("@okf-harness/cli ingest", () => {
         workspace,
         data: {
           source: {
-            id: added.result.data.source.id,
-            path: added.result.data.source.path,
+            id: added.id,
+            path: added.path,
           },
           recommendedReferencePath: "wiki/references/alpha-priority.md",
           nextStep: expect.stringContaining("Read"),
@@ -85,7 +85,7 @@ describe("@okf-harness/cli ingest", () => {
     await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
     const added = await addSource(workspace, sourcePath);
 
-    const plan = await planIngest(workspace, added.result.data.source.id);
+    const plan = await planIngest(workspace, added.id);
 
     expect(plan.result.data).toMatchObject({
       candidateConcepts: [],
@@ -110,7 +110,7 @@ describe("@okf-harness/cli ingest", () => {
     await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
     const added = await addSource(workspace, sourcePath);
 
-    const plan = await planIngest(workspace, added.result.data.source.id);
+    const plan = await planIngest(workspace, added.id);
 
     expect(plan.result.data.candidateConcepts).toEqual([
       expect.objectContaining({
@@ -133,7 +133,7 @@ describe("@okf-harness/cli ingest", () => {
     await writeFile(sourcePath, "# Source body is for the Agent, not the plan.\n", "utf8");
     const added = await addSource(workspace, sourcePath);
 
-    const plan = await planIngest(workspace, added.result.data.source.id);
+    const plan = await planIngest(workspace, added.id);
 
     expect(plan.result.data.candidateConcepts).toEqual([]);
     expect(plan.result.data).not.toHaveProperty("suggestedNewConcept");
@@ -147,13 +147,13 @@ describe("@okf-harness/cli ingest", () => {
     await writeFile(
       path.join(workspace, ".okfh/manifest.jsonl"),
       `${JSON.stringify({
-        ...added.result.data.source,
+        ...added,
         reference_concept: "../../AGENTS.md",
       })}\n`,
       "utf8",
     );
 
-    const plan = await planIngest(workspace, added.result.data.source.id);
+    const plan = await planIngest(workspace, added.id);
     const error = JSON.parse(plan.stderr);
 
     expect(plan).toMatchObject({
@@ -183,19 +183,6 @@ async function initTestWorkspace(): Promise<{ root: string; workspace: string }>
     },
   );
   return { root, workspace };
-}
-
-async function addSource(workspace: string, sourcePath: string): ReturnType<typeof runJsonCli> {
-  return runJsonCli([
-    "node",
-    "okfh",
-    "source",
-    "add",
-    sourcePath,
-    "--workspace",
-    workspace,
-    "--json",
-  ]);
 }
 
 async function planIngest(workspace: string, sourceId: string): ReturnType<typeof runJsonCli> {

@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { runJsonCli } from "./helpers.js";
+import { NO_SUBSTRATE_WORDS, runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli history", () => {
   it("initializes recovery by default and returns no completions for a new workspace", async () => {
@@ -25,7 +25,7 @@ describe("@okf-harness/cli history", () => {
       expect(init.exitCode).toBe(0);
       expect(init.stderr).toBe("");
       expect(init.result.data).not.toHaveProperty("git");
-      expect(JSON.stringify(init.result)).not.toMatch(/git|commit|hash|branch/i);
+      expect(JSON.stringify(init.result)).not.toMatch(NO_SUBSTRATE_WORDS);
 
       const history = await runJsonCli([
         "node",
@@ -48,7 +48,7 @@ describe("@okf-harness/cli history", () => {
           next: [],
         },
       });
-      expect(JSON.stringify(history.result)).not.toMatch(/git|commit|hash|branch/i);
+      expect(JSON.stringify(history.result)).not.toMatch(NO_SUBSTRATE_WORDS);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -77,6 +77,7 @@ describe("@okf-harness/cli history", () => {
         workspace,
         error: { code: "CONFIG_INVALID" },
       });
+      expect(history.stderr).not.toMatch(NO_SUBSTRATE_WORDS);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

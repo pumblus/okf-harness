@@ -2,9 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { runJsonCli } from "./helpers.js";
-
-const NO_SUBSTRATE_WORDS = /git|commit|hash|branch/i;
+import { NO_SUBSTRATE_WORDS, runJsonCli } from "./helpers.js";
 
 async function checkpoint(workspace: string, judgment: string) {
   const result = await runJsonCli([
