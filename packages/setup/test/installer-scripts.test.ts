@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 
-describe("installer scripts", () => {
+// These tests spawn a real bash or pwsh process; shell startup on a loaded CI runner
+// regularly exceeds the default per-test timeout.
+describe("installer scripts", { timeout: 60_000 }, () => {
   it("delegates macOS/Linux setup to @okf-harness/setup@latest with argument pass-through", async () => {
     const bash = await findCommand("bash");
     if (bash === undefined) {
