@@ -303,6 +303,8 @@ okfh read wiki/topics/llm-wiki.md --workspace "$HOME/Documents/OKF Harness/ai-re
 
 内容被截断时，JSON 响应会告知智能体如何继续。
 
+`wiki/log.md` 不属于工作区，`log` 也不是可读取的目标。工作区历史不是 Wiki 知识，因此不能作为证据引用；请改用 `okfh history`。在该文件被移除之前创建的工作区可能仍留有它，但它同样不可读取。
+
 ### graph
 
 构建反向链接数据和自包含的本地 HTML 图谱报告。

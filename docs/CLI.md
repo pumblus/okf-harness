@@ -303,6 +303,8 @@ Options:
 
 When content is truncated, the JSON response tells the agent how to continue.
 
+`wiki/log.md` is not part of a workspace and `log` is not a read target. Workspace history is not wiki knowledge, so it is never citable evidence; use `okfh history` instead. A workspace scaffolded before the removal may still carry the file, but it stays unreadable.
+
 ### graph
 
 Builds backlink data and a self-contained local HTML report.

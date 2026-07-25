@@ -81,7 +81,7 @@ okfh source add <path-or-url> --workspace <workspace> --json
 okfh ingest plan <source-id-or-path> --workspace <workspace> --json
 ```
 
-Then the agent reads the registered raw source, writes or updates reference and topic pages, updates indexes and the log, and runs check.
+Then the agent reads the registered raw source, writes or updates reference and topic pages, updates indexes, runs check, and records the completed cycle with `okfh checkpoint --judgment "<why this cycle completed>"`.
 
 Raw sources should not be edited in place. If a source needs correction, register a new source.
 
@@ -112,7 +112,7 @@ okfh source list --workspace <workspace> --json
 okfh check --workspace <workspace> --json
 ```
 
-Using the returned source IDs and recorded paths, the agent reads both immutable registered copies and inspects the reference, concept, index, and log files promoted from or affected by them. It then edits every affected wiki claim to reflect the revision. Reconciliation means the wiki reflects the revision; merely inspecting both copies is not reconciliation. The CLI reports the revision but does not repair the wiki automatically.
+Using the returned source IDs and recorded paths, the agent reads both immutable registered copies and inspects the reference, concept, and index files promoted from or affected by them. It then edits every affected wiki claim to reflect the revision. Reconciliation means the wiki reflects the revision; merely inspecting both copies is not reconciliation. The CLI reports the revision but does not repair the wiki automatically.
 
 After updating the wiki, the agent validates the edits, records its judgment for that exact prior-and-revision pair, and checks the currency seal again:
 
@@ -122,7 +122,26 @@ okfh source reconcile <prior-source-id> <revision-source-id> --note "<what chang
 okfh check --workspace <workspace> --json
 ```
 
-The first source ID must be the prior copy and the second its revision. The final `check` verifies that this pair is no longer pending; `data.currency.sealed` is `true` only when no other promoted source has a pending reconciliation and no validation error remains. Never edit registered files under `raw/sources/` or Harness-managed reconciliation state by hand.
+The first source ID must be the prior copy and the second its revision. The final `check` verifies that this pair is no longer pending; `data.currency.sealed` is `true` only when no other promoted source has a pending reconciliation and no validation error remains. Never edit registered files under `raw/sources/` or Harness-managed reconciliation state by hand. Once the wiki reflects the revision, the agent completes the cycle with `okfh checkpoint`.
+
+## Undo A Bad Change
+
+```text
+<okf-harness> What did we change recently, and can you undo the pricing rewrite?
+```
+
+The agent should call:
+
+```bash
+okfh history --workspace <workspace> --json
+okfh restore <completion-id> --workspace <workspace> --json
+```
+
+`history` lists workspace completions newest first, each with an opaque completion id and the judgment recorded when that cycle completed. The agent reads those judgments to decide which completion you mean, then restores it; you describe the change in plain language and never pick an identifier yourself.
+
+Restore reaches any completion, not only the most recent, so a change noticed several cycles late is still recoverable. The completions moved through stay listed afterwards, so the workspace can move back and forth. Restore refuses to run while the workspace has changes that are not part of a completion yet: complete or discard them first.
+
+There is no `wiki/log.md`. Workspace history is computed from the workspace itself, so it never competes with the wiki for your attention and is never citable as evidence.
 
 ## Ask A Question
 

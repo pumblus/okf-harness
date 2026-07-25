@@ -81,7 +81,7 @@ okfh source add <path-or-url> --workspace <workspace> --json
 okfh ingest plan <source-id-or-path> --workspace <workspace> --json
 ```
 
-然后智能体读取已注册的原始资料，编写或更新参考页面和主题页面，更新索引和日志，最后运行 check。
+然后智能体读取已注册的原始资料，编写或更新参考页面和主题页面，更新索引，运行 check，并用 `okfh checkpoint --judgment "<本次周期为何完成>"` 记录这次完成的周期。
 
 原始资料不应在原位编辑。如果资料需要修正，注册一份新的来源。
 
@@ -112,7 +112,7 @@ okfh source list --workspace <workspace> --json
 okfh check --workspace <workspace> --json
 ```
 
-智能体根据返回的来源 ID 和记录路径，读取两份不可变的已登记副本，并检查由它们提升或受它们影响的参考、概念、索引和日志文件。然后，智能体编辑所有受影响的 Wiki 论述，使其反映修订内容。对账意味着 Wiki 已反映修订内容；仅检查两个版本不算完成对账。CLI 只报告修订，不会自动修复 Wiki。
+智能体根据返回的来源 ID 和记录路径，读取两份不可变的已登记副本，并检查由它们提升或受它们影响的参考、概念和索引文件。然后，智能体编辑所有受影响的 Wiki 论述，使其反映修订内容。对账意味着 Wiki 已反映修订内容；仅检查两个版本不算完成对账。CLI 只报告修订，不会自动修复 Wiki。
 
 更新 Wiki 后，智能体先校验编辑结果，再为这组准确的先前版本和修订版本记录判断，最后再次检查对账封印：
 
@@ -122,7 +122,26 @@ okfh source reconcile <prior-source-id> <revision-source-id> --note "<Wiki 中�
 okfh check --workspace <workspace> --json
 ```
 
-第一个来源 ID 必须是先前版本，第二个必须是它的修订版本。最后一次 `check` 会核验这组版本已不再悬置；只有没有其他已提升来源的悬置对账且没有校验错误时，`data.currency.sealed` 才为 `true`。不要手动编辑 `raw/sources/` 下的已登记文件或 Harness 管理的对账状态。
+第一个来源 ID 必须是先前版本，第二个必须是它的修订版本。最后一次 `check` 会核验这组版本已不再悬置；只有没有其他已提升来源的悬置对账且没有校验错误时，`data.currency.sealed` 才为 `true`。不要手动编辑 `raw/sources/` 下的已登记文件或 Harness 管理的对账状态。Wiki 反映修订内容之后，智能体用 `okfh checkpoint` 完成本次周期。
+
+## 撤销一次错误改动
+
+```text
+<okf-harness> 我们最近改了什么？能把定价那次重写撤掉吗？
+```
+
+智能体应调用：
+
+```bash
+okfh history --workspace <workspace> --json
+okfh restore <completion-id> --workspace <workspace> --json
+```
+
+`history` 按从新到旧列出工作区的完成记录，每条包含一个不透明的完成标识，以及该周期完成时记录的判断。智能体读这些判断来确定你指的是哪一次完成，然后回退到那里；你只需用自然语言描述那次改动，不需要自己挑选标识。
+
+restore 可以回到任意一条完成记录，而不只是最新一条，因此几个周期之后才发现的问题仍然可以恢复。回退过程中经过的完成记录仍会列在 history 中，所以工作区可以来回移动。当工作区还有尚未纳入任何完成记录的改动时，restore 会拒绝执行：先完成或丢弃这些改动。
+
+工作区没有 `wiki/log.md`。工作区历史由工作区自身计算得出，因此既不会与 Wiki 争夺你的注意力，也不会被当作证据引用。
 
 ## 提问
 
