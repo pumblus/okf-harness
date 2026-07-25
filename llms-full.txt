@@ -361,6 +361,10 @@ _Avoid_: current project guess, global default workspace, hidden app state
 The exact Harness runtime version a workspace records in the `runtime` block of its `okfh.config.yaml`, answering which code may write those files. It is separate from the workspace format version (`version: "0.1"`), which answers what shape the files are, so a runtime patch is not a format migration. The Harness runtime is its only writer; a workspace created before pins existed keeps working and adopts one in a single step without the person choosing a version.
 _Avoid_: workspace format version, version range, dist-tag, user-chosen version
 
+**Runtime launcher**:
+The version-independent `launch` subcommand of universal setup that resolves an OKF Harness workspace, reads its workspace runtime pin, and delegates unchanged runtime arguments through `npx` to that exact Harness runtime version. It never writes the workspace, guesses a version, or falls back to a dist-tag; pin-less and invalid workspaces produce machine-readable outcomes for the agent to handle.
+_Avoid_: Harness runtime, global runtime, workspace writer, version fallback
+
 **Source material**:
 Original material that a person wants to bring into the knowledge base, such as a file, URL, markdown document, text snippet, or clipboard content. It is evidence for later synthesis, not the synthesized wiki content itself.
 _Avoid_: data, document, note
@@ -1433,6 +1437,14 @@ Try the local setup plan:
 ```bash
 npx @okf-harness/setup --dry-run
 ```
+
+Run a workspace's exact pinned runtime without a global install:
+
+```bash
+npx @okf-harness/setup@latest launch --workspace "/path/to/workspace" -- status --json
+```
+
+Arguments after `--` pass to `okfh` unchanged. A direct runtime result means `DELEGATED`; its exit code and streams pass through unchanged. Launcher-only failures are JSON on stderr with a closed outcome code and, when a runtime cannot be fetched or executed, the attempted invocation. `RUNTIME_PIN_MISSING` returns `data.adoptCommand` as an exact executable-and-arguments object.
 
 Setup checks Node.js 22+, detects supported agent clients on `PATH`, installs or updates the shared global `okfh` runtime when needed, verifies it with grouped `okfh doctor --json` output, and keeps `--dry-run` local-only with no network checks or filesystem writes. Workspace doctor warnings are reported but do not fail setup.
 

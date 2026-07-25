@@ -17,9 +17,12 @@ const configRelativePathSchema = z
 // version. A range or a dist-tag would leave that unanswerable from the workspace alone.
 const exactVersionSchema = z
   .string()
-  .regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/, {
-    message: "Runtime pin must be an exact version such as 0.6.0, not a range or a dist-tag.",
-  });
+  .regex(
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/,
+    {
+      message: "Runtime pin must be an exact version such as 0.6.0, not a range or a dist-tag.",
+    },
+  );
 
 export const workspaceConfigSchema = z
   .object({

@@ -41,13 +41,13 @@ describe("workspace config", () => {
     expect(config.runtime).toBeUndefined();
   });
 
-  it("reads an exact runtime pin", async () => {
+  it.each(["0.6.0", "0.6.0-rc.1+build.5"])("reads the exact runtime pin %s", async (pin) => {
     const source = await readFile(`${validWorkspaceFixture}/okfh.config.yaml`, "utf8");
-    const result = parseWorkspaceConfig(`${source}runtime:\n  version: 0.6.0\n`);
+    const result = parseWorkspaceConfig(`${source}runtime:\n  version: ${pin}\n`);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.config.runtime?.version).toBe("0.6.0");
+      expect(result.config.runtime?.version).toBe(pin);
       expect(result.config.version).toBe("0.1");
     }
   });
@@ -56,6 +56,10 @@ describe("workspace config", () => {
     "^0.6.0",
     "latest",
     "0.6",
+    "01.2.3",
+    "1.2.3-01",
+    "1.2.3-..",
+    "1.2.3+..",
     "",
   ])("returns CONFIG_INVALID for the non-exact runtime pin %j", async (pin) => {
     const source = await readFile(`${validWorkspaceFixture}/okfh.config.yaml`, "utf8");

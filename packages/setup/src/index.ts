@@ -10,6 +10,12 @@ import {
   type NativeIntegrationProfile,
   supportedNativeIntegrationProfiles,
 } from "@okf-harness/agent-pack";
+import {
+  type ConfigIssue,
+  readWorkspaceConfig,
+  resolveWorkspaceRoot,
+  WorkspaceResolutionError,
+} from "@okf-harness/core";
 
 export const packageInfo = {
   name: "@okf-harness/setup",
@@ -29,6 +35,7 @@ export type SetupIo = {
 export type SetupCommandResult = {
   stdout: string;
   stderr: string;
+  exitCode?: number;
 };
 
 export type RunSetupCommand = (
@@ -54,10 +61,54 @@ export type RunSetupOptions = {
   runCommand?: RunSetupCommand;
 };
 
+export type RuntimeInvocation = {
+  command: "npx";
+  args: string[];
+};
+
+export type RuntimeLauncherOutcome =
+  | {
+      code: "DELEGATED";
+      workspaceRoot: string;
+      invocation: RuntimeInvocation;
+    }
+  | {
+      code: "RUNTIME_PIN_MISSING";
+      workspaceRoot: string;
+      adoptCommand: RuntimeInvocation;
+    }
+  | {
+      code: "CONFIG_INVALID";
+      workspaceRoot: string;
+      issues: ConfigIssue[];
+    }
+  | {
+      code: "WORKSPACE_NOT_FOUND";
+      startDir: string;
+    }
+  | {
+      code: "RUNTIME_EXECUTION_FAILED";
+      workspaceRoot: string;
+      invocation: RuntimeInvocation;
+    };
+
 export type SetupRunResult = {
   exitCode: number;
   stdout: string;
   stderr: string;
+  outcome?: RuntimeLauncherOutcome;
+};
+
+type RuntimeLauncherArgs = {
+  workspaceRoot?: string;
+  runtimeArgs: string[];
+};
+
+type RuntimeLauncherOptions = {
+  env: NodeJS.ProcessEnv;
+  runCommand: RunSetupCommand;
+  writeErr: (chunk: string) => void;
+  writeOut: (chunk: string) => void;
 };
 
 type SetupArgs = {
@@ -67,6 +118,11 @@ type SetupArgs = {
   yes: boolean;
   selection: AgentSelection;
 };
+
+type ParsedCommandArgs =
+  | { kind: "launch"; args: RuntimeLauncherArgs }
+  | { kind: "setup"; args: SetupArgs }
+  | { error: string };
 
 type AgentSelection =
   | { kind: "default" }
@@ -106,6 +162,47 @@ const packageVersion = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { version: string };
 const runtimePackageName = "@okf-harness/cli";
+const runtimeStartMarker = "\u001eOKFH_RUNTIME_STARTED\u001e";
+const runtimeWrapperSource = `
+const { spawn } = require("node:child_process");
+const { existsSync, readFileSync } = require("node:fs");
+const path = require("node:path");
+const packageSpec = process.argv[1];
+const runtimeArgs = process.argv.slice(2);
+let runtimeBin;
+for (const directory of (process.env.PATH ?? "").split(path.delimiter)) {
+  const packageRoot = path.resolve(directory, "..", "@okf-harness", "cli");
+  const manifestPath = path.join(packageRoot, "package.json");
+  if (!existsSync(manifestPath)) continue;
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  if (manifest.name + "@" + manifest.version !== packageSpec) continue;
+  const bin = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.okfh;
+  if (typeof bin !== "string") continue;
+  const candidate = path.resolve(packageRoot, bin);
+  if (existsSync(candidate)) {
+    runtimeBin = candidate;
+    break;
+  }
+}
+if (runtimeBin === undefined) {
+  process.stderr.write("Could not resolve the pinned okfh runtime.\\n");
+  process.exit(1);
+}
+const child = spawn(process.execPath, [runtimeBin, ...runtimeArgs], {
+  env: process.env,
+  stdio: "inherit",
+});
+child.on("spawn", () => {
+  process.stderr.write(${JSON.stringify(runtimeStartMarker)});
+});
+child.on("error", (error) => {
+  process.stderr.write(String(error) + "\\n");
+  process.exitCode = 1;
+});
+child.on("exit", (code) => {
+  process.exitCode = code ?? 1;
+});
+`;
 
 const invalidAgentsMessage =
   "Setup agents must be: auto, claude, codex, opencode, pi, hermes, openclaw.";
@@ -139,7 +236,7 @@ export async function runSetup(
     io.writeErr(chunk);
   };
 
-  const parsed = parseSetupArgs(argv.slice(2));
+  const parsed = parseCommandArgs(argv.slice(2));
   if ("error" in parsed) {
     writeErr(`${parsed.error}\n`);
     return { exitCode: 1, stdout: stdout.join(""), stderr: stderr.join("") };
@@ -147,7 +244,6 @@ export async function runSetup(
 
   const env = options.env ?? process.env;
   const runtimePlatform = options.runtimePlatform ?? process.platform;
-  const runCommand = options.runCommand ?? runCommandDefault;
   const nodeVersion = options.nodeVersion ?? process.version;
   const nodeMajor = parseNodeMajorVersion(nodeVersion);
   if (nodeMajor === undefined || nodeMajor < 22) {
@@ -157,8 +253,18 @@ export async function runSetup(
     return { exitCode: 1, stdout: stdout.join(""), stderr: stderr.join("") };
   }
 
+  if (parsed.kind === "launch") {
+    const runCommand =
+      options.runCommand ??
+      ((command: string, args: string[], commandOptions: Parameters<RunSetupCommand>[2]) =>
+        runRuntimeLauncherCommandDefault(command, args, commandOptions, runtimePlatform));
+    return launchRuntime(parsed.args, { env, runCommand, writeErr, writeOut });
+  }
+
+  const runCommand = options.runCommand ?? runCommandDefault;
+  const setupArgs = parsed.args;
   const plan = await createSetupPlan({
-    ...parsed,
+    ...setupArgs,
     env,
     nodeVersion,
     runCommand,
@@ -166,11 +272,11 @@ export async function runSetup(
   });
   writeOut(renderSetupPlan(plan));
 
-  if (!parsed.dryRun) {
+  if (!setupArgs.dryRun) {
     const runtimeResult = await installRuntime({
       env,
       io: { ...io, writeOut, writeErr },
-      parsed,
+      parsed: setupArgs,
       plan,
       runCommand,
       runtimePlatform,
@@ -186,7 +292,7 @@ export async function runSetup(
     const nativeInstallExitCode = await installSelectedNativeIntegrations({
       env,
       io: { ...io, writeOut, writeErr },
-      parsed,
+      parsed: setupArgs,
       plan,
       runCommand,
       runtimePlatform,
@@ -217,6 +323,172 @@ export async function runSetup(
   }
 
   return { exitCode: 0, stdout: stdout.join(""), stderr: stderr.join("") };
+}
+
+async function launchRuntime(
+  parsed: RuntimeLauncherArgs,
+  options: RuntimeLauncherOptions,
+): Promise<SetupRunResult> {
+  let workspaceRoot: string;
+  try {
+    workspaceRoot = await resolveWorkspaceRoot({
+      workspaceRoot: parsed.workspaceRoot,
+      startDir: options.env.PWD,
+    });
+  } catch (error) {
+    const startDir =
+      error instanceof WorkspaceResolutionError
+        ? error.startDir
+        : path.resolve(parsed.workspaceRoot ?? options.env.PWD ?? process.cwd());
+    const outcome = { code: "WORKSPACE_NOT_FOUND", startDir } as const;
+    return runtimeLauncherFailure(options.writeErr, outcome, {
+      workspace: null,
+      message: error instanceof Error ? error.message : "Workspace resolution failed.",
+      data: { startDir },
+      next: ["Run from inside an OKF Harness workspace or pass --workspace <path>."],
+    });
+  }
+
+  try {
+    await access(path.join(workspaceRoot, "okfh.config.yaml"));
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      const outcome = { code: "WORKSPACE_NOT_FOUND", startDir: workspaceRoot } as const;
+      return runtimeLauncherFailure(options.writeErr, outcome, {
+        workspace: null,
+        message: "Could not find okfh.config.yaml in the requested workspace.",
+        data: { startDir: workspaceRoot },
+        next: ["Run from inside an OKF Harness workspace or pass --workspace <path>."],
+      });
+    }
+  }
+
+  const config = await readWorkspaceConfig(workspaceRoot);
+  if (!config.ok) {
+    const outcome = {
+      code: "CONFIG_INVALID",
+      workspaceRoot,
+      issues: config.issues,
+    } as const;
+    return runtimeLauncherFailure(options.writeErr, outcome, {
+      workspace: workspaceRoot,
+      message: "Workspace config is invalid.",
+      data: { issues: config.issues },
+    });
+  }
+  if (config.config.runtime === undefined) {
+    const adoptCommand: RuntimeInvocation = {
+      command: "npx",
+      args: [
+        "--yes",
+        "--package",
+        `${runtimePackageName}@${packageVersion.version}`,
+        "okfh",
+        "adopt-runtime",
+        "--workspace",
+        workspaceRoot,
+        "--json",
+      ],
+    };
+    const outcome = {
+      code: "RUNTIME_PIN_MISSING",
+      workspaceRoot,
+      adoptCommand,
+    } as const;
+    return runtimeLauncherFailure(options.writeErr, outcome, {
+      workspace: workspaceRoot,
+      message: "Workspace runtime pin is missing.",
+      data: { adoptCommand },
+      next: ["Run data.adoptCommand, then retry launch."],
+    });
+  }
+
+  return delegateRuntime(
+    workspaceRoot,
+    {
+      command: "npx",
+      args: [
+        "--loglevel=silent",
+        "--yes",
+        "--package",
+        `${runtimePackageName}@${config.config.runtime.version}`,
+        "okfh",
+        ...parsed.runtimeArgs,
+      ],
+    },
+    options,
+  );
+}
+
+async function delegateRuntime(
+  workspaceRoot: string,
+  invocation: RuntimeInvocation,
+  options: RuntimeLauncherOptions,
+): Promise<SetupRunResult> {
+  let result: SetupCommandResult;
+  try {
+    result = await options.runCommand(invocation.command, invocation.args, {
+      cwd: workspaceRoot,
+      env: options.env,
+      shell: false,
+    });
+  } catch (error) {
+    const exitCode = commandExitCode(error);
+    if (exitCode === undefined || !runtimeDidStart(error)) {
+      const outcome = {
+        code: "RUNTIME_EXECUTION_FAILED",
+        workspaceRoot,
+        invocation,
+      } as const;
+      return runtimeLauncherFailure(options.writeErr, outcome, {
+        workspace: workspaceRoot,
+        message: "Pinned runtime could not be fetched or executed.",
+        data: { attemptedInvocation: invocation },
+        details: { cause: commandErrorDetails(error) },
+        ...(exitCode === undefined ? {} : { exitCode }),
+      });
+    }
+    result = { exitCode, stdout: commandStdout(error), stderr: commandStderr(error) };
+  }
+
+  options.writeOut(result.stdout);
+  options.writeErr(result.stderr);
+  return {
+    exitCode: result.exitCode ?? 0,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    outcome: { code: "DELEGATED", workspaceRoot, invocation },
+  };
+}
+
+function runtimeLauncherFailure(
+  writeErr: (chunk: string) => void,
+  outcome: Exclude<RuntimeLauncherOutcome, { code: "DELEGATED" }>,
+  options: {
+    workspace: string | null;
+    message: string;
+    data?: Record<string, unknown>;
+    details?: Record<string, unknown>;
+    exitCode?: number;
+    next?: string[];
+  },
+): SetupRunResult {
+  const envelope = {
+    ok: false,
+    command: "launch",
+    workspace: options.workspace,
+    data: { outcome: outcome.code, ...options.data },
+    warnings: [],
+    error: {
+      code: outcome.code,
+      message: options.message,
+      ...(options.details === undefined ? {} : { details: options.details }),
+    },
+    next: options.next ?? [],
+  };
+  const stderr = `${JSON.stringify(envelope)}\n`;
+  writeErr(stderr);
+  return { exitCode: options.exitCode ?? 1, stdout: "", stderr, outcome };
 }
 
 async function createSetupPlan(
@@ -776,6 +1048,24 @@ function commandToString(command: { command: string; args: string[] }): string {
   return [command.command, ...command.args].join(" ");
 }
 
+function commandExitCode(error: unknown): number | undefined {
+  return typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "number"
+    ? error.code
+    : undefined;
+}
+
+function runtimeDidStart(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "runtimeStarted" in error &&
+    error.runtimeStarted === true
+  );
+}
+
 function commandStdout(error: unknown): string {
   return typeof error === "object" &&
     error !== null &&
@@ -802,11 +1092,89 @@ function commandStderr(error: unknown): string {
     : "";
 }
 
+function isMissingPathError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error.code === "ENOENT" || error.code === "ENOTDIR")
+  );
+}
+
 function isPermissionError(error: unknown): boolean {
   const details = commandErrorDetails(error).toLowerCase();
   return (
     details.includes("eacces") || details.includes("eperm") || details.includes("permission denied")
   );
+}
+
+async function runRuntimeLauncherCommandDefault(
+  command: string,
+  args: string[],
+  options: Parameters<RunSetupCommand>[2],
+  runtimePlatform: NodeJS.Platform | string,
+): Promise<SetupCommandResult> {
+  if (command !== "npx") {
+    return runCommandDefault(command, args, { ...options, shell: false });
+  }
+
+  const runtimeCommandIndex = args.indexOf("okfh");
+  const packageOptionIndex = args.indexOf("--package");
+  const packageSpec = args[packageOptionIndex + 1];
+  if (runtimeCommandIndex === -1 || packageOptionIndex === -1 || packageSpec === undefined) {
+    throw new Error("Pinned runtime invocation is incomplete.");
+  }
+  const wrappedArgs = [
+    ...args.slice(0, runtimeCommandIndex),
+    "--",
+    "node",
+    "-e",
+    runtimeWrapperSource,
+    packageSpec,
+    ...args.slice(runtimeCommandIndex + 1),
+  ];
+
+  let executable = command;
+  let executionArgs = wrappedArgs;
+  if (runtimePlatform === "win32") {
+    const npx = await findExecutable(command, options.env);
+    if (npx === undefined) {
+      throw new Error("Could not find npx on PATH.");
+    }
+    const npxCli = path.join(path.dirname(npx), "node_modules", "npm", "bin", "npx-cli.js");
+    try {
+      await access(npxCli);
+    } catch {
+      throw new Error(`Could not resolve the npx CLI from ${npx}.`);
+    }
+    executable = process.execPath;
+    executionArgs = [npxCli, ...wrappedArgs];
+  }
+
+  try {
+    const result = await runCommandDefault(executable, executionArgs, {
+      ...options,
+      shell: false,
+    });
+    const markerIndex = result.stderr.indexOf(runtimeStartMarker);
+    if (markerIndex === -1) {
+      throw new Error("Pinned runtime did not start.");
+    }
+    return {
+      ...result,
+      stderr: result.stderr.slice(markerIndex + runtimeStartMarker.length),
+    };
+  } catch (error) {
+    const stderr = commandStderr(error);
+    const markerIndex = stderr.indexOf(runtimeStartMarker);
+    if (markerIndex === -1) {
+      throw error;
+    }
+    throw Object.assign(error instanceof Error ? error : new Error(String(error)), {
+      runtimeStarted: true,
+      stderr: stderr.slice(markerIndex + runtimeStartMarker.length),
+    });
+  }
 }
 
 async function runCommandDefault(
@@ -817,6 +1185,7 @@ async function runCommandDefault(
   const { stdout, stderr } = await execFileAsync(command, args, {
     cwd: options.cwd,
     env: options.env,
+    maxBuffer: Number.MAX_SAFE_INTEGER,
     shell: options.shell === true,
     windowsHide: true,
   });
@@ -843,6 +1212,50 @@ function shouldUseNativeInstallShell(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseCommandArgs(args: string[]): ParsedCommandArgs {
+  if (args[0] === "launch") {
+    const parsed = parseRuntimeLauncherArgs(args.slice(1));
+    return "error" in parsed ? parsed : { kind: "launch", args: parsed };
+  }
+  const parsed = parseSetupArgs(args);
+  return "error" in parsed ? parsed : { kind: "setup", args: parsed };
+}
+
+function parseRuntimeLauncherArgs(args: string[]): RuntimeLauncherArgs | { error: string } {
+  let workspaceRoot: string | undefined;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--") {
+      const runtimeArgs = args.slice(index + 1);
+      return runtimeArgs.length === 0
+        ? { error: "launch requires runtime arguments." }
+        : { ...(workspaceRoot === undefined ? {} : { workspaceRoot }), runtimeArgs };
+    }
+    if (arg === "--workspace") {
+      workspaceRoot = args[index + 1];
+      if (workspaceRoot === undefined || workspaceRoot.length === 0) {
+        return { error: "--workspace requires a value." };
+      }
+      index += 1;
+      continue;
+    }
+    if (arg?.startsWith("--workspace=")) {
+      workspaceRoot = arg.slice("--workspace=".length);
+      if (workspaceRoot.length === 0) {
+        return { error: "--workspace requires a value." };
+      }
+      continue;
+    }
+    return {
+      ...(workspaceRoot === undefined ? {} : { workspaceRoot }),
+      runtimeArgs: args.slice(index),
+    };
+  }
+
+  return { error: "launch requires runtime arguments." };
 }
 
 function parseSetupArgs(args: string[]): SetupArgs | { error: string } {

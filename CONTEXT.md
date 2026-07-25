@@ -128,6 +128,10 @@ _Avoid_: current project guess, global default workspace, hidden app state
 The exact Harness runtime version a workspace records in the `runtime` block of its `okfh.config.yaml`, answering which code may write those files. It is separate from the workspace format version (`version: "0.1"`), which answers what shape the files are, so a runtime patch is not a format migration. The Harness runtime is its only writer; a workspace created before pins existed keeps working and adopts one in a single step without the person choosing a version.
 _Avoid_: workspace format version, version range, dist-tag, user-chosen version
 
+**Runtime launcher**:
+The version-independent `launch` subcommand of universal setup that resolves an OKF Harness workspace, reads its workspace runtime pin, and delegates unchanged runtime arguments through `npx` to that exact Harness runtime version. It never writes the workspace, guesses a version, or falls back to a dist-tag; pin-less and invalid workspaces produce machine-readable outcomes for the agent to handle.
+_Avoid_: Harness runtime, global runtime, workspace writer, version fallback
+
 **Source material**:
 Original material that a person wants to bring into the knowledge base, such as a file, URL, markdown document, text snippet, or clipboard content. It is evidence for later synthesis, not the synthesized wiki content itself.
 _Avoid_: data, document, note
