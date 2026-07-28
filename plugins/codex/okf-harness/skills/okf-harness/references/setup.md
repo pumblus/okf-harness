@@ -13,22 +13,22 @@ Create the first OKF Harness workspace for Codex from a parent folder.
 - For English display names, derive a conservative folder slug: lowercase ASCII words, hyphen separators, collapsed punctuation. Keep the display name friendly.
 - For non-Latin display names, allow a UTF-8 folder name by default. Do not translate it; only remove path separators and control characters.
 - Before persistent writes, show a short summary with name, path, and agent target unless all three were explicit in the user's request.
-- Refuse a non-empty target directory unless `okfh status --workspace <path> --json` shows it is already an OKF Harness workspace; tell the user to choose an empty directory or a new subdirectory.
+- Refuse a non-empty target directory unless `npx @okf-harness/setup@latest launch --workspace <path> -- status --json` shows it is already an OKF Harness workspace; tell the user to choose an empty directory or a new subdirectory.
 - If the target is an initialized workspace, stop setup and use the repair route.
 
 ## Allowed Commands
 
 ```bash
-okfh init <workspace> --name <name> --agents codex --dry-run --json
-okfh init <workspace> --name <name> --agents codex --json
-okfh status --workspace <workspace> --json
+npx --yes --package @okf-harness/cli@latest okfh init <workspace> --name <name> --agents codex --dry-run --json
+npx --yes --package @okf-harness/cli@latest okfh init <workspace> --name <name> --agents codex --json
+npx @okf-harness/setup@latest launch --workspace <workspace> -- status --json
 ```
 
 ## Allowed Writes
 
 - A new OKF Harness workspace at the confirmed target path.
-- Codex workspace-local guidance created by `okfh init --agents codex`.
+- Codex workspace-local guidance created by the runtime's `init --agents codex` operation.
 
 ## Completion Condition
 
-Report the workspace path and the `data.refresh` message from the CLI. If `data.refresh.commands` exists, show the two command lines exactly; otherwise repeat the natural-language refresh message before telling the user to use `$okf-harness` in the fresh Codex thread.
+Report the workspace path and the CLI `data.refresh` message. If `data.refresh.commands` exists, show the two command lines exactly. Continue through `$okf-harness`; mention a fresh Codex thread only when the returned refresh guidance asks for one.

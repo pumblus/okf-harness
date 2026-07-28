@@ -24,10 +24,13 @@ describe("native marketplace plugins", () => {
         {
           name: "okf-harness",
           source: "./plugins/claude/okf-harness",
+          description: expect.stringContaining("unified okf-harness"),
           version,
         },
       ],
     });
+    expect(JSON.stringify(claudeMarketplace)).not.toContain("okf-harness-bootstrap");
+    expect(JSON.stringify(claudeMarketplace)).not.toContain("Requires okfh");
     expect(codexMarketplace).toEqual({
       name: "okf-harness",
       interface: {
@@ -50,7 +53,7 @@ describe("native marketplace plugins", () => {
     });
   });
 
-  it("ships only the generated bootstrap skill in host plugin packages", async () => {
+  it("ships only the generated unified host skill in host plugin packages", async () => {
     const { version } = await readJson<{ version: string }>(packageJsonPath);
 
     await expectHostPlugin({
@@ -97,14 +100,14 @@ async function expectHostPlugin(options: {
   );
   expect(actualFiles.filter((file) => file.path.startsWith("skills/"))).toEqual(expectedSkillFiles);
 
-  const skill = actualFiles.find(
-    (file) => file.path === "skills/okf-harness-bootstrap/SKILL.md",
-  )?.contents;
-  expect(skill).toContain("name: okf-harness-bootstrap");
-  expect(skill).toContain("If `okfh` is missing");
-  expect(skill).toContain("npx @okf-harness/setup@latest");
+  const skill = actualFiles.find((file) => file.path === "skills/okf-harness/SKILL.md")?.contents;
+  expect(skill).toContain("name: okf-harness");
+  expect(skill).toContain('okf-harness-entrypoint: "host"');
+  expect(skill).toContain("npx @okf-harness/setup@latest launch");
+  expect(skill).toContain("check --json");
+  expect(skill).not.toContain("If `okfh` is missing");
   expect(skill).not.toContain("npm install -g @okf-harness/cli");
-  expect(skill).not.toContain("name: okf-harness\n");
+  expect(skill).not.toContain("name: okf-harness-bootstrap");
 }
 
 async function readRepoJson<T>(relativePath: string): Promise<T> {

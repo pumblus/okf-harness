@@ -7,11 +7,11 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const pluginId = "okf-harness@okf-harness";
-const bootstrapSkill = "skills/okf-harness-bootstrap/SKILL.md";
+const hostSkill = "skills/okf-harness/SKILL.md";
 const expectedReferences = [
-  "skills/okf-harness-bootstrap/references/discovery.md",
-  "skills/okf-harness-bootstrap/references/repair.md",
-  "skills/okf-harness-bootstrap/references/setup.md",
+  "skills/okf-harness/references/discovery.md",
+  "skills/okf-harness/references/repair.md",
+  "skills/okf-harness/references/setup.md",
 ];
 
 await smokeCodex();
@@ -36,10 +36,10 @@ async function smokeCodex() {
     assert.equal(install.pluginId, pluginId);
     assert.deepEqual(await listFiles(install.installedPath), [
       ".codex-plugin/plugin.json",
-      bootstrapSkill,
+      hostSkill,
       ...expectedReferences,
     ]);
-    await assertBootstrapSkill(install.installedPath);
+    await assertHostSkill(install.installedPath);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -65,13 +65,13 @@ async function smokeClaude() {
     assert.equal(install.id, pluginId);
 
     const details = run("claude", ["plugin", "details", "okf-harness"], { env });
-    assert.match(details, /Skills \(1\)\s+okf-harness-bootstrap/);
+    assert.match(details, /Skills \(1\)\s+okf-harness/);
     assert.deepEqual(await listFiles(install.installPath), [
       ".claude-plugin/plugin.json",
-      bootstrapSkill,
+      hostSkill,
       ...expectedReferences,
     ]);
-    await assertBootstrapSkill(install.installPath);
+    await assertHostSkill(install.installPath);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -120,10 +120,12 @@ async function walk(root, current, files) {
   }
 }
 
-async function assertBootstrapSkill(root) {
-  const skill = await readFile(path.join(root, bootstrapSkill), "utf8");
-  assert.match(skill, /^name: okf-harness-bootstrap$/m);
-  assert.match(skill, /npx @okf-harness\/setup@latest/);
+async function assertHostSkill(root) {
+  const skill = await readFile(path.join(root, hostSkill), "utf8");
+  assert.match(skill, /^name: okf-harness$/m);
+  assert.match(skill, /^ {2}okf-harness-entrypoint: "host"$/m);
+  assert.match(skill, /npx @okf-harness\/setup@latest launch/);
+  assert.match(skill, /check --json/);
   assert.doesNotMatch(skill, /npm install -g @okf-harness\/cli/);
-  assert.doesNotMatch(skill, /^name: okf-harness$/m);
+  assert.doesNotMatch(skill, /^name: okf-harness-bootstrap$/m);
 }
