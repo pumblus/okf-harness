@@ -548,7 +548,9 @@ async function useFakeDoctorEnv(): Promise<{
   const codexStateDirectory = path.join(root, ".codex");
   const claudeHome = path.join(root, ".claude");
   const bin = path.join(root, "bin");
+  await writeFakeExecutable(bin, "npm");
   await writeFakeExecutable(bin, "pnpm");
+  await writeFakeWindowsCommand(bin, "npm.cmd");
   await writeFakeWindowsCommand(bin, "pnpm.cmd");
 
   const keys = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "HOME", "PATH", "USERPROFILE"] as const;
