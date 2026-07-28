@@ -550,6 +550,8 @@ async function useFakeDoctorEnv(): Promise<{
   await mkdir(bin);
   await writeFakeExecutable(bin, "git");
   await writeFakeExecutable(bin, "pnpm");
+  await writeFakeWindowsCommand(bin, "git.cmd");
+  await writeFakeWindowsCommand(bin, "pnpm.cmd");
 
   const keys = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "HOME", "PATH", "USERPROFILE"] as const;
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]])) as Record<
@@ -608,5 +610,11 @@ async function writeFakeExecutable(bin: string, name: string): Promise<void> {
   await mkdir(bin, { recursive: true });
   const executable = path.join(bin, name);
   await writeFile(executable, "#!/bin/sh\nexit 0\n", "utf8");
+  await chmod(executable, 0o755);
+}
+
+async function writeFakeWindowsCommand(bin: string, name: string): Promise<void> {
+  const executable = path.join(bin, name);
+  await writeFile(executable, "@exit /b 0\r\n", "utf8");
   await chmod(executable, 0o755);
 }
