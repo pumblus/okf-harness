@@ -131,7 +131,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     supportedNativeIntegrationProfiles.map((profile) => checkNativeIntegration(profile, env)),
   );
   const legacyBootstrapFallbackChecks = await Promise.all(
-    supportedBootstrapAgents.map((agent) => checkGlobalBootstrap(agent, readBootstrapStatus)),
+    supportedBootstrapAgents.map((agent) => checkHostEntrypoint(agent, readBootstrapStatus)),
   );
 
   const workspaceChecks: DoctorCheck[] = [];
@@ -420,7 +420,7 @@ async function resolveDoctorWorkspace(
   }
 }
 
-async function checkGlobalBootstrap(
+async function checkHostEntrypoint(
   agent: BootstrapAgent,
   readBootstrapStatus: ReadBootstrapStatus,
 ): Promise<DoctorCheck> {
@@ -430,9 +430,9 @@ async function checkGlobalBootstrap(
   } catch (error) {
     return {
       id: `global-bootstrap-${agent}`,
-      label: `${agent} global bootstrap`,
+      label: `${agent} host entrypoint`,
       status: "warn",
-      message: `Global bootstrap check warning: ${agent} bootstrap status could not be read.`,
+      message: `Host entrypoint check warning: ${agent} status could not be read.`,
       details: {
         agent,
         error: error instanceof Error ? error.message : String(error),
@@ -441,7 +441,7 @@ async function checkGlobalBootstrap(
     };
   }
 
-  const label = `${status.detection.label} global bootstrap`;
+  const label = `${status.detection.label} host entrypoint`;
   const details = {
     agent,
     detected: status.detection.detected,
@@ -456,7 +456,7 @@ async function checkGlobalBootstrap(
       id: `global-bootstrap-${agent}`,
       label,
       status: "pass",
-      message: `Global bootstrap check passed: ${status.detection.label} bootstrap skill is installed.`,
+      message: `Host entrypoint check passed: ${status.detection.label} has the unified skill installed.`,
       details,
     };
   }
@@ -465,7 +465,7 @@ async function checkGlobalBootstrap(
     return skipCheck(
       `global-bootstrap-${agent}`,
       label,
-      `Global bootstrap check skipped: ${status.detection.label} was not detected.`,
+      `Host entrypoint check skipped: ${status.detection.label} was not detected.`,
       details,
     );
   }
@@ -474,7 +474,7 @@ async function checkGlobalBootstrap(
     id: `global-bootstrap-${agent}`,
     label,
     status: "warn",
-    message: `Global bootstrap check warning: ${status.detection.label} bootstrap status is ${status.state}.`,
+    message: `Host entrypoint check warning: ${status.detection.label} status is ${status.state}.`,
     details: {
       ...details,
       reason: status.reason ?? null,

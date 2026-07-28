@@ -36,10 +36,7 @@ describe("@okf-harness/cli bootstrap", () => {
         expect(install.exitCode).toBe(0);
 
         const setupReference = await readFile(
-          path.join(
-            paths[scenario.bootstrapHome],
-            "skills/okf-harness-bootstrap/references/setup.md",
-          ),
+          path.join(paths[scenario.bootstrapHome], "skills/okf-harness/references/setup.md"),
           "utf8",
         );
         expect(setupReference).toContain(`--agents ${scenario.agent}`);
@@ -101,19 +98,19 @@ describe("@okf-harness/cli bootstrap", () => {
       expect(install.exitCode).toBe(0);
 
       const skill = await readFile(
-        path.join(paths.codexHome, "skills/okf-harness-bootstrap/SKILL.md"),
+        path.join(paths.codexHome, "skills/okf-harness/SKILL.md"),
         "utf8",
       );
-      expect(skill).toContain("setup-plus-source then additionally uses the registration");
-      expect(skill).toContain("Report all invalid local inputs before creating or selecting");
-      expect(skill).toContain("metadata/readability checks before `okfh init`");
-      expect(skill).toContain("URL sources are accepted as source pointers only");
+      expect(skill).toContain("## Setup-Plus-Source");
+      expect(skill).toContain("Validate every requested local source before creating a workspace");
+      expect(skill).toContain("missing, non-file, or unreadable input");
+      expect(skill).toContain("Treat URLs as source pointers");
       expect(skill).toContain("first-loop blocker with one concrete next action");
-      expect(skill).toContain("Completion criterion");
-      expect(skill).toContain("okfh ingest plan <source-id> --workspace <workspace> --json");
-      expect(skill).not.toContain("## First-Answer Check");
-      expect(skill).not.toContain('okfh evidence "<question>"');
-      expect(skill).not.toContain("What is the source mainly about?");
+      expect(skill).toContain(
+        "npx @okf-harness/setup@latest launch --workspace <workspace> -- ingest plan <source-id> --json",
+      );
+      expect(skill).toContain('evidence "<question>" --json');
+      expect(skill).toContain("Continue into wiki synthesis only when the user requested it");
 
       const workspace = path.join(paths.codexStateDirectory, "source-workspace");
       const localSource = path.join(paths.codexStateDirectory, "sources", "llm-wiki-paper.md");
@@ -213,9 +210,9 @@ describe("@okf-harness/cli bootstrap", () => {
     });
   });
 
-  it("installs, reports, and uninstalls the Codex global bootstrap skill", async () => {
+  it("installs, reports, and uninstalls the Codex host skill", async () => {
     await withFakeCodexHome(async (codexHome) => {
-      const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const skillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
 
       const install = await runJsonCli([
         "node",
@@ -244,7 +241,7 @@ describe("@okf-harness/cli bootstrap", () => {
         },
       });
       await expect(readFile(skillPath, "utf8")).resolves.toContain(
-        'okf-harness-entrypoint: "bootstrap"',
+        'okf-harness-entrypoint: "host"',
       );
 
       const status = await runJsonCli([
@@ -291,9 +288,43 @@ describe("@okf-harness/cli bootstrap", () => {
     });
   });
 
-  it("installs, reports, and uninstalls the Claude Code global bootstrap skill", async () => {
+  it("replaces the managed legacy entrypoint with the unified host skill", async () => {
+    await withFakeCodexHome(async (codexHome) => {
+      const legacyDirectory = path.join(codexHome, "skills/okf-harness-bootstrap");
+      const legacySkillPath = path.join(legacyDirectory, "SKILL.md");
+      const unifiedSkillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
+      await mkdir(legacyDirectory, { recursive: true });
+      await writeFile(
+        legacySkillPath,
+        '---\nname: okf-harness-bootstrap\nmetadata:\n  okf-harness-managed: "true"\n---\n',
+        "utf8",
+      );
+
+      const install = await runJsonCli([
+        "node",
+        "okfh",
+        "bootstrap",
+        "install",
+        "--agents",
+        "codex",
+        "--json",
+      ]);
+
+      expect(install).toMatchObject({
+        exitCode: 0,
+        result: {
+          ok: true,
+          data: { removedFiles: expect.arrayContaining([legacyDirectory]) },
+        },
+      });
+      await expect(readFile(unifiedSkillPath, "utf8")).resolves.toContain("name: okf-harness");
+      await expect(stat(legacySkillPath)).rejects.toMatchObject({ code: "ENOENT" });
+    });
+  });
+
+  it("installs, reports, and uninstalls the Claude Code host skill", async () => {
     await withFakeBootstrapEnv(async ({ claudeHome }) => {
-      const skillPath = path.join(claudeHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const skillPath = path.join(claudeHome, "skills/okf-harness/SKILL.md");
 
       const install = await runJsonCli([
         "node",
@@ -321,7 +352,7 @@ describe("@okf-harness/cli bootstrap", () => {
       const skill = await readFile(skillPath, "utf8");
       expect(skill).toContain('okf-harness-agent: "claude"');
       await expect(
-        readFile(path.join(claudeHome, "skills/okf-harness-bootstrap/references/setup.md"), "utf8"),
+        readFile(path.join(claudeHome, "skills/okf-harness/references/setup.md"), "utf8"),
       ).resolves.toContain("/okf-harness");
 
       const status = await runJsonCli([
@@ -377,8 +408,8 @@ describe("@okf-harness/cli bootstrap", () => {
   it("installs only detected agents with --agents all", async () => {
     await withFakeBootstrapEnv(async ({ codexHome, codexStateDirectory, claudeHome }) => {
       await mkdir(codexStateDirectory, { recursive: true });
-      const codexSkillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
-      const claudeSkillPath = path.join(claudeHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const codexSkillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
+      const claudeSkillPath = path.join(claudeHome, "skills/okf-harness/SKILL.md");
 
       const result = await runJsonCli([
         "node",
@@ -428,8 +459,8 @@ describe("@okf-harness/cli bootstrap", () => {
   it("detects Claude Code from the user-state directory with --agents all", async () => {
     await withFakeBootstrapEnv(async ({ codexHome, claudeHome }) => {
       await mkdir(claudeHome, { recursive: true });
-      const codexSkillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
-      const claudeSkillPath = path.join(claudeHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const codexSkillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
+      const claudeSkillPath = path.join(claudeHome, "skills/okf-harness/SKILL.md");
 
       const result = await runJsonCli([
         "node",
@@ -609,10 +640,10 @@ describe("@okf-harness/cli bootstrap", () => {
     await withFakeBootstrapEnv(async ({ bin, codexHome, claudeHome }) => {
       await writeFakeExecutable(bin, "codex");
       await writeFakeExecutable(bin, "claude");
-      const codexSkillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
-      const claudeSkillPath = path.join(claudeHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const codexSkillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
+      const claudeSkillPath = path.join(claudeHome, "skills/okf-harness/SKILL.md");
       await mkdir(path.dirname(codexSkillPath), { recursive: true });
-      await writeFile(codexSkillPath, "---\nname: okf-harness-bootstrap\n---\n\n# Mine\n", "utf8");
+      await writeFile(codexSkillPath, "---\nname: okf-harness\n---\n\n# Mine\n", "utf8");
 
       const result = await runJsonCli([
         "node",
@@ -645,7 +676,7 @@ describe("@okf-harness/cli bootstrap", () => {
           },
           warnings: [expect.objectContaining({ code: "BOOTSTRAP_AGENT_FAILED" })],
           next: expect.arrayContaining([
-            expect.stringContaining("Review the existing okf-harness-bootstrap skill"),
+            expect.stringContaining("Review the existing okf-harness host skill"),
           ]),
         },
       });
@@ -696,7 +727,7 @@ describe("@okf-harness/cli bootstrap", () => {
             },
             warnings: [expect.objectContaining({ code: "BOOTSTRAP_AGENT_FAILED" })],
             next: expect.arrayContaining([
-              expect.stringContaining("Make the bootstrap target writable"),
+              expect.stringContaining("Make the host skill target writable"),
             ]),
           },
         });
@@ -708,7 +739,7 @@ describe("@okf-harness/cli bootstrap", () => {
 
   it("supports dry-run install and uninstall without changing files", async () => {
     await withFakeCodexHome(async (codexHome) => {
-      const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const skillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
 
       const missing = await runJsonCli([
         "node",
@@ -775,9 +806,9 @@ describe("@okf-harness/cli bootstrap", () => {
 
   it("reports unmanaged same-name conflicts without overwriting or removing them", async () => {
     await withFakeCodexHome(async (codexHome) => {
-      const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const skillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
       await mkdir(path.dirname(skillPath), { recursive: true });
-      await writeFile(skillPath, "---\nname: okf-harness-bootstrap\n---\n\n# Mine\n", "utf8");
+      await writeFile(skillPath, "---\nname: okf-harness\n---\n\n# Mine\n", "utf8");
 
       const install = await runJsonCli([
         "node",
@@ -832,7 +863,7 @@ describe("@okf-harness/cli bootstrap", () => {
 
   it("reports same-name filesystem conflicts without overwriting them", async () => {
     await withFakeCodexHome(async (codexHome) => {
-      const skillDirectory = path.join(codexHome, "skills/okf-harness-bootstrap");
+      const skillDirectory = path.join(codexHome, "skills/okf-harness");
       await mkdir(path.dirname(skillDirectory), { recursive: true });
       await writeFile(skillDirectory, "mine\n", "utf8");
 
@@ -936,7 +967,7 @@ describe("@okf-harness/cli bootstrap", () => {
                 blockedPath: home,
               },
             },
-            next: [expect.stringContaining("Make the bootstrap target writable")],
+            next: [expect.stringContaining("Make the host skill target writable")],
           },
         });
       } finally {
@@ -951,7 +982,7 @@ describe("@okf-harness/cli bootstrap", () => {
     }
 
     await withFakeCodexHome(async (codexHome) => {
-      const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const skillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
       await writeManagedBootstrap(skillPath, "0.0.1");
       await chmod(skillPath, 0o200);
       try {
@@ -977,7 +1008,7 @@ describe("@okf-harness/cli bootstrap", () => {
                 blockedPath: skillPath,
               },
             },
-            next: [expect.stringContaining("Make the bootstrap target writable")],
+            next: [expect.stringContaining("Make the host skill target writable")],
           },
         });
       } finally {
@@ -988,10 +1019,7 @@ describe("@okf-harness/cli bootstrap", () => {
 
   it("reports managed generated-file drift and repairs it", async () => {
     await withFakeCodexHome(async (codexHome) => {
-      const referencePath = path.join(
-        codexHome,
-        "skills/okf-harness-bootstrap/references/setup.md",
-      );
+      const referencePath = path.join(codexHome, "skills/okf-harness/references/setup.md");
       await runJsonCli(["node", "okfh", "bootstrap", "install", "--agents", "codex", "--json"]);
       await rm(referencePath);
 
@@ -1041,7 +1069,7 @@ describe("@okf-harness/cli bootstrap", () => {
 
   it("reports missing or wrong managed agent metadata", async () => {
     await withFakeCodexHome(async (codexHome) => {
-      const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const skillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
       const install = await runJsonCli([
         "node",
         "okfh",
@@ -1105,7 +1133,7 @@ describe("@okf-harness/cli bootstrap", () => {
 
   it("repairs the bootstrap skill through the repair action", async () => {
     await withFakeCodexHome(async (codexHome) => {
-      const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const skillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
       await writeManagedBootstrap(skillPath, "0.0.1");
 
       const repair = await runJsonCli([
@@ -1133,7 +1161,7 @@ describe("@okf-harness/cli bootstrap", () => {
 
   it("reports older and newer managed version drift with a repair command", async () => {
     await withFakeCodexHome(async (codexHome) => {
-      const skillPath = path.join(codexHome, "skills/okf-harness-bootstrap/SKILL.md");
+      const skillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
       await writeManagedBootstrap(skillPath, "0.0.1");
 
       const older = await runJsonCli([
@@ -1285,11 +1313,11 @@ async function writeManagedBootstrap(skillPath: string, version: string): Promis
   await writeFile(
     skillPath,
     `---
-name: okf-harness-bootstrap
+name: okf-harness
 metadata:
   okf-harness-version: "${version}"
   okf-harness-managed: "true"
-  okf-harness-entrypoint: "bootstrap"
+  okf-harness-entrypoint: "host"
   okf-harness-agent: "codex"
 ---
 

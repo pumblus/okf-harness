@@ -40,7 +40,7 @@ export function registerBootstrapCommands(
 ): void {
   program
     .command("bootstrap <action>")
-    .description("Manage global OKF Harness bootstrap entrypoints.")
+    .description("Manage unified OKF Harness host entrypoints.")
     .storeOptionsAsProperties(false)
     .requiredOption("--agents <agents>", "agent clients to manage: codex, claude, all")
     .option("--dry-run", "return the planned writes or removals without changing files")

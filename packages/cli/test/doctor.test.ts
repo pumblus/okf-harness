@@ -214,7 +214,7 @@ describe("@okf-harness/cli doctor", () => {
     }
   });
 
-  it("keeps reporting when a global bootstrap status cannot be read", async () => {
+  it("keeps reporting when a host entrypoint status cannot be read", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
 
     const result = await runDoctor({
@@ -353,7 +353,7 @@ describe("@okf-harness/cli doctor", () => {
     );
   });
 
-  it("reports unwritable global bootstrap targets in doctor details", async () => {
+  it("reports unwritable host entrypoint targets in doctor details", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const blockedPath = path.join(root, "home");
 
@@ -589,10 +589,10 @@ function fakeBootstrapStatus(
   const targetDirectory = path.join(tmpdir(), `okfh-${agent}`);
   return {
     agent,
-    skillName: "okf-harness-bootstrap",
+    skillName: "okf-harness",
     targetDirectory,
-    skillDirectory: path.join(targetDirectory, "skills/okf-harness-bootstrap"),
-    skillPath: path.join(targetDirectory, "skills/okf-harness-bootstrap/SKILL.md"),
+    skillDirectory: path.join(targetDirectory, "skills/okf-harness"),
+    skillPath: path.join(targetDirectory, "skills/okf-harness/SKILL.md"),
     state: "installed",
     expectedVersion: "0.0.0",
     managed: true,
