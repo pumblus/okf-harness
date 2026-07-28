@@ -16,7 +16,7 @@ Its public surface is intentionally narrow:
 
 - Keep the package free of runtime install hooks.
 - Expose only the host-level `okf-harness` entrypoint.
-- Route deterministic operations through the runtime launcher; never require a global `okfh`.
+- Route existing-workspace operations through the runtime launcher; first-workspace creation uses the exact runtime version paired with the host skill because no workspace pin exists yet. Never require a global `okfh`.
 - Do not claim this package installs workspace-local adapters for Pi, OpenCode, or OpenClaw.
 - Do not introduce GUI, cloud sync, accounts, team permissions, background daemons, or private agent runtime.
 - Do not rely on ignored local files, personal home-directory caches, or machine-specific paths.

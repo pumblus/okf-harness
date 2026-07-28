@@ -536,6 +536,7 @@ async function assertNativeIntegrationPackage(installDir) {
     'okf-harness-entrypoint: "host"',
     "openclaw:",
     "npx @okf-harness/setup@latest launch",
+    `@okf-harness/cli@${packageJson.version} okfh init`,
     "WORKSPACE_NOT_FOUND",
     "does not install workspace-local guidance",
   ]) {
@@ -584,12 +585,16 @@ async function assertNativeIntegrationPackage(installDir) {
 
 async function assertHermesTapSkill() {
   const skill = await readFile(path.join(repoRoot, hermesTapSkillPath), "utf8");
+  const { version } = JSON.parse(
+    await readFile(path.join(repoRoot, nativeIntegrationPackageDir, "package.json"), "utf8"),
+  );
   for (const expected of [
     "name: okf-harness",
     "hermes:",
     'okf-harness-entrypoint: "host"',
     'okf-harness-install-id: "pumblus/okf-harness/okf-harness"',
     "npx @okf-harness/setup@latest launch",
+    `@okf-harness/cli@${version} okfh init`,
     "does not install workspace-local guidance",
   ]) {
     if (!skill.includes(expected)) {

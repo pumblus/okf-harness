@@ -31,7 +31,7 @@ npx @okf-harness/setup@latest launch -- status --json
 Create a workspace without adding unsupported workspace-local guidance:
 
 ```bash
-npx --yes --package @okf-harness/cli@latest okfh init <workspace> --name <name> --agents none --json
+npx --yes --package @okf-harness/cli@0.6.0 okfh init <workspace> --name <name> --agents none --json
 ```
 
 ## Workspace Routes

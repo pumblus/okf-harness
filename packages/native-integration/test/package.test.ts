@@ -41,6 +41,7 @@ describe("@pumblus/okf-harness package", () => {
       path.join(packageRoot, "skills", "okf-harness", "SKILL.md"),
       "utf8",
     );
+    const { version } = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
 
     expect(skill).toContain("name: okf-harness");
     expect(skill).toContain("compatibility: pi, opencode, openclaw");
@@ -48,6 +49,8 @@ describe("@pumblus/okf-harness package", () => {
     expect(skill).toContain('okf-harness-managed: "true"');
     expect(skill).toContain('okf-harness-entrypoint: "host"');
     expect(skill).toContain("npx @okf-harness/setup@latest launch");
+    expect(skill).toContain(`@okf-harness/cli@${version} okfh init`);
+    expect(skill).not.toContain("@okf-harness/cli@latest okfh init");
     expect(skill).toContain("WORKSPACE_NOT_FOUND");
     expect(skill).toContain("RUNTIME_PIN_MISSING");
     expect(skill).toContain("check --json");
@@ -68,6 +71,7 @@ describe("@pumblus/okf-harness package", () => {
     expect(skill).toContain('okf-harness-entrypoint: "host"');
     expect(skill).toContain('okf-harness-install-id: "pumblus/okf-harness/okf-harness"');
     expect(skill).toContain("npx @okf-harness/setup@latest launch");
+    expect(skill).not.toContain("@okf-harness/cli@latest okfh init");
     expect(skill).toContain("WORKSPACE_NOT_FOUND");
     expect(skill).toContain("check --json");
     expect(skill).toContain("does not install workspace-local guidance");
