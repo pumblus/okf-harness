@@ -292,13 +292,17 @@ describe("@okf-harness/cli bootstrap", () => {
     await withFakeCodexHome(async (codexHome) => {
       const legacyDirectory = path.join(codexHome, "skills/okf-harness-bootstrap");
       const legacySkillPath = path.join(legacyDirectory, "SKILL.md");
+      const legacyReferencePath = path.join(legacyDirectory, "references/setup.md");
+      const legacyNotePath = path.join(legacyDirectory, "notes.md");
       const unifiedSkillPath = path.join(codexHome, "skills/okf-harness/SKILL.md");
-      await mkdir(legacyDirectory, { recursive: true });
+      await mkdir(path.dirname(legacyReferencePath), { recursive: true });
       await writeFile(
         legacySkillPath,
         '---\nname: okf-harness-bootstrap\nmetadata:\n  okf-harness-managed: "true"\n---\n',
         "utf8",
       );
+      await writeFile(legacyReferencePath, "managed setup\n", "utf8");
+      await writeFile(legacyNotePath, "keep me\n", "utf8");
 
       const install = await runJsonCli([
         "node",
@@ -314,11 +318,15 @@ describe("@okf-harness/cli bootstrap", () => {
         exitCode: 0,
         result: {
           ok: true,
-          data: { removedFiles: expect.arrayContaining([legacyDirectory]) },
+          data: {
+            removedFiles: expect.arrayContaining([legacySkillPath, legacyReferencePath]),
+          },
         },
       });
       await expect(readFile(unifiedSkillPath, "utf8")).resolves.toContain("name: okf-harness");
       await expect(stat(legacySkillPath)).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(stat(legacyReferencePath)).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(readFile(legacyNotePath, "utf8")).resolves.toBe("keep me\n");
     });
   });
 

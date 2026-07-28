@@ -482,10 +482,25 @@ async function removeLegacyBootstrapSkill(
     return;
   }
 
-  result.plannedRemovals.push(legacyDirectory);
+  const legacyFiles = [
+    path.join(legacyDirectory, "SKILL.md"),
+    ...bootstrapReferenceTemplatePaths.map((templatePath) =>
+      path.join(legacyDirectory, "references", templatePath),
+    ),
+  ];
+  for (const legacyFile of legacyFiles) {
+    if ((await readOptionalTextFile(legacyFile)) === undefined) {
+      continue;
+    }
+    result.plannedRemovals.push(legacyFile);
+    if (!dryRun) {
+      await rm(legacyFile, { force: true });
+      result.removedFiles.push(legacyFile);
+    }
+  }
   if (!dryRun) {
-    await rm(legacyDirectory, { force: true, recursive: true });
-    result.removedFiles.push(legacyDirectory);
+    await removeEmptyDirectory(path.join(legacyDirectory, "references"));
+    await removeEmptyDirectory(legacyDirectory);
   }
 }
 

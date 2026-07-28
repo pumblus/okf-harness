@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, rmdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,8 +33,10 @@ async function syncHostSkill() {
   }
 
   const legacyDir = path.join(resolveOpenCodeConfigDir(), "skills", legacySkillName);
-  if ((await readSkillOwnership(path.join(legacyDir, "SKILL.md"))) === "managed") {
-    await rm(legacyDir, { force: true, recursive: true });
+  const legacySkill = path.join(legacyDir, "SKILL.md");
+  if ((await readSkillOwnership(legacySkill)) === "managed") {
+    await rm(legacySkill, { force: true });
+    await removeEmptyDirectory(legacyDir);
   }
 }
 
@@ -55,6 +57,21 @@ function hasManagedFrontmatter(contents: string): boolean {
   }
   const end = contents.indexOf("\n---", 4);
   return end !== -1 && contents.slice(4, end).split("\n").includes(`  ${managedMarker}`);
+}
+
+async function removeEmptyDirectory(directory: string) {
+  try {
+    await rmdir(directory);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTEMPTY" || error.code === "EEXIST")
+    ) {
+      return;
+    }
+    throw error;
+  }
 }
 
 function packageRoot() {

@@ -93,12 +93,14 @@ describe("@pumblus/okf-harness package", () => {
       "okf-harness-bootstrap",
       "SKILL.md",
     );
+    const legacyNote = path.join(path.dirname(legacySkill), "notes.md");
     await mkdir(path.dirname(legacySkill), { recursive: true });
     await writeFile(
       legacySkill,
       '---\nname: okf-harness-bootstrap\nmetadata:\n  okf-harness-managed: "true"\n---\n',
       "utf8",
     );
+    await writeFile(legacyNote, "keep me\n", "utf8");
 
     try {
       const result = await plugin();
@@ -111,6 +113,7 @@ describe("@pumblus/okf-harness package", () => {
       expect(installedSkill).toContain("name: okf-harness");
       expect(installedSkill).toContain("npx @okf-harness/setup@latest launch");
       await expect(stat(legacySkill)).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(readFile(legacyNote, "utf8")).resolves.toBe("keep me\n");
     } finally {
       await rm(tempRoot, { force: true, recursive: true });
     }
