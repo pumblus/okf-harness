@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -523,7 +523,10 @@ process.exit(result.status ?? 1);
 
     expect(result.exitCode).toBe(0);
     expect(runs).toEqual([
-      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
+      {
+        command: "npm",
+        args: ["ls", "-g", "@pumblus/okf-harness", "--json", "--depth=0"],
+      },
       {
         command: path.join(bin, "codex"),
         args: ["plugin", "marketplace", "add", "pumblus/okf-harness", "--json"],
@@ -532,9 +535,8 @@ process.exit(result.status ?? 1);
         command: path.join(bin, "codex"),
         args: ["plugin", "add", "okf-harness@okf-harness", "--json"],
       },
-      { command: "okfh", args: ["doctor", "--json"] },
     ]);
-    expect(result.stdout).toContain("Native integration summary");
+    expect(result.stdout).toContain("Post-install verification");
     expect(result.stdout).toContain("Successful integrations: Codex");
     expect(result.stdout).not.toContain("Installing OpenClaw");
     expect(result.stderr).toBe("");
@@ -634,7 +636,10 @@ process.exit(result.status ?? 1);
 
     expect(result.exitCode).toBe(1);
     expect(runs).toEqual([
-      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
+      {
+        command: "npm",
+        args: ["ls", "-g", "@pumblus/okf-harness", "--json", "--depth=0"],
+      },
       {
         command: path.join(bin, "claude"),
         args: ["plugin", "marketplace", "add", "pumblus/okf-harness"],
@@ -837,214 +842,71 @@ process.exit(result.status ?? 1);
     expect(prompt).toBe("Install selected native integrations? [Y/n] ");
   });
 
-  it("installs a missing global runtime and verifies it with doctor", async () => {
+  it("renders shadowing global installs as removals without changing them in dry-run", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-setup-shadow-bin-"));
+    const localBin = path.join(root, "node_modules", ".bin");
+    const globalBin = path.join(root, "global-bin");
+    await writeFakeExecutable(localBin, "okfh");
+    await writeFakeExecutable(globalBin, "okfh");
     const runs: Array<{ command: string; args: string[] }> = [];
-    const result = await runSetup(
-      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
-      captureIo(),
-      {
-        env: { PATH: "" },
-        nodeVersion: "v22.0.0",
-        runCommand: async (command, args) => {
-          runs.push({ command, args });
-          if (command === "npm" && args.join(" ") === "ls -g @okf-harness/cli --json --depth=0") {
-            throw Object.assign(new Error("missing"), { code: "ENOENT" });
-          }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({
-                ok: true,
-                data: { summary: { fail: 0 }, checks: [] },
-                warnings: [],
-              }),
-              stderr: "",
-            };
-          }
-          return { stdout: "", stderr: "" };
-        },
-      },
-    );
 
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Runtime: missing");
-    expect(result.stdout).toContain("Installing runtime: npm install -g @okf-harness/cli@0.6.0");
-    expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
-    expect(runs).toEqual([
-      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
-      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.6.0"] },
-      { command: "okfh", args: ["doctor", "--json"] },
-    ]);
-    expect(result.stderr).toBe("");
-  });
-
-  it("asks before updating an older global runtime and defaults to yes", async () => {
-    const runs: Array<{ command: string; args: string[] }> = [];
-    let prompt = "";
-    const io = {
-      ...captureIo(),
-      readLine: async (question: string) => {
-        prompt = question;
-        return "";
-      },
-    };
-
-    const result = await runSetup(["node", "okf-harness-setup", "--runtime-only"], io, {
-      env: { PATH: "" },
+    const result = await runSetup(["node", "okf-harness-setup", "--dry-run"], captureIo(), {
+      env: { PATH: [localBin, globalBin].join(path.delimiter) },
       nodeVersion: "v22.0.0",
       runCommand: async (command, args) => {
         runs.push({ command, args });
-        if (command === "npm" && args[0] === "ls") {
-          return {
-            stdout: JSON.stringify({
-              dependencies: { "@okf-harness/cli": { version: "0.5.4" } },
-            }),
-            stderr: "",
-          };
-        }
-        if (command === "okfh" && args.join(" ") === "doctor --json") {
-          return {
-            stdout: JSON.stringify({ data: { checks: [] } }),
-            stderr: "",
-          };
-        }
-        return { stdout: "", stderr: "" };
+        return {
+          stdout: JSON.stringify({
+            dependencies: { "@pumblus/okf-harness": { version: "0.5.4" } },
+          }),
+          stderr: "",
+        };
       },
     });
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Runtime: older; current 0.5.4, target @okf-harness/cli@0.6.0");
-    expect(result.stdout).toContain("Runtime update available: current 0.5.4, target 0.6.0.");
-    expect(prompt).toBe("Update global okfh runtime? [Y/n] ");
+    expect(result.stdout).toContain("Removals");
+    expect(result.stdout).toContain(`Global okfh runtime: ${path.join(globalBin, "okfh")}`);
+    expect(result.stdout).toContain("Global bootstrap package");
+    expect(result.stdout).toContain("npm uninstall -g @okf-harness/cli @pumblus/okf-harness");
     expect(runs).toEqual([
-      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
-      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.6.0"] },
-      { command: "okfh", args: ["doctor", "--json"] },
-    ]);
-    expect(result.stderr).toBe("");
-  });
-
-  it("does not update an older global runtime when no prompt reader is available", async () => {
-    const runs: Array<{ command: string; args: string[] }> = [];
-    const result = await runSetup(["node", "okf-harness-setup", "--runtime-only"], captureIo(), {
-      env: { PATH: "" },
-      nodeVersion: "v22.0.0",
-      runCommand: async (command, args) => {
-        runs.push({ command, args });
-        if (command === "npm" && args[0] === "ls") {
-          return {
-            stdout: JSON.stringify({
-              dependencies: { "@okf-harness/cli": { version: "0.5.4" } },
-            }),
-            stderr: "",
-          };
-        }
-        return { stdout: "", stderr: "" };
+      {
+        command: "npm",
+        args: ["ls", "-g", "@pumblus/okf-harness", "--json", "--depth=0"],
       },
-    });
-
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Runtime update skipped.");
-    expect(runs).toEqual([
-      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
     ]);
-    expect(result.stderr).toBe("");
+    await expect(stat(path.join(globalBin, "okfh"))).resolves.toBeDefined();
   });
 
-  it("reports global runtime permission failures without sudo", async () => {
+  it("clears shadowing installs with one command and still installs native integrations", async () => {
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-setup-shadow-bin-"));
+    const okfh = path.join(bin, "okfh");
+    await writeFakeExecutable(bin, "okfh");
+    await writeFakeExecutable(bin, "codex");
+    let bootstrapInstalled = true;
     const runs: Array<{ command: string; args: string[] }> = [];
+
     const result = await runSetup(
-      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
+      ["node", "okf-harness-setup", "--agents", "codex", "--yes"],
       captureIo(),
       {
-        env: { PATH: "" },
+        env: { PATH: bin },
         nodeVersion: "v22.0.0",
         runCommand: async (command, args) => {
           runs.push({ command, args });
           if (command === "npm" && args[0] === "ls") {
-            throw Object.assign(new Error("missing"), { code: "ENOENT" });
-          }
-          if (command === "npm" && args[0] === "install") {
-            throw Object.assign(new Error("EACCES: permission denied, mkdir '/usr/local/lib'"), {
-              code: "EACCES",
-            });
-          }
-          return { stdout: "", stderr: "" };
-        },
-      },
-    );
-
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain(
-      "Runtime installation failed: npm install -g @okf-harness/cli@0.6.0",
-    );
-    expect(result.stderr).toContain("Use a user-writable npm global prefix");
-    expect(result.stderr).toContain("npm install -g @okf-harness/cli@0.6.0");
-    expect(result.stderr).not.toContain("sudo");
-    expect(runs).toEqual([
-      { command: "npm", args: ["ls", "-g", "@okf-harness/cli", "--json", "--depth=0"] },
-      { command: "npm", args: ["install", "-g", "@okf-harness/cli@0.6.0"] },
-    ]);
-  });
-
-  it("reports workspace doctor warnings without failing setup", async () => {
-    const result = await runSetup(
-      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
-      captureIo(),
-      {
-        env: { PATH: "" },
-        nodeVersion: "v22.0.0",
-        runCommand: async (command, args) => {
-          if (command === "npm" && args[0] === "ls") {
             return {
               stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
+                dependencies: bootstrapInstalled
+                  ? { "@pumblus/okf-harness": { version: "0.5.4" } }
+                  : {},
               }),
               stderr: "",
             };
           }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({
-                ok: false,
-                data: {
-                  checks: [
-                    {
-                      id: "runtime-okfh",
-                      status: "pass",
-                      message: "runtime ok",
-                    },
-                    {
-                      id: "workspace-status",
-                      status: "fail",
-                      message: "workspace is not initialized",
-                    },
-                  ],
-                  groups: {
-                    runtime: {
-                      checks: [
-                        {
-                          id: "runtime-okfh",
-                          status: "pass",
-                          message: "runtime ok",
-                        },
-                      ],
-                    },
-                    nativeIntegrations: { checks: [] },
-                    legacyBootstrapFallback: { checks: [] },
-                    workspace: {
-                      checks: [
-                        {
-                          id: "workspace-status",
-                          status: "fail",
-                          message: "workspace is not initialized",
-                        },
-                      ],
-                    },
-                  },
-                },
-              }),
-              stderr: "",
-            };
+          if (command === "npm" && args[0] === "uninstall") {
+            bootstrapInstalled = false;
+            await rm(okfh);
           }
           return { stdout: "", stderr: "" };
         },
@@ -1052,147 +914,82 @@ process.exit(result.status ?? 1);
     );
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Doctor workspace warning: workspace is not initialized");
-    expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
+    expect(runs).toEqual([
+      {
+        command: "npm",
+        args: ["ls", "-g", "@pumblus/okf-harness", "--json", "--depth=0"],
+      },
+      {
+        command: "npm",
+        args: ["uninstall", "-g", "@okf-harness/cli", "@pumblus/okf-harness"],
+      },
+      {
+        command: "npm",
+        args: ["ls", "-g", "@pumblus/okf-harness", "--json", "--depth=0"],
+      },
+      {
+        command: path.join(bin, "codex"),
+        args: ["plugin", "marketplace", "add", "pumblus/okf-harness", "--json"],
+      },
+      {
+        command: path.join(bin, "codex"),
+        args: ["plugin", "add", "okf-harness@okf-harness", "--json"],
+      },
+    ]);
+    expect(result.stdout).toContain("Shadowing global install cleanup verified.");
+    expect(result.stdout).toContain("Successful integrations: Codex");
+    expect(result.stdout).not.toContain("npm install -g");
+    expect(result.stdout).not.toContain("okfh doctor");
     expect(result.stderr).toBe("");
   });
 
-  it("reports unavailable recovery support without failing setup", async () => {
+  it("continues native installation and reports residual risk when cleanup is declined", async () => {
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-setup-shadow-bin-"));
+    await writeFakeExecutable(bin, "okfh");
+    await writeFakeExecutable(bin, "codex");
+    const prompts: string[] = [];
+    const runs: Array<{ command: string; args: string[] }> = [];
+
     const result = await runSetup(
-      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
-      captureIo(),
+      ["node", "okf-harness-setup", "--agents", "codex"],
       {
-        env: { PATH: "" },
+        ...captureIo(),
+        readLine: async (prompt) => {
+          prompts.push(prompt);
+          return prompts.length === 1 ? "n" : "y";
+        },
+      },
+      {
+        env: { PATH: bin },
         nodeVersion: "v22.0.0",
         runCommand: async (command, args) => {
-          if (command === "npm" && args[0] === "ls") {
-            return {
-              stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
-              }),
-              stderr: "",
-            };
-          }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({
-                ok: false,
-                data: {
-                  checks: [
-                    {
-                      id: "runtime-recovery",
-                      status: "fail",
-                      message: "workspace recovery dependency is unavailable.",
-                    },
-                  ],
-                  groups: {
-                    runtime: {
-                      checks: [
-                        {
-                          id: "runtime-recovery",
-                          status: "fail",
-                          message: "workspace recovery dependency is unavailable.",
-                        },
-                      ],
-                    },
-                    nativeIntegrations: { checks: [] },
-                    legacyBootstrapFallback: { checks: [] },
-                    workspace: { checks: [] },
-                  },
-                },
-              }),
-              stderr: "",
-            };
-          }
-          return { stdout: "", stderr: "" };
+          runs.push({ command, args });
+          return { stdout: JSON.stringify({ dependencies: {} }), stderr: "" };
         },
       },
     );
 
     expect(result.exitCode).toBe(0);
+    expect(prompts).toEqual([
+      "Remove shadowing global installs? [Y/n] ",
+      "Install selected native integrations? [Y/n] ",
+    ]);
+    expect(runs).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ args: expect.arrayContaining(["uninstall"]) }),
+      ]),
+    );
+    expect(runs).toEqual(
+      expect.arrayContaining([expect.objectContaining({ command: path.join(bin, "codex") })]),
+    );
+    expect(result.stdout).toContain("Shadowing global install removal skipped.");
+    expect(result.stdout).toContain("Shadowing global installs remaining:");
+    expect(result.stdout).toContain("Global okfh runtime");
     expect(result.stdout).toContain(
-      "Doctor setup warning: workspace recovery dependency is unavailable.",
+      "Clear with: npm uninstall -g @okf-harness/cli @pumblus/okf-harness",
     );
-    expect(result.stdout).toContain("Runtime verification passed: okfh doctor --json");
+    expect(result.stdout).toContain("Successful integrations: Codex");
     expect(result.stderr).toBe("");
-  });
-
-  it("fails setup when doctor reports an unclassified failure", async () => {
-    const result = await runSetup(
-      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
-      captureIo(),
-      {
-        env: { PATH: "" },
-        nodeVersion: "v22.0.0",
-        runCommand: async (command, args) => {
-          if (command === "npm" && args[0] === "ls") {
-            return {
-              stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
-              }),
-              stderr: "",
-            };
-          }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({ ok: false, data: { checks: [] } }),
-              stderr: "",
-            };
-          }
-          return { stdout: "", stderr: "" };
-        },
-      },
-    );
-
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("Runtime verification failed");
-  });
-
-  it("fails setup when grouped doctor output has an ungrouped failure", async () => {
-    const result = await runSetup(
-      ["node", "okf-harness-setup", "--runtime-only", "--yes"],
-      captureIo(),
-      {
-        env: { PATH: "" },
-        nodeVersion: "v22.0.0",
-        runCommand: async (command, args) => {
-          if (command === "npm" && args[0] === "ls") {
-            return {
-              stdout: JSON.stringify({
-                dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
-              }),
-              stderr: "",
-            };
-          }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({
-                ok: false,
-                data: {
-                  checks: [
-                    { id: "runtime-okfh", status: "pass", message: "runtime ok" },
-                    { id: "unexpected-check", status: "fail", message: "unexpected failed" },
-                  ],
-                  groups: {
-                    runtime: {
-                      checks: [{ id: "runtime-okfh", status: "pass", message: "runtime ok" }],
-                    },
-                    nativeIntegrations: { checks: [] },
-                    legacyBootstrapFallback: { checks: [] },
-                    workspace: { checks: [] },
-                  },
-                },
-              }),
-              stderr: "",
-            };
-          }
-          return { stdout: "", stderr: "" };
-        },
-      },
-    );
-
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("Runtime verification failed");
   });
 });
 

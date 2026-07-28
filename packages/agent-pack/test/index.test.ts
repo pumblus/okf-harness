@@ -4,10 +4,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  collectShadowingGlobalInstalls,
   installAgentAdapters,
+  isShadowingOkfhExecutable,
   packageInfo,
+  parseGlobalPackageVersion,
   renderAgentAdapter,
   renderBootstrapAgent,
+  shadowingGlobalInstallCleanupCommand,
+  shadowingGlobalInstallProfiles,
   supportedNativeIntegrationProfiles,
 } from "../src/index.js";
 import {
@@ -91,6 +96,32 @@ describe("@okf-harness/agent-pack", () => {
     expect(
       supportedNativeIntegrationProfiles.find((profile) => profile.id === "openclaw"),
     ).toMatchObject({ defaultSelected: false });
+  });
+
+  it("defines shadowing global installs and their one cleanup command", () => {
+    expect(shadowingGlobalInstallProfiles.map((profile) => profile.id)).toEqual([
+      "runtime",
+      "bootstrap",
+    ]);
+    expect(shadowingGlobalInstallCleanupCommand).toEqual({
+      command: "npm",
+      args: ["uninstall", "-g", "@okf-harness/cli", "@pumblus/okf-harness"],
+    });
+    expect(isShadowingOkfhExecutable("/usr/local/bin/okfh")).toBe(true);
+    expect(isShadowingOkfhExecutable("/workspace/node_modules/.bin/okfh")).toBe(false);
+    expect(isShadowingOkfhExecutable("C:\\workspace\\node_modules\\.bin\\okfh.cmd")).toBe(false);
+    expect(
+      collectShadowingGlobalInstalls({
+        executablePath: "/usr/local/bin/okfh",
+        bootstrapVersion: "0.5.4",
+      }).map((install) => install.id),
+    ).toEqual(["runtime", "bootstrap"]);
+    expect(
+      parseGlobalPackageVersion(
+        JSON.stringify({ dependencies: { "@pumblus/okf-harness": { version: "0.5.4" } } }),
+        "@pumblus/okf-harness",
+      ),
+    ).toBe("0.5.4");
   });
 
   it("checks supported adapters through shared render contracts", () => {

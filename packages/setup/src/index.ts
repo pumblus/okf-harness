@@ -5,9 +5,15 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { promisify } from "node:util";
 import {
+  collectShadowingGlobalInstalls,
+  type DetectedShadowingGlobalInstall,
+  isShadowingOkfhExecutable,
   type NativeInstallCommand,
   type NativeIntegrationId,
   type NativeIntegrationProfile,
+  parseGlobalPackageVersion,
+  shadowingGlobalInstallCleanupCommand,
+  shadowingGlobalInstallProfiles,
   supportedNativeIntegrationProfiles,
 } from "@okf-harness/agent-pack";
 import {
@@ -46,13 +52,7 @@ export type RunSetupCommand = (
 
 export type SetupNativeInstallCommand = NativeInstallCommand;
 
-export type SetupRuntimePlan = {
-  state: "missing" | "current" | "older" | "newer" | "unknown";
-  packageName: "@okf-harness/cli";
-  targetVersion: string;
-  installCommand: string;
-  currentVersion?: string;
-};
+export type SetupShadowingInstallPlan = DetectedShadowingGlobalInstall;
 
 export type RunSetupOptions = {
   env?: NodeJS.ProcessEnv;
@@ -112,8 +112,8 @@ type RuntimeLauncherOptions = {
 };
 
 type SetupArgs = {
+  cleanupOnly: boolean;
   dryRun: boolean;
-  runtimeOnly: boolean;
   verifyRemote: boolean;
   yes: boolean;
   selection: AgentSelection;
@@ -148,12 +148,12 @@ export type SetupAgentPlan = {
 export type SetupPlan = {
   setupVersion: string;
   nodeVersion: string;
+  cleanupOnly: boolean;
   dryRun: boolean;
-  runtimeOnly: boolean;
   verifyRemote: boolean;
   yes: boolean;
   warnings: string[];
-  runtime: SetupRuntimePlan;
+  shadowingInstalls: SetupShadowingInstallPlan[];
   agents: SetupAgentPlan[];
 };
 
@@ -272,8 +272,9 @@ export async function runSetup(
   });
   writeOut(renderSetupPlan(plan));
 
+  let exitCode = 0;
   if (!setupArgs.dryRun) {
-    const runtimeResult = await installRuntime({
+    exitCode = await clearShadowingGlobalInstalls({
       env,
       io: { ...io, writeOut, writeErr },
       parsed: setupArgs,
@@ -281,13 +282,6 @@ export async function runSetup(
       runCommand,
       runtimePlatform,
     });
-    if (runtimeResult.exitCode !== 0) {
-      return {
-        exitCode: runtimeResult.exitCode,
-        stdout: stdout.join(""),
-        stderr: stderr.join(""),
-      };
-    }
 
     const nativeInstallExitCode = await installSelectedNativeIntegrations({
       env,
@@ -297,32 +291,10 @@ export async function runSetup(
       runCommand,
       runtimePlatform,
     });
-    if (nativeInstallExitCode !== 0) {
-      return {
-        exitCode: nativeInstallExitCode,
-        stdout: stdout.join(""),
-        stderr: stderr.join(""),
-      };
-    }
-
-    if (runtimeResult.verify) {
-      const verifyExitCode = await verifyRuntime({
-        env,
-        io: { ...io, writeOut, writeErr },
-        runCommand,
-        runtimePlatform,
-      });
-      if (verifyExitCode !== 0) {
-        return {
-          exitCode: verifyExitCode,
-          stdout: stdout.join(""),
-          stderr: stderr.join(""),
-        };
-      }
-    }
+    exitCode = Math.max(exitCode, nativeInstallExitCode);
   }
 
-  return { exitCode: 0, stdout: stdout.join(""), stderr: stderr.join("") };
+  return { exitCode, stdout: stdout.join(""), stderr: stderr.join("") };
 }
 
 async function launchRuntime(
@@ -503,7 +475,7 @@ async function createSetupPlan(
     setupAgentProfiles.map(async (profile): Promise<SetupAgentPlan> => {
       const executablePath = await findExecutable(profile.command, options.env);
       const detected = executablePath !== undefined;
-      const selected = isSelected(profile, detected, options.runtimeOnly, options.selection);
+      const selected = isSelected(profile, detected, options.cleanupOnly, options.selection);
       return {
         id: profile.id,
         label: profile.label,
@@ -519,21 +491,24 @@ async function createSetupPlan(
       };
     }),
   );
-  const recoverySupport = await findExecutable("git", options.env);
+  const [recoverySupport, shadowingInstalls] = await Promise.all([
+    findExecutable("git", options.env),
+    detectShadowingGlobalInstalls(options),
+  ]);
   return {
     setupVersion: packageVersion.version,
     nodeVersion: options.nodeVersion,
+    cleanupOnly: options.cleanupOnly,
     dryRun: options.dryRun,
-    runtimeOnly: options.runtimeOnly,
     verifyRemote: options.verifyRemote,
     yes: options.yes,
-    runtime: await createRuntimePlan(options),
     warnings:
       recoverySupport === undefined
         ? [
             "Warning: workspace recovery dependency is unavailable, but native integration planning can continue.",
           ]
         : [],
+    shadowingInstalls,
     agents,
   };
 }
@@ -543,17 +518,31 @@ export function renderSetupPlan(plan: SetupPlan): string {
     "OKF Harness Setup plan",
     `Resolved setup version: ${plan.setupVersion}`,
     `Node.js: ${plan.nodeVersion} (meets >=22)`,
-    renderRuntimeLine(plan.runtime),
     plan.dryRun
       ? "Dry run: no network checks or filesystem writes."
       : "Plan: no filesystem writes until installation is confirmed.",
     plan.verifyRemote
       ? "Remote checks: requested with --verify-remote; reserved for explicit availability checks and not implied by dry-run."
       : "Remote checks: not requested.",
+    "",
+    "Removals",
   ];
 
-  if (plan.runtimeOnly) {
-    lines.push("Runtime only: agent integrations are not selected.");
+  if (plan.shadowingInstalls.length === 0) {
+    lines.push("- None");
+  } else {
+    for (const install of plan.shadowingInstalls) {
+      const detectedAt =
+        install.id === "runtime"
+          ? install.executablePath
+          : `${install.packageName}${install.version === undefined ? "" : `@${install.version}`}`;
+      lines.push(`- Remove ${install.label}: ${detectedAt}`);
+    }
+    lines.push(`  Clearing command: ${commandToString(shadowingGlobalInstallCleanupCommand)}`);
+  }
+
+  if (plan.cleanupOnly) {
+    lines.push("", "Cleanup only: agent integrations are not selected.");
   }
 
   if (plan.warnings.length > 0) {
@@ -592,109 +581,102 @@ export function renderSetupPlan(plan: SetupPlan): string {
   return `${lines.join("\n")}\n`;
 }
 
-async function createRuntimePlan(options: {
+async function detectShadowingGlobalInstalls(options: {
   env: NodeJS.ProcessEnv;
   runCommand: RunSetupCommand;
   runtimePlatform: NodeJS.Platform | string;
-}): Promise<SetupRuntimePlan> {
-  const targetVersion = packageVersion.version;
-  const installCommand = commandToString(runtimeInstallCommand(targetVersion));
+}): Promise<SetupShadowingInstallPlan[]> {
+  const runtimeProfile = shadowingGlobalInstallProfiles[0];
+  const bootstrapProfile = shadowingGlobalInstallProfiles[1];
+  const [executablePath, bootstrapVersion] = await Promise.all([
+    findExecutable(runtimeProfile.executable, options.env, isShadowingOkfhExecutable),
+    detectGlobalPackageVersion(bootstrapProfile.packageName, options),
+  ]);
+
+  return collectShadowingGlobalInstalls({
+    ...(executablePath === undefined ? {} : { executablePath }),
+    ...(bootstrapVersion === undefined ? {} : { bootstrapVersion }),
+  });
+}
+
+async function detectGlobalPackageVersion(
+  packageName: string,
+  options: {
+    env: NodeJS.ProcessEnv;
+    runCommand: RunSetupCommand;
+    runtimePlatform: NodeJS.Platform | string;
+  },
+): Promise<string | undefined> {
+  const args = ["ls", "-g", packageName, "--json", "--depth=0"];
   try {
-    const result = await options.runCommand(
-      "npm",
-      ["ls", "-g", runtimePackageName, "--json", "--depth=0"],
-      {
-        env: options.env,
-        shell: shouldUseWindowsShell(options.runtimePlatform, "npm"),
-      },
-    );
-    const currentVersion = parseInstalledRuntimeVersion(result.stdout);
-    if (currentVersion === undefined) {
-      return { state: "missing", packageName: runtimePackageName, targetVersion, installCommand };
-    }
-    const comparison = compareVersions(currentVersion, targetVersion);
-    if (comparison === undefined) {
-      return {
-        state: "unknown",
-        packageName: runtimePackageName,
-        targetVersion,
-        installCommand,
-        currentVersion,
-      };
-    }
-    return {
-      state: comparison < 0 ? "older" : comparison > 0 ? "newer" : "current",
-      packageName: runtimePackageName,
-      targetVersion,
-      installCommand,
-      currentVersion,
-    };
-  } catch {
-    return { state: "missing", packageName: runtimePackageName, targetVersion, installCommand };
+    const result = await options.runCommand("npm", args, {
+      env: options.env,
+      shell: shouldUseWindowsShell(options.runtimePlatform, "npm"),
+    });
+    return parseGlobalPackageVersion(result.stdout, packageName);
+  } catch (error) {
+    return parseGlobalPackageVersion(commandStdout(error), packageName);
   }
 }
 
-function renderRuntimeLine(runtime: SetupRuntimePlan): string {
-  const current = runtime.currentVersion === undefined ? "" : ` current ${runtime.currentVersion},`;
-  return `Runtime: ${runtime.state};${current} target ${runtime.packageName}@${runtime.targetVersion}`;
-}
-
-type RuntimeInstallResult = {
-  exitCode: number;
-  verify: boolean;
-};
-
-async function installRuntime(options: {
+async function clearShadowingGlobalInstalls(options: {
   env: NodeJS.ProcessEnv;
   io: Required<Pick<SetupIo, "writeOut" | "writeErr">> & Pick<SetupIo, "readLine">;
   parsed: SetupArgs;
   plan: SetupPlan;
   runCommand: RunSetupCommand;
   runtimePlatform: NodeJS.Platform | string;
-}): Promise<RuntimeInstallResult> {
-  const runtime = options.plan.runtime;
-  if (runtime.state === "older") {
-    options.io.writeOut(
-      `Runtime update available: current ${runtime.currentVersion}, target ${runtime.targetVersion}.\n`,
-    );
-    const shouldUpdate =
-      options.parsed.yes || (await confirmYes(options.io, "Update global okfh runtime? [Y/n] "));
-    if (!shouldUpdate) {
-      options.io.writeOut("Runtime update skipped.\n");
-      return { exitCode: 0, verify: false };
-    }
+}): Promise<number> {
+  if (options.plan.shadowingInstalls.length === 0) {
+    return 0;
   }
 
-  if (runtime.state === "missing" || runtime.state === "older") {
-    const installCommand = runtimeInstallCommand(runtime.targetVersion);
-    options.io.writeOut(
-      `${runtime.state === "older" ? "Updating" : "Installing"} runtime: ${commandToString(
-        installCommand,
-      )}\n`,
-    );
-    try {
-      await options.runCommand(installCommand.command, installCommand.args, {
-        env: options.env,
-        shell: shouldUseWindowsShell(options.runtimePlatform, installCommand.command),
-      });
-    } catch (error) {
-      writeRuntimeCommandFailure(
-        options.io.writeErr,
-        "Runtime installation failed",
-        installCommand,
-        error,
-      );
-      return { exitCode: 1, verify: false };
-    }
+  const shouldRemove =
+    options.parsed.yes ||
+    (await confirmYes(options.io, "Remove shadowing global installs? [Y/n] "));
+  if (!shouldRemove) {
+    options.io.writeOut("Shadowing global install removal skipped.\n");
+    writeRemainingShadowingInstalls(options.io.writeOut, options.plan.shadowingInstalls);
+    return 0;
   }
 
-  if (runtime.state === "unknown") {
-    options.io.writeOut(
-      `Runtime installation skipped: installed ${runtime.packageName} version ${runtime.currentVersion} could not be compared with ${runtime.targetVersion}.\n`,
+  const command = shadowingGlobalInstallCleanupCommand;
+  options.io.writeOut(`Removing shadowing global installs: ${commandToString(command)}\n`);
+  let exitCode = 0;
+  try {
+    await options.runCommand(command.command, command.args, {
+      env: options.env,
+      shell: shouldUseWindowsShell(options.runtimePlatform, command.command),
+    });
+  } catch (error) {
+    exitCode = 1;
+    writeRuntimeCommandFailure(
+      options.io.writeErr,
+      "Shadowing global install removal failed",
+      command,
+      error,
     );
   }
 
-  return { exitCode: 0, verify: true };
+  const remaining = await detectShadowingGlobalInstalls(options);
+  if (remaining.length === 0) {
+    options.io.writeOut("Shadowing global install cleanup verified.\n");
+  } else {
+    writeRemainingShadowingInstalls(options.io.writeOut, remaining);
+    exitCode = 1;
+  }
+  return exitCode;
+}
+
+function writeRemainingShadowingInstalls(
+  writeOut: (chunk: string) => void,
+  installs: SetupShadowingInstallPlan[],
+): void {
+  writeOut("Shadowing global installs remaining:\n");
+  for (const install of installs) {
+    writeOut(`- ${install.label}\n`);
+  }
+  writeOut(`Clear with: ${commandToString(shadowingGlobalInstallCleanupCommand)}\n`);
 }
 
 type NativeInstallFailure = {
@@ -783,7 +765,7 @@ function writeNativeInstallSummary(
   successfulAgents: SetupAgentPlan[],
   failures: NativeInstallFailure[],
 ): void {
-  writeOut("Native integration summary\n");
+  writeOut("Post-install verification\n");
   writeOut(
     `Successful integrations: ${
       successfulAgents.length === 0
@@ -813,217 +795,12 @@ function writeNativeInstallSummary(
   }
 }
 
-async function verifyRuntime(options: {
-  env: NodeJS.ProcessEnv;
-  io: Required<Pick<SetupIo, "writeOut" | "writeErr">>;
-  runCommand: RunSetupCommand;
-  runtimePlatform: NodeJS.Platform | string;
-}): Promise<number> {
-  const doctorCommand = { command: "okfh", args: ["doctor", "--json"] };
-  let result: SetupCommandResult;
-  try {
-    result = await options.runCommand(doctorCommand.command, doctorCommand.args, {
-      env: options.env,
-      shell: shouldUseWindowsShell(options.runtimePlatform, doctorCommand.command),
-    });
-  } catch (error) {
-    const doctor = parseDoctorEnvelope(commandStdout(error));
-    if (doctor !== undefined && !hasBlockingDoctorFailure(doctor)) {
-      reportSetupDoctorWarnings(options.io.writeOut, doctor);
-      options.io.writeOut("Runtime verification passed: okfh doctor --json\n");
-      return 0;
-    }
-    writeRuntimeCommandFailure(
-      options.io.writeErr,
-      "Runtime verification failed",
-      doctorCommand,
-      error,
-    );
-    return 1;
-  }
-
-  const doctor = parseDoctorEnvelope(result.stdout);
-  if (doctor === undefined) {
-    options.io.writeErr("Runtime verification failed: okfh doctor --json did not return JSON.\n");
-    return 1;
-  }
-  reportSetupDoctorWarnings(options.io.writeOut, doctor);
-  if (hasBlockingDoctorFailure(doctor)) {
-    options.io.writeErr(
-      "Runtime verification failed: okfh doctor --json reported runtime failures.\n",
-    );
-    return 1;
-  }
-  options.io.writeOut("Runtime verification passed: okfh doctor --json\n");
-  return 0;
-}
-
-type DoctorCheckLike = { id: string; status: string; message: string };
-
-function reportSetupDoctorWarnings(writeOut: (chunk: string) => void, doctor: unknown): void {
-  const runtimeChecks =
-    doctorGroupChecks(doctor, "runtime") ??
-    doctorChecks(doctor).filter((check) => check.id === "runtime-recovery");
-  const workspaceChecks =
-    doctorGroupChecks(doctor, "workspace") ??
-    doctorChecks(doctor).filter((check) => check.id.startsWith("workspace-"));
-
-  for (const check of runtimeChecks) {
-    if (check.status !== "warn" && check.status !== "fail") {
-      continue;
-    }
-    if (check.id === "runtime-recovery") {
-      writeOut(`Doctor setup warning: ${check.message}\n`);
-    }
-  }
-
-  for (const check of workspaceChecks) {
-    if (check.status === "warn" || check.status === "fail") {
-      writeOut(`Doctor workspace warning: ${check.message}\n`);
-    }
-  }
-}
-
-function hasBlockingDoctorFailure(doctor: unknown): boolean {
-  const runtimeChecks = doctorGroupChecks(doctor, "runtime");
-  if (runtimeChecks !== undefined) {
-    const nativeChecks = doctorGroupChecks(doctor, "nativeIntegrations") ?? [];
-    const legacyChecks = doctorGroupChecks(doctor, "legacyBootstrapFallback") ?? [];
-    const workspaceChecks = doctorGroupChecks(doctor, "workspace") ?? [];
-    const groupedCheckIds = new Set(
-      [...runtimeChecks, ...nativeChecks, ...legacyChecks, ...workspaceChecks].map(
-        (check) => check.id,
-      ),
-    );
-    const ungroupedChecks = doctorChecks(doctor).filter((check) => !groupedCheckIds.has(check.id));
-    const hasBlockingProblem = [...runtimeChecks, ...nativeChecks, ...ungroupedChecks].some(
-      (check) => check.status === "fail" && check.id !== "runtime-recovery",
-    );
-    if (hasBlockingProblem) {
-      return true;
-    }
-    const hasKnownNonBlockingProblem = [
-      ...runtimeChecks.filter((check) => check.id === "runtime-recovery"),
-      ...legacyChecks,
-      ...workspaceChecks,
-    ].some((check) => check.status === "warn" || check.status === "fail");
-    return doctorOk(doctor) === false && !hasKnownNonBlockingProblem;
-  }
-
-  const checks = doctorChecks(doctor);
-  if (checks.some((check) => check.status === "fail" && !isSetupNonBlockingDoctorCheck(check))) {
-    return true;
-  }
-  const hasNonBlockingProblem = checks.some(
-    (check) =>
-      isSetupNonBlockingDoctorCheck(check) && (check.status === "warn" || check.status === "fail"),
-  );
-  return doctorOk(doctor) === false && !hasNonBlockingProblem;
-}
-
-function isSetupNonBlockingDoctorCheck(check: { id: string }): boolean {
-  return check.id === "runtime-recovery" || check.id.startsWith("workspace-");
-}
-
-function doctorOk(doctor: unknown): boolean | undefined {
-  return isRecord(doctor) && typeof doctor.ok === "boolean" ? doctor.ok : undefined;
-}
-
-function doctorGroupChecks(doctor: unknown, groupId: string): DoctorCheckLike[] | undefined {
-  if (
-    !isRecord(doctor) ||
-    !isRecord(doctor.data) ||
-    !isRecord(doctor.data.groups) ||
-    !isRecord(doctor.data.groups[groupId])
-  ) {
-    return undefined;
-  }
-  const group = doctor.data.groups[groupId];
-  return Array.isArray(group.checks) ? parseDoctorChecks(group.checks) : undefined;
-}
-
-function doctorChecks(doctor: unknown): DoctorCheckLike[] {
-  if (!isRecord(doctor) || !isRecord(doctor.data) || !Array.isArray(doctor.data.checks)) {
-    return [];
-  }
-  return parseDoctorChecks(doctor.data.checks);
-}
-
-function parseDoctorChecks(checks: unknown[]): DoctorCheckLike[] {
-  return checks.flatMap((check) => {
-    if (!isRecord(check)) {
-      return [];
-    }
-    return typeof check.id === "string" &&
-      typeof check.status === "string" &&
-      typeof check.message === "string"
-      ? [{ id: check.id, status: check.status, message: check.message }]
-      : [];
-  });
-}
-
-function runtimeInstallCommand(targetVersion: string): { command: string; args: string[] } {
-  return {
-    command: "npm",
-    args: ["install", "-g", `${runtimePackageName}@${targetVersion}`],
-  };
-}
-
 async function confirmYes(io: SetupIo, prompt: string): Promise<boolean> {
   if (io.readLine === undefined) {
     return false;
   }
   const answer = (await io.readLine(prompt)).trim().toLowerCase();
   return answer === "" || answer === "y" || answer === "yes";
-}
-
-function parseInstalledRuntimeVersion(stdout: string): string | undefined {
-  try {
-    const parsed = JSON.parse(stdout) as unknown;
-    if (!isRecord(parsed) || !isRecord(parsed.dependencies)) {
-      return undefined;
-    }
-    const runtime = parsed.dependencies[runtimePackageName];
-    return isRecord(runtime) && typeof runtime.version === "string" ? runtime.version : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function parseDoctorEnvelope(stdout: string): unknown | undefined {
-  try {
-    return JSON.parse(stdout) as unknown;
-  } catch {
-    return undefined;
-  }
-}
-
-function compareVersions(left: string, right: string): number | undefined {
-  const leftParts = versionParts(left);
-  const rightParts = versionParts(right);
-  if (leftParts === undefined || rightParts === undefined) {
-    return undefined;
-  }
-  for (let index = 0; index < leftParts.length; index += 1) {
-    const leftPart = leftParts[index] ?? 0;
-    const rightPart = rightParts[index] ?? 0;
-    if (leftPart !== rightPart) {
-      return leftPart - rightPart;
-    }
-  }
-  return 0;
-}
-
-function versionParts(version: string): [number, number, number] | undefined {
-  const match = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(version);
-  if (match === null) {
-    return undefined;
-  }
-  return [
-    Number.parseInt(match[1] ?? "", 10),
-    Number.parseInt(match[2] ?? "", 10),
-    Number.parseInt(match[3] ?? "", 10),
-  ];
 }
 
 function writeRuntimeCommandFailure(
@@ -1210,10 +987,6 @@ function shouldUseNativeInstallShell(
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function parseCommandArgs(args: string[]): ParsedCommandArgs {
   if (args[0] === "launch") {
     const parsed = parseRuntimeLauncherArgs(args.slice(1));
@@ -1260,8 +1033,8 @@ function parseRuntimeLauncherArgs(args: string[]): RuntimeLauncherArgs | { error
 
 function parseSetupArgs(args: string[]): SetupArgs | { error: string } {
   const parsed: SetupArgs = {
+    cleanupOnly: false,
     dryRun: false,
-    runtimeOnly: false,
     verifyRemote: false,
     yes: false,
     selection: { kind: "default" },
@@ -1277,7 +1050,7 @@ function parseSetupArgs(args: string[]): SetupArgs | { error: string } {
       continue;
     }
     if (arg === "--runtime-only") {
-      parsed.runtimeOnly = true;
+      parsed.cleanupOnly = true;
       continue;
     }
     if (arg === "--verify-remote") {
@@ -1336,10 +1109,10 @@ function isSetupAgentId(value: string): value is SetupAgentId {
 function isSelected(
   profile: SetupAgentProfile,
   detected: boolean,
-  runtimeOnly: boolean,
+  cleanupOnly: boolean,
   selection: AgentSelection,
 ): boolean {
-  if (runtimeOnly || !detected) {
+  if (cleanupOnly || !detected) {
     return false;
   }
   if (selection.kind === "explicit") {
@@ -1356,12 +1129,13 @@ function parseNodeMajorVersion(version: string): number | undefined {
 async function findExecutable(
   command: string,
   env: NodeJS.ProcessEnv,
+  accept: (executablePath: string) => boolean = () => true,
 ): Promise<string | undefined> {
   const pathValue = env.PATH ?? "";
   for (const directory of pathValue.split(path.delimiter).filter((entry) => entry.length > 0)) {
     for (const candidate of executableCandidates(command, env)) {
       const candidatePath = path.join(directory, candidate);
-      if (await isExecutableFile(candidatePath)) {
+      if ((await isExecutableFile(candidatePath)) && accept(candidatePath)) {
         return candidatePath;
       }
     }

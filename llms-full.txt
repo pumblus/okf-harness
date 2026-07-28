@@ -365,6 +365,10 @@ _Avoid_: workspace format version, version range, dist-tag, user-chosen version
 The version-independent `launch` subcommand of universal setup that resolves an OKF Harness workspace, reads its workspace runtime pin, and delegates unchanged runtime arguments through `npx` to that exact Harness runtime version. It never writes the workspace, guesses a version, or falls back to a dist-tag; pin-less and invalid workspaces produce machine-readable outcomes for the agent to handle.
 _Avoid_: Harness runtime, global runtime, workspace writer, version fallback
 
+**Shadowing global runtime**:
+A leftover global `okfh` executable or globally installed bootstrap package that can bypass workspace runtime pins. Universal setup offers one bounded cleanup command for these retired installs, and doctor warns until they are gone.
+_Avoid_: workspace runtime pin, runtime launcher, native agent integration
+
 **Source material**:
 Original material that a person wants to bring into the knowledge base, such as a file, URL, markdown document, text snippet, or clipboard content. It is evidence for later synthesis, not the synthesized wiki content itself.
 _Avoid_: data, document, note

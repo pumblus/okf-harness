@@ -1,5 +1,7 @@
 # Install the global runtime from setup
 
+_Status: superseded by the product-form migration in #90 and its shadowing-runtime cleanup in #93._
+
 OKF Harness setup should install or update the shared `okfh` runtime globally rather than depending on transient `npx` execution after setup completes. Agent integrations need a stable local command for deterministic `okfh --json` workflows, while the setup package and installer scripts are only the entry path that prepares that runtime and the selected native agent integrations. When setup finds an older global runtime, it should show the current and target versions and ask before updating, defaulting the answer to yes. If global installation fails because of permissions, setup must not run `sudo`; it should report the failure and offer user-level npm prefix guidance or a command for the person to run explicitly.
 
 If Node.js is missing or older than the supported floor, setup should state that Node.js 22 or newer is required and point to the official Node.js website, without suggesting package-manager-specific install commands.

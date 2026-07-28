@@ -8,7 +8,7 @@ This file refines the root `AGENTS.md` for `packages/setup`.
 
 - Universal setup package behavior
 - setup plan generation
-- global `okfh` runtime install or update flow
+- shadowing global runtime detection and cleanup
 - selected native integration install flow
 - dry-run planning for setup flows
 
@@ -16,7 +16,8 @@ This file refines the root `AGENTS.md` for `packages/setup`.
 
 - Keep `--dry-run` local-only: no network checks, filesystem writes, or native install execution.
 - Use `--verify-remote` for explicit remote availability checks.
-- In non-dry-run setup, install or update the global `okfh` runtime only after explicit confirmation or `--yes`.
+- Never install or update a global `okfh` runtime.
+- Remove retired global runtime or bootstrap installs only after explicit confirmation or `--yes`; declining cleanup must not stop native integration setup.
 - Install selected native integrations only after the setup plan is shown and the user confirms, or when `--yes` makes that confirmation explicit.
 - Continue remaining selected native installs when one host install fails, then summarize successes, failures, and retry commands.
 - Do not run `sudo`.

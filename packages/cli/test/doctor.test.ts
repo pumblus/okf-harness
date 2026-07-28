@@ -1,7 +1,11 @@
 import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { BootstrapAgent, BootstrapStatus } from "@okf-harness/agent-pack";
+import {
+  type BootstrapAgent,
+  type BootstrapStatus,
+  shadowingGlobalInstallCleanupCommand,
+} from "@okf-harness/agent-pack";
 import { harnessRuntimeVersion } from "@okf-harness/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type RunExecutable, runDoctor } from "../src/doctor/index.js";
@@ -268,6 +272,86 @@ describe("@okf-harness/cli doctor", () => {
     );
   });
 
+  it("hard-warns with the shared clearing command for shadowing global installs", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const localBin = path.join(root, "node_modules", ".bin");
+    const globalBin = path.join(root, "global-bin");
+    await writeFakeExecutable(localBin, "okfh");
+    await writeFakeExecutable(globalBin, "okfh");
+    const runs: Array<{ executable: string; args: string[]; env: NodeJS.ProcessEnv | undefined }> =
+      [];
+
+    const result = await runDoctor({
+      startDir: root,
+      env: {
+        PATH: [localBin, globalBin].join(path.delimiter),
+        npm_config_prefix: "/fake/global",
+      },
+      runExecutable: async (executable, args, options) => {
+        runs.push({ executable, args, env: options.env });
+        if (executable === "npm") {
+          return {
+            stdout: JSON.stringify({
+              dependencies: { "@pumblus/okf-harness": { version: "0.5.4" } },
+            }),
+            stderr: "",
+          };
+        }
+        return { stdout: `${executable} version\n`, stderr: "" };
+      },
+    });
+
+    const check = result.checks.find((entry) => entry.id === "runtime-shadowing-global");
+    expect(check).toMatchObject({
+      status: "warn",
+      details: {
+        installs: [
+          expect.objectContaining({
+            id: "runtime",
+            executablePath: path.join(globalBin, "okfh"),
+          }),
+          expect.objectContaining({ id: "bootstrap", version: "0.5.4" }),
+        ],
+        clearingCommand: [
+          shadowingGlobalInstallCleanupCommand.command,
+          ...shadowingGlobalInstallCleanupCommand.args,
+        ].join(" "),
+      },
+    });
+    expect(check?.message).toContain("Shadowing global runtime check warning");
+    expect(result.ok).toBe(true);
+    expect(runs).toContainEqual({
+      executable: "npm",
+      args: ["ls", "-g", "@pumblus/okf-harness", "--json", "--depth=0"],
+      env: {
+        PATH: [localBin, globalBin].join(path.delimiter),
+        npm_config_prefix: "/fake/global",
+      },
+    });
+  });
+
+  it("passes the shadowing global runtime check on a clean machine", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const localBin = path.join(root, "node_modules", ".bin");
+    await mkdir(localBin, { recursive: true });
+    await writeFakeExecutable(localBin, "okfh");
+
+    const result = await runDoctor({
+      startDir: root,
+      env: { PATH: localBin },
+      runExecutable: async (executable) =>
+        executable === "npm"
+          ? { stdout: JSON.stringify({ dependencies: {} }), stderr: "" }
+          : { stdout: `${executable} version\n`, stderr: "" },
+    });
+
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "runtime-shadowing-global", status: "pass" }),
+      ]),
+    );
+  });
+
   it("reports unwritable global bootstrap targets in doctor details", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const blockedPath = path.join(root, "home");
@@ -462,8 +546,12 @@ async function useFakeDoctorEnv(): Promise<{
   const home = path.join(root, "home");
   const codexStateDirectory = path.join(root, ".codex");
   const claudeHome = path.join(root, ".claude");
+  const bin = path.join(root, "bin");
+  await mkdir(bin);
+  await writeFakeExecutable(bin, "git");
+  await writeFakeExecutable(bin, "pnpm");
 
-  const keys = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "HOME", "USERPROFILE"] as const;
+  const keys = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "HOME", "PATH", "USERPROFILE"] as const;
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]])) as Record<
     (typeof keys)[number],
     string | undefined
@@ -471,6 +559,7 @@ async function useFakeDoctorEnv(): Promise<{
   process.env.CLAUDE_CONFIG_DIR = claudeHome;
   process.env.CODEX_HOME = codexStateDirectory;
   process.env.HOME = home;
+  process.env.PATH = bin;
   delete process.env.USERPROFILE;
 
   return {
@@ -516,6 +605,7 @@ function fakeBootstrapStatus(
 }
 
 async function writeFakeExecutable(bin: string, name: string): Promise<void> {
+  await mkdir(bin, { recursive: true });
   const executable = path.join(bin, name);
   await writeFile(executable, "#!/bin/sh\nexit 0\n", "utf8");
   await chmod(executable, 0o755);

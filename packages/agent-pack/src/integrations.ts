@@ -15,6 +15,97 @@ export type NativeIntegrationProfile = {
   nativeInstallCommands: readonly NativeInstallCommand[];
 };
 
+export type ShadowingGlobalInstallProfile =
+  | {
+      id: "runtime";
+      label: "Global okfh runtime";
+      executable: "okfh";
+    }
+  | {
+      id: "bootstrap";
+      label: "Global bootstrap package";
+      packageName: "@pumblus/okf-harness";
+    };
+
+export const shadowingGlobalInstallProfiles = [
+  { id: "runtime", label: "Global okfh runtime", executable: "okfh" },
+  {
+    id: "bootstrap",
+    label: "Global bootstrap package",
+    packageName: "@pumblus/okf-harness",
+  },
+] as const satisfies readonly ShadowingGlobalInstallProfile[];
+
+export const shadowingGlobalInstallCleanupCommand: NativeInstallCommand = {
+  command: "npm",
+  args: ["uninstall", "-g", "@okf-harness/cli", "@pumblus/okf-harness"],
+};
+
+export type DetectedShadowingGlobalInstall =
+  | {
+      id: "runtime";
+      label: "Global okfh runtime";
+      executablePath: string;
+    }
+  | {
+      id: "bootstrap";
+      label: "Global bootstrap package";
+      packageName: "@pumblus/okf-harness";
+      version: string;
+    };
+
+export function isShadowingOkfhExecutable(executablePath: string): boolean {
+  return !/[\\/]node_modules[\\/]\.bin[\\/]/.test(executablePath);
+}
+
+export function collectShadowingGlobalInstalls(options: {
+  executablePath?: string;
+  bootstrapVersion?: string;
+}): DetectedShadowingGlobalInstall[] {
+  const runtimeProfile = shadowingGlobalInstallProfiles[0];
+  const bootstrapProfile = shadowingGlobalInstallProfiles[1];
+  return [
+    ...(options.executablePath === undefined
+      ? []
+      : [
+          {
+            id: runtimeProfile.id,
+            label: runtimeProfile.label,
+            executablePath: options.executablePath,
+          } as const,
+        ]),
+    ...(options.bootstrapVersion === undefined
+      ? []
+      : [
+          {
+            id: bootstrapProfile.id,
+            label: bootstrapProfile.label,
+            packageName: bootstrapProfile.packageName,
+            version: options.bootstrapVersion,
+          } as const,
+        ]),
+  ];
+}
+
+export function parseGlobalPackageVersion(stdout: string, packageName: string): string | undefined {
+  try {
+    const parsed = JSON.parse(stdout) as unknown;
+    if (!isRecord(parsed) || !isRecord(parsed.dependencies)) {
+      return undefined;
+    }
+    const installed = parsed.dependencies[packageName];
+    return isRecord(installed) && typeof installed.version === "string"
+      ? installed.version
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export const supportedNativeIntegrationProfiles = [
   {
     id: "claude",

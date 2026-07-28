@@ -14,11 +14,20 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 export type {
+  DetectedShadowingGlobalInstall,
   NativeInstallCommand,
   NativeIntegrationId,
   NativeIntegrationProfile,
+  ShadowingGlobalInstallProfile,
 } from "./integrations.js";
-export { supportedNativeIntegrationProfiles } from "./integrations.js";
+export {
+  collectShadowingGlobalInstalls,
+  isShadowingOkfhExecutable,
+  parseGlobalPackageVersion,
+  shadowingGlobalInstallCleanupCommand,
+  shadowingGlobalInstallProfiles,
+  supportedNativeIntegrationProfiles,
+} from "./integrations.js";
 
 import type { AgentAdapter, BootstrapAgent } from "./profiles.js";
 import {
