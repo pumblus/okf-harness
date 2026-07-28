@@ -1,13 +1,14 @@
 ---
 name: okf-harness
-description: Unified OKF Harness entrypoint for Hermes Agent. Use when the user asks to create, find, select, repair, check, ingest into, reconcile, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, repository maintenance, repository dependency graphs, or non-OKF knowledge-base work.
+description: Unified OKF Harness entrypoint for Pi, OpenCode, and OpenClaw. Use when the user asks to create, find, select, repair, check, ingest into, reconcile, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, repository maintenance, repository dependency graphs, or non-OKF knowledge-base work.
 license: Apache-2.0
+compatibility: pi, opencode, openclaw
 metadata:
-  hermes:
-    tags: [okf, knowledge-management]
+  openclaw:
+    homepage: "https://github.com/pumblus/okf-harness"
   okf-harness-managed: "true"
   okf-harness-entrypoint: "host"
-  okf-harness-install-id: "pumblus/okf-harness/okf-harness"
+  okf-harness-package: "@pumblus/okf-harness"
 ---
 
 # OKF Harness

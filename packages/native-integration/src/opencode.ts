@@ -1,25 +1,26 @@
-import { copyFile, mkdir, readFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const skillName = "okf-harness-bootstrap";
+const skillName = "okf-harness";
+const legacySkillName = "okf-harness-bootstrap";
 const managedMarker = 'okf-harness-managed: "true"';
 
-export const OkfHarnessBootstrapPlugin = async () => {
-  await syncGlobalBootstrapSkill();
+export const OkfHarnessPlugin = async () => {
+  await syncHostSkill();
   return {};
 };
 
-export default OkfHarnessBootstrapPlugin;
+export default OkfHarnessPlugin;
 
-async function syncGlobalBootstrapSkill() {
+async function syncHostSkill() {
   const source = path.resolve(packageRoot(), "skills", skillName, "SKILL.md");
   const targetDir = path.join(resolveOpenCodeConfigDir(), "skills", skillName);
   const target = path.join(targetDir, "SKILL.md");
   const sourceContents = await readFile(source, "utf8");
 
-  if (await hasUserOwnedSkill(target)) {
+  if ((await readSkillOwnership(target)) === "user-owned") {
     return;
   }
 
@@ -30,18 +31,30 @@ async function syncGlobalBootstrapSkill() {
   if (targetContents !== sourceContents) {
     throw new Error(`Failed to verify synced ${skillName} skill contents.`);
   }
+
+  const legacyDir = path.join(resolveOpenCodeConfigDir(), "skills", legacySkillName);
+  if ((await readSkillOwnership(path.join(legacyDir, "SKILL.md"))) === "managed") {
+    await rm(legacyDir, { force: true, recursive: true });
+  }
 }
 
-async function hasUserOwnedSkill(target: string) {
+async function readSkillOwnership(target: string): Promise<"managed" | "user-owned" | "missing"> {
   try {
-    const contents = await readFile(target, "utf8");
-    return !contents.includes(managedMarker);
+    return hasManagedFrontmatter(await readFile(target, "utf8")) ? "managed" : "user-owned";
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-      return false;
+      return "missing";
     }
     throw error;
   }
+}
+
+function hasManagedFrontmatter(contents: string): boolean {
+  if (!contents.startsWith("---\n")) {
+    return false;
+  }
+  const end = contents.indexOf("\n---", 4);
+  return end !== -1 && contents.slice(4, end).split("\n").includes(`  ${managedMarker}`);
 }
 
 function packageRoot() {

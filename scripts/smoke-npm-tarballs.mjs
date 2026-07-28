@@ -10,12 +10,7 @@ const repoRoot = path.resolve(scriptDir, "..");
 const nativeIntegrationPackageName = "@pumblus/okf-harness";
 const nativeIntegrationPackageDir = "packages/native-integration";
 const hermesTapSkillPath = "skills/okf-harness/SKILL.md";
-const openClawSkillDir = path.join(
-  repoRoot,
-  nativeIntegrationPackageDir,
-  "skills",
-  "okf-harness-bootstrap",
-);
+const openClawSkillDir = path.join(repoRoot, nativeIntegrationPackageDir, "skills", "okf-harness");
 
 const publishablePackages = [
   { name: "@okf-harness/core", dir: "packages/core" },
@@ -153,12 +148,8 @@ async function main() {
     await assertCliPackage(installDir);
     await assertNativeIntegrationPackage(installDir);
     const agentPackVersion = await installedPackageVersion(installDir, "@okf-harness/agent-pack");
-    await assertFileMissing(
-      path.join(bootstrapCodexSkillRoot, "skills/okf-harness-bootstrap/SKILL.md"),
-    );
-    await assertFileMissing(
-      path.join(bootstrapClaudeHome, "skills/okf-harness-bootstrap/SKILL.md"),
-    );
+    await assertFileMissing(path.join(bootstrapCodexSkillRoot, "skills/okf-harness/SKILL.md"));
+    await assertFileMissing(path.join(bootstrapClaudeHome, "skills/okf-harness/SKILL.md"));
     console.log("cli postinstall stayed inactive");
 
     const setupPlan = await runInstalledPackageBin(
@@ -223,24 +214,24 @@ async function main() {
     );
     assertBootstrapAllState(bootstrapInstall, "installed", "bootstrap install");
     await assertGeneratedSkill(
-      path.join(bootstrapCodexSkillRoot, "skills/okf-harness-bootstrap/SKILL.md"),
+      path.join(bootstrapCodexSkillRoot, "skills/okf-harness/SKILL.md"),
       agentPackVersion,
-      "bootstrap",
+      "host",
       "codex",
     );
     await assertGeneratedSkill(
-      path.join(bootstrapClaudeHome, "skills/okf-harness-bootstrap/SKILL.md"),
+      path.join(bootstrapClaudeHome, "skills/okf-harness/SKILL.md"),
       agentPackVersion,
-      "bootstrap",
+      "host",
       "claude",
     );
     for (const reference of ["setup.md", "discovery.md", "repair.md"]) {
       await readFile(
-        path.join(bootstrapCodexSkillRoot, "skills/okf-harness-bootstrap/references", reference),
+        path.join(bootstrapCodexSkillRoot, "skills/okf-harness/references", reference),
         "utf8",
       );
       await readFile(
-        path.join(bootstrapClaudeHome, "skills/okf-harness-bootstrap/references", reference),
+        path.join(bootstrapClaudeHome, "skills/okf-harness/references", reference),
         "utf8",
       );
     }
@@ -467,7 +458,7 @@ function assertPackedPackageContents(packageInfo, packedPackage) {
     "README.md",
     "dist/opencode.js",
     "dist/opencode.d.ts",
-    "skills/okf-harness-bootstrap/SKILL.md",
+    "skills/okf-harness/SKILL.md",
   ]) {
     if (!files.has(expected)) {
       throw new Error(`${nativeIntegrationPackageName} tarball missing ${expected}`);
@@ -476,7 +467,7 @@ function assertPackedPackageContents(packageInfo, packedPackage) {
   for (const forbidden of [
     "src/opencode.ts",
     "test/package.test.ts",
-    "skills/okf-harness/SKILL.md",
+    "skills/okf-harness-bootstrap/SKILL.md",
   ]) {
     if (files.has(forbidden)) {
       throw new Error(`${nativeIntegrationPackageName} tarball should not include ${forbidden}`);
@@ -533,22 +524,20 @@ async function assertNativeIntegrationPackage(installDir) {
   }
 
   const skillFiles = await listFiles(path.join(packageRoot, "skills"));
-  if (JSON.stringify(skillFiles) !== JSON.stringify(["okf-harness-bootstrap/SKILL.md"])) {
+  if (JSON.stringify(skillFiles) !== JSON.stringify(["okf-harness/SKILL.md"])) {
     throw new Error(
       `${nativeIntegrationPackageName} exposes unexpected skills: ${skillFiles.join(", ")}`,
     );
   }
 
-  const skill = await readFile(
-    path.join(packageRoot, "skills/okf-harness-bootstrap/SKILL.md"),
-    "utf8",
-  );
+  const skill = await readFile(path.join(packageRoot, "skills/okf-harness/SKILL.md"), "utf8");
   for (const expected of [
-    "name: okf-harness-bootstrap",
-    'okf-harness-entrypoint: "bootstrap"',
+    "name: okf-harness",
+    'okf-harness-entrypoint: "host"',
     "openclaw:",
-    "npx @okf-harness/setup@latest",
-    "Do not install, update, or replace the runtime",
+    "npx @okf-harness/setup@latest launch",
+    "WORKSPACE_NOT_FOUND",
+    "does not install workspace-local guidance",
   ]) {
     if (!skill.includes(expected)) {
       throw new Error(`@pumblus/okf-harness skill missing ${expected}`);
@@ -581,11 +570,14 @@ async function assertNativeIntegrationPackage(installDir) {
     },
   );
   const syncedSkill = await readFile(
-    path.join(opencodeConfigDir, "skills/okf-harness-bootstrap/SKILL.md"),
+    path.join(opencodeConfigDir, "skills/okf-harness/SKILL.md"),
     "utf8",
   );
-  if (!syncedSkill.includes("name: okf-harness-bootstrap")) {
-    throw new Error("OpenCode plugin did not sync the global bootstrap skill");
+  if (
+    !syncedSkill.includes("name: okf-harness") ||
+    !syncedSkill.includes('okf-harness-entrypoint: "host"')
+  ) {
+    throw new Error("OpenCode plugin did not sync the unified host skill");
   }
   console.log("native integration package contents passed");
 }
@@ -593,18 +585,19 @@ async function assertNativeIntegrationPackage(installDir) {
 async function assertHermesTapSkill() {
   const skill = await readFile(path.join(repoRoot, hermesTapSkillPath), "utf8");
   for (const expected of [
-    "name: okf-harness-bootstrap",
+    "name: okf-harness",
     "hermes:",
-    'okf-harness-entrypoint: "bootstrap"',
+    'okf-harness-entrypoint: "host"',
     'okf-harness-install-id: "pumblus/okf-harness/okf-harness"',
-    "npx @okf-harness/setup@latest",
+    "npx @okf-harness/setup@latest launch",
+    "does not install workspace-local guidance",
   ]) {
     if (!skill.includes(expected)) {
       throw new Error(`Hermes tap skill missing ${expected}`);
     }
   }
-  if (skill.includes("name: okf-harness\n")) {
-    throw new Error("Hermes tap skill must not expose a global okf-harness entrypoint");
+  if (skill.includes("name: okf-harness-bootstrap")) {
+    throw new Error("Hermes tap skill must not expose the retired entrypoint");
   }
   console.log("hermes skill tap package shape passed");
 }
@@ -837,10 +830,10 @@ async function assertGeneratedSkill(
     throw new Error(`Generated skill does not use ${expectedEntrypoint} metadata: ${skillPath}`);
   }
   if (
-    expectedEntrypoint === "bootstrap" &&
+    expectedEntrypoint === "host" &&
     !contents.includes(`okf-harness-agent: "${expectedAgent ?? "codex"}"`)
   ) {
-    throw new Error(`Generated bootstrap skill does not use expected agent metadata: ${skillPath}`);
+    throw new Error(`Generated host skill does not use expected agent metadata: ${skillPath}`);
   }
 }
 

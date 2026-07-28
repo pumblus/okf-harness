@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,50 +36,101 @@ describe("@pumblus/okf-harness package", () => {
     expect(packageJson.scripts.postinstall).toBeUndefined();
   });
 
-  it("bundles only the global bootstrap skill", async () => {
+  it("bundles only the unified host skill", async () => {
     const skill = await readFile(
-      path.join(packageRoot, "skills", "okf-harness-bootstrap", "SKILL.md"),
+      path.join(packageRoot, "skills", "okf-harness", "SKILL.md"),
       "utf8",
     );
 
-    expect(skill).toContain("name: okf-harness-bootstrap");
+    expect(skill).toContain("name: okf-harness");
     expect(skill).toContain("compatibility: pi, opencode, openclaw");
     expect(skill).toContain("openclaw:");
     expect(skill).toContain('okf-harness-managed: "true"');
-    expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
-    expect(skill).toContain("npx @okf-harness/setup@latest");
-    expect(skill).toContain("Do not install, update, or replace the runtime");
-    expect(skill).not.toContain("name: okf-harness\n");
+    expect(skill).toContain('okf-harness-entrypoint: "host"');
+    expect(skill).toContain("npx @okf-harness/setup@latest launch");
+    expect(skill).toContain("WORKSPACE_NOT_FOUND");
+    expect(skill).toContain("RUNTIME_PIN_MISSING");
+    expect(skill).toContain("check --json");
+    expect(skill).toContain("source add <source> --json");
+    expect(skill).toContain('evidence "<question>" --json');
+    expect(skill).toContain("graph --json");
+    expect(skill).toContain("does not install workspace-local guidance");
+    expect(skill).not.toContain("name: okf-harness-bootstrap");
+    expect(skill).not.toContain("command -v okfh");
     expect(skill).not.toContain("npm install -g @okf-harness/cli");
   });
 
-  it("publishes the Hermes custom tap skill shape", async () => {
+  it("publishes the unified Hermes custom tap skill", async () => {
     const skill = await readFile(path.join(repoRoot, "skills", "okf-harness", "SKILL.md"), "utf8");
 
-    expect(skill).toContain("name: okf-harness-bootstrap");
+    expect(skill).toContain("name: okf-harness");
     expect(skill).toContain("hermes:");
-    expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
+    expect(skill).toContain('okf-harness-entrypoint: "host"');
     expect(skill).toContain('okf-harness-install-id: "pumblus/okf-harness/okf-harness"');
-    expect(skill).toContain("npx @okf-harness/setup@latest");
-    expect(skill).toContain("exposes only `okf-harness-bootstrap`");
-    expect(skill).not.toContain("name: okf-harness\n");
+    expect(skill).toContain("npx @okf-harness/setup@latest launch");
+    expect(skill).toContain("WORKSPACE_NOT_FOUND");
+    expect(skill).toContain("check --json");
+    expect(skill).toContain("does not install workspace-local guidance");
+    const packagedSkill = await readFile(
+      path.join(packageRoot, "skills", "okf-harness", "SKILL.md"),
+      "utf8",
+    );
+    expect(skillBody(skill)).toBe(skillBody(packagedSkill));
+    expect(skill).not.toContain("name: okf-harness-bootstrap");
     expect(skill).not.toContain("npm install -g @okf-harness/cli");
   });
 
-  it("syncs the OpenCode global bootstrap skill without touching the runtime", async () => {
+  it("syncs the unified OpenCode host skill and removes the managed legacy entrypoint", async () => {
     const tempRoot = await mkdtemp(path.join(tmpdir(), "okfh-opencode-plugin-"));
     process.env.OPENCODE_CONFIG_DIR = path.join(tempRoot, "opencode");
+    const legacySkill = path.join(
+      process.env.OPENCODE_CONFIG_DIR,
+      "skills",
+      "okf-harness-bootstrap",
+      "SKILL.md",
+    );
+    await mkdir(path.dirname(legacySkill), { recursive: true });
+    await writeFile(
+      legacySkill,
+      '---\nname: okf-harness-bootstrap\nmetadata:\n  okf-harness-managed: "true"\n---\n',
+      "utf8",
+    );
 
     try {
       const result = await plugin();
 
       expect(result).toEqual({});
       const installedSkill = await readFile(
-        path.join(process.env.OPENCODE_CONFIG_DIR, "skills", "okf-harness-bootstrap", "SKILL.md"),
+        path.join(process.env.OPENCODE_CONFIG_DIR, "skills", "okf-harness", "SKILL.md"),
         "utf8",
       );
-      expect(installedSkill).toContain("name: okf-harness-bootstrap");
-      expect(installedSkill).toContain("npx @okf-harness/setup@latest");
+      expect(installedSkill).toContain("name: okf-harness");
+      expect(installedSkill).toContain("npx @okf-harness/setup@latest launch");
+      await expect(stat(legacySkill)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(tempRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("preserves a user-owned legacy skill even when its body mentions the managed marker", async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), "okfh-opencode-plugin-"));
+    process.env.OPENCODE_CONFIG_DIR = path.join(tempRoot, "opencode");
+    const legacySkill = path.join(
+      process.env.OPENCODE_CONFIG_DIR,
+      "skills",
+      "okf-harness-bootstrap",
+      "SKILL.md",
+    );
+    await mkdir(path.dirname(legacySkill), { recursive: true });
+    await writeFile(
+      legacySkill,
+      '---\nname: custom\n---\n\nExample: okf-harness-managed: "true"\n',
+      "utf8",
+    );
+
+    try {
+      await plugin();
+      await expect(readFile(legacySkill, "utf8")).resolves.toContain("name: custom");
     } finally {
       await rm(tempRoot, { force: true, recursive: true });
     }
@@ -88,14 +139,9 @@ describe("@pumblus/okf-harness package", () => {
   it("does not overwrite a user-owned OpenCode skill", async () => {
     const tempRoot = await mkdtemp(path.join(tmpdir(), "okfh-opencode-plugin-"));
     process.env.OPENCODE_CONFIG_DIR = path.join(tempRoot, "opencode");
-    const target = path.join(
-      process.env.OPENCODE_CONFIG_DIR,
-      "skills",
-      "okf-harness-bootstrap",
-      "SKILL.md",
-    );
+    const target = path.join(process.env.OPENCODE_CONFIG_DIR, "skills", "okf-harness", "SKILL.md");
     await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, "---\nname: okf-harness-bootstrap\n---\n\ncustom\n", "utf8");
+    await writeFile(target, "---\nname: okf-harness\n---\n\ncustom\n", "utf8");
 
     try {
       await plugin();
@@ -106,3 +152,7 @@ describe("@pumblus/okf-harness package", () => {
     }
   });
 });
+
+function skillBody(skill: string): string {
+  return skill.slice(skill.indexOf("\n---\n") + 5);
+}
