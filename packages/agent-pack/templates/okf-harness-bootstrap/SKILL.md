@@ -1,43 +1,65 @@
-# OKF Harness Bootstrap
+# OKF Harness
 
-Bootstrap routes OKF Harness setup before a workspace-local `okf-harness` skill exists.
+This unified entrypoint routes setup and workspace maintenance without making the user choose a mode.
 
 ## Required Behavior
 
-1. Classify the request as setup, discovery, repair, or an explicit combination of those.
-2. If the current directory is already an OKF Harness workspace, do not create a nested workspace; repair {{agentLabel}} support and hand off to a fresh workspace session.
-3. Load only the reference needed for the current route.
-4. If `okfh` is missing, stop and tell the user to run `npx @okf-harness/setup@latest`; do not create workspaces or edit files until runtime setup is fixed.
-5. Run harness operations through local-shell `okfh --json` commands and read their JSON before deciding the next step.
-6. Before persistent setup writes, state the resolved workspace name, path, and agent target unless the user gave all three explicitly.
-7. Finish from the CLI `data.refresh` object when present; do not invent refresh commands.
-8. In a parent-folder session after selection or setup, only continue with commands that use the resolved `--workspace <path>`.
-9. Treat setup-plus-source requests as a transitional path: resolve or create the workspace, register sources, prepare ingest plans, then stop with a fresh-session handoff.
+1. Classify the request as setup, discovery, repair, check, ingest, reconciliation, answer, graph, or an explicit combination.
+2. Resolve the workspace with the launcher before choosing the route:
+
+```bash
+npx @okf-harness/setup@latest launch -- status --json
+```
+
+3. Read the launcher's machine-readable result. `WORKSPACE_NOT_FOUND` routes to discovery or setup. `RUNTIME_PIN_MISSING` means run `data.adoptCommand` exactly and retry. `CONFIG_INVALID` and runtime execution failures stop the workflow with the reported problem.
+4. For a resolved workspace, run every Harness command through `npx @okf-harness/setup@latest launch --workspace <workspace> -- <runtime-arguments>` and read its JSON before continuing.
+5. Load only the setup, discovery, or repair reference when that route needs it. Daily workspace routes use the commands below.
+6. Before persistent setup writes, state the resolved workspace name, path, and agent target unless the user supplied all three.
+7. After any wiki edit, run the workspace check and report its status. If files changed, name the changed files.
+8. Use the CLI `data.refresh` object when present without claiming that workspace-local guidance exists unless the result confirms it.
+
+## Workspace Routes
+
+```bash
+npx @okf-harness/setup@latest launch --workspace <workspace> -- check --json
+npx @okf-harness/setup@latest launch --workspace <workspace> -- source add <source> --json
+npx @okf-harness/setup@latest launch --workspace <workspace> -- ingest plan <source-id> --json
+npx @okf-harness/setup@latest launch --workspace <workspace> -- source list --json
+npx @okf-harness/setup@latest launch --workspace <workspace> -- source reconcile <prior-source-id> <revision-source-id> --note "<judgment-note>" --json
+npx @okf-harness/setup@latest launch --workspace <workspace> -- evidence "<question>" --json
+npx @okf-harness/setup@latest launch --workspace <workspace> -- read <concept-id-or-path> --json
+npx @okf-harness/setup@latest launch --workspace <workspace> -- graph --json
+```
+
+- Ingest registers source material, prepares the plan, then lets the agent read the registered source and make bounded wiki edits; the CLI does not synthesize wiki content.
+- Reconciliation reads both immutable registered revisions, updates every affected wiki claim, checks the workspace, then records the exact revision edge.
+- Answers use synthesized `wiki/` evidence from `evidence`, plus at most one continuation-cue `read`. Normal answers do not read raw source bodies.
+- Graph uses `--open` only when the user asks to open the report.
+
+## Setup-Plus-Source
+
+- Validate every requested local source before creating a workspace. Report every missing, non-file, or unreadable input before writing.
+- Treat URLs as source pointers; do not fetch or imply their contents were captured.
+- After setup or selection, register each accepted source and prepare its ingest plan through the launcher. Continue into wiki synthesis only when the user requested it and the current session can safely edit the resolved workspace.
+- On failure, report the first-loop blocker with one concrete next action.
+
+## Completion Contract
+
+- Setup, discovery, and repair finish only when the selected reference's completion condition is met.
+- Check reports status, conformance, Harness findings, and the first concrete next step.
+- Ingest reports the source ID, changed wiki paths, check status, and unresolved questions.
+- Reconciliation finishes only after the exact prior-and-revision edge is acknowledged.
+- Answer cites supporting concept paths and source IDs and states material evidence limits.
+- Graph reports the generated HTML and backlinks paths.
 
 ## Hard Rules
 
-- Do not use this skill for workspace-local check, ingest, answer, or graph work; those belong to the workspace-local `okf-harness` skill.
-- Do not create a workspace skeleton by hand; use `okfh init`.
+- Do not create a workspace skeleton by hand; use the setup route's runtime command.
 - Do not initialize a non-empty non-workspace directory in place.
-- Do not install or repair extra agent clients unless the user explicitly asks for them.
-- Never edit `raw/sources/` by hand; source registration must use `okfh source add`.
-- Never synthesize wiki content, run `okfh check`, prepare evidence, or answer from bootstrap.
-
-## Transitional Setup-Plus-Source
-
-- Route references cover workspace resolution or repair; setup-plus-source then additionally uses the registration and ingest-planning commands below before final handoff.
-- Classify requested sources as local paths or URLs before setup. Validate every required local source path with metadata/readability checks before `okfh init`; missing, non-file, or unreadable local inputs stop setup. Report all invalid local inputs before creating or selecting the workspace.
-- URL sources are accepted as source pointers only. Do not fetch, scrape, summarize, or imply webpage content was captured in bootstrap.
-- After setup or workspace selection, register each accepted source and prepare an ingest plan from the returned `data.source.id` with deterministic CLI JSON:
-
-```bash
-okfh source add <source> --workspace <workspace> --json
-okfh ingest plan <source-id> --workspace <workspace> --json
-```
-
-- If local source validation, source registration, or ingest planning fails, report that step as the first-loop blocker with one concrete next action, then stop before wiki edits.
-- Completion criterion: every accepted source has a successful registration result, a successful ingest plan, and a fresh-session handoff. Do not read raw source bodies or write `wiki/` content.
-- Hand off wiki synthesis to `{{workspaceInvocation}}` in a fresh workspace-local {{sessionName}}.
+- Do not install or repair extra agent clients unless the user explicitly asks.
+- Never edit `raw/sources/`; register corrected material as a new source.
+- Never invent source IDs, citations, dates, claims, command output, or an `okfh query` command.
+- Keep knowledge-base work outside OKF Harness and repository dependency graphs out of this skill.
 
 ## Routes
 

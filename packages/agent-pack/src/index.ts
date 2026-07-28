@@ -36,7 +36,7 @@ import {
   bootstrapAgentProfiles,
   bootstrapAgents,
   bootstrapReferenceTemplatePaths,
-  bootstrapSkillName,
+  hostSkillName,
   oldWorkflowSkillNames,
   referenceTemplatePaths,
   skillDescription,
@@ -191,6 +191,7 @@ const packageVersion = JSON.parse(
 ) as { version: string };
 const managedBlockStart = "<!-- OKF Harness: start -->";
 const managedBlockEnd = "<!-- OKF Harness: end -->";
+const legacyBootstrapSkillName = "okf-harness-bootstrap";
 
 export function renderAgentAdapter(options: RenderAgentAdapterOptions): RenderedAgentAdapter {
   const version = options.version ?? packageVersion.version;
@@ -204,7 +205,7 @@ export function renderBootstrapAgent(options: RenderBootstrapAgentOptions): Rend
   const version = options.version ?? packageVersion.version;
   return {
     agent: options.agent,
-    files: renderBootstrapSkillFiles(options.agent, version),
+    files: renderHostSkillFiles(options.agent, version),
   };
 }
 
@@ -285,7 +286,7 @@ export async function readBootstrapAgentStatus(
         detection,
         state: "unmanaged-conflict",
         managed: false,
-        reason: "Bootstrap skill directory exists without a managed SKILL.md.",
+        reason: "Host skill directory exists without a managed SKILL.md.",
       });
     }
     return createBootstrapStatus({ ...target, detection, state: "missing", managed: false });
@@ -301,14 +302,14 @@ export async function readBootstrapAgentStatus(
       detection,
       state: "unmanaged-conflict",
       managed: false,
-      reason: "Existing bootstrap skill is not marked as OKF Harness managed.",
+      reason: "Existing host skill is not marked as OKF Harness managed.",
     });
   }
 
   const actualVersion = frontmatterMetadataValue(frontmatter, "okf-harness-version");
   const entrypoint = frontmatterMetadataValue(frontmatter, "okf-harness-entrypoint");
   const skillAgent = frontmatterMetadataValue(frontmatter, "okf-harness-agent");
-  if (entrypoint !== undefined && entrypoint !== "bootstrap") {
+  if (entrypoint !== undefined && entrypoint !== "host") {
     return createBootstrapStatus({
       ...target,
       detection,
@@ -316,7 +317,7 @@ export async function readBootstrapAgentStatus(
       managed: true,
       actualVersion,
       entrypoint,
-      reason: `Managed skill is marked as ${entrypoint}, not bootstrap.`,
+      reason: `Managed skill is marked as ${entrypoint}, not host.`,
     });
   }
   if (skillAgent !== undefined && skillAgent !== options.agent) {
@@ -333,7 +334,7 @@ export async function readBootstrapAgentStatus(
 
   if (
     actualVersion !== target.expectedVersion ||
-    entrypoint !== "bootstrap" ||
+    entrypoint !== "host" ||
     skillAgent !== target.agent
   ) {
     return createBootstrapStatus({
@@ -345,8 +346,8 @@ export async function readBootstrapAgentStatus(
       entrypoint,
       versionDrift: versionDrift(actualVersion, target.expectedVersion),
       reason:
-        entrypoint !== "bootstrap"
-          ? "Managed skill is missing bootstrap entrypoint metadata."
+        entrypoint !== "host"
+          ? "Managed skill is missing host entrypoint metadata."
           : skillAgent !== target.agent
             ? `Managed skill is missing ${bootstrapAgentProfiles[target.agent].label} agent metadata.`
             : undefined,
@@ -416,6 +417,7 @@ export async function installBootstrapAgent(
     }
   }
 
+  await removeLegacyBootstrapSkill(target, result, dryRun);
   result.status = dryRun ? status : await readBootstrapAgentStatus(options);
   return result;
 }
@@ -436,11 +438,11 @@ export async function uninstallBootstrapAgent(
     });
     return result;
   }
+  const target = bootstrapTarget(options);
+  await removeLegacyBootstrapSkill(target, result, dryRun);
   if (status.state === "missing") {
     return result;
   }
-
-  const target = bootstrapTarget(options);
   for (const file of renderBootstrapAgent({ agent: options.agent }).files) {
     const absolutePath = path.join(target.targetDirectory, file.path);
     if ((await readOptionalTextFile(absolutePath)) === undefined) {
@@ -463,6 +465,28 @@ export async function uninstallBootstrapAgent(
     result.status = await readBootstrapAgentStatus(options);
   }
   return result;
+}
+
+async function removeLegacyBootstrapSkill(
+  target: BootstrapTarget,
+  result: BootstrapLifecycleResult,
+  dryRun: boolean,
+): Promise<void> {
+  const legacyDirectory = path.join(target.skillsDirectory, legacyBootstrapSkillName);
+  const legacyContents = await readOptionalTextFile(path.join(legacyDirectory, "SKILL.md"));
+  const frontmatter = legacyContents === undefined ? undefined : frontmatterBlock(legacyContents);
+  if (
+    frontmatter === undefined ||
+    frontmatterMetadataValue(frontmatter, "okf-harness-managed") !== "true"
+  ) {
+    return;
+  }
+
+  result.plannedRemovals.push(legacyDirectory);
+  if (!dryRun) {
+    await rm(legacyDirectory, { force: true, recursive: true });
+    result.removedFiles.push(legacyDirectory);
+  }
 }
 
 function createInstallResult(
@@ -925,50 +949,50 @@ metadata:
 ${readTemplate("SKILL.md")}`;
 }
 
-function renderBootstrapSkillFiles(agent: BootstrapAgent, version: string): RenderedAgentFile[] {
+function renderHostSkillFiles(agent: BootstrapAgent, version: string): RenderedAgentFile[] {
   return [
     {
-      path: `skills/${bootstrapSkillName}/SKILL.md`,
-      contents: renderBootstrapSkill(agent, version),
+      path: `skills/${hostSkillName}/SKILL.md`,
+      contents: renderHostSkill(agent, version),
     },
     ...bootstrapReferenceTemplatePaths.map((templatePath) => ({
-      path: `skills/${bootstrapSkillName}/references/${templatePath}`,
-      contents: renderBootstrapTemplate(`references/${templatePath}`, agent),
+      path: `skills/${hostSkillName}/references/${templatePath}`,
+      contents: renderHostTemplate(`references/${templatePath}`, agent),
     })),
   ];
 }
 
-function renderBootstrapSkill(agent: BootstrapAgent, version: string): string {
+function renderHostSkill(agent: BootstrapAgent, version: string): string {
   const profile = bootstrapAgentProfiles[agent];
   return `---
-name: ${bootstrapSkillName}
+name: ${hostSkillName}
 description: ${profile.description}
 license: Apache-2.0
 compatibility: ${profile.compatibility}
 metadata:
   okf-harness-version: "${version}"
   okf-harness-managed: "true"
-  okf-harness-entrypoint: "bootstrap"
+  okf-harness-entrypoint: "host"
   okf-harness-agent: "${agent}"
 ---
 
-${renderBootstrapTemplate("SKILL.md", agent)}`;
+${renderHostTemplate("SKILL.md", agent)}`;
 }
 
 function readTemplate(relativePath: string): string {
   return readFileSync(new URL(`../templates/okf-harness/${relativePath}`, import.meta.url), "utf8");
 }
 
-function readBootstrapTemplate(relativePath: string): string {
+function readHostTemplate(relativePath: string): string {
   return readFileSync(
     new URL(`../templates/okf-harness-bootstrap/${relativePath}`, import.meta.url),
     "utf8",
   );
 }
 
-function renderBootstrapTemplate(relativePath: string, agent: BootstrapAgent): string {
+function renderHostTemplate(relativePath: string, agent: BootstrapAgent): string {
   const profile = bootstrapAgentProfiles[agent];
-  return replaceTemplateVariables(readBootstrapTemplate(relativePath), {
+  return replaceTemplateVariables(readHostTemplate(relativePath), {
     agentAdapter: agent,
     agentLabel: profile.label,
     sessionName: profile.sessionName,
@@ -990,12 +1014,12 @@ function bootstrapTarget(options: BootstrapAgentOptions): BootstrapTarget {
     options.env ?? process.env,
   );
   const skillsDirectory = path.join(targetDirectory, "skills");
-  const skillDirectory = path.join(skillsDirectory, bootstrapSkillName);
+  const skillDirectory = path.join(skillsDirectory, hostSkillName);
   return {
     agent: options.agent,
     targetDirectory,
     skillsDirectory,
-    skillName: bootstrapSkillName,
+    skillName: hostSkillName,
     skillDirectory,
     skillPath: path.join(skillDirectory, "SKILL.md"),
     expectedVersion: packageVersion.version,
@@ -1091,15 +1115,15 @@ function bootstrapNextSteps(state: BootstrapStatusState, agent: BootstrapAgent):
   const profile = bootstrapAgentProfiles[agent];
   if (state === "installed") {
     return [
-      `Use ${profile.routePrefix}${bootstrapSkillName} from ${profile.label} to create or select an OKF Harness workspace.`,
+      `Use ${profile.routePrefix}${hostSkillName} from ${profile.label} for OKF Harness setup and workspace maintenance.`,
     ];
   }
   if (state === "unmanaged-conflict") {
-    return ["Review the existing okf-harness-bootstrap skill before installing or uninstalling."];
+    return [`Review the existing ${hostSkillName} host skill before installing or uninstalling.`];
   }
   if (state === "unwritable-target") {
     return [
-      `Make the bootstrap target writable, then run okfh bootstrap repair --agents ${agent} --json.`,
+      `Make the host skill target writable, then run okfh bootstrap repair --agents ${agent} --json.`,
     ];
   }
   return [`Run okfh bootstrap repair --agents ${agent} --json to install or repair it.`];

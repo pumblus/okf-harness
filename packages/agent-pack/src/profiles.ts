@@ -8,7 +8,7 @@ export const bootstrapAgents = ["codex", "claude"] as const;
 export type BootstrapAgent = (typeof bootstrapAgents)[number];
 
 export const skillName = "okf-harness";
-export const bootstrapSkillName = "okf-harness-bootstrap";
+export const hostSkillName = skillName;
 export const skillDescription =
   "One Door workflow for OKF Harness workspaces. Use when the user asks to set up, check, ingest into, reconcile revisions in, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, ordinary repository maintenance, knowledge-base tasks outside an OKF Harness workspace, repository dependency graphs, old workflow-specific skill names, or an `okfh query` command.";
 
@@ -75,9 +75,10 @@ export const bootstrapAgentProfiles: Record<BootstrapAgent, BootstrapAgentProfil
     stateDirectoryEnv: "CODEX_HOME",
     stateDirectory: ".codex",
     sessionName: "Codex thread",
-    compatibility: "Designed for Codex with local shell command access. Requires the okfh CLI.",
+    compatibility:
+      "Designed for Codex with local shell and npx access. The Harness runtime is resolved through the launcher.",
     description:
-      "Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Codex. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.",
+      "Unified OKF Harness entrypoint for Codex. Use when the user asks to create, find, select, repair, check, ingest into, reconcile, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, repository maintenance, repository dependency graphs, or non-OKF knowledge-base work.",
   },
   claude: {
     command: claudeIntegration.command,
@@ -89,8 +90,8 @@ export const bootstrapAgentProfiles: Record<BootstrapAgent, BootstrapAgentProfil
     stateDirectory: ".claude",
     sessionName: "Claude Code session",
     compatibility:
-      "Designed for Claude Code with local shell command access. Requires the okfh CLI.",
+      "Designed for Claude Code with local shell and npx access. The Harness runtime is resolved through the launcher.",
     description:
-      "Bootstrap OKF Harness before a workspace exists. Use when the user asks to create, find, select, repair, or enter an OKF Harness workspace from Claude Code. Do not use for workspace-local check, ingest, answer, graph, generic Markdown editing, repository maintenance, or non-OKF knowledge-base work.",
+      "Unified OKF Harness entrypoint for Claude Code. Use when the user asks to create, find, select, repair, check, ingest into, reconcile, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, repository maintenance, repository dependency graphs, or non-OKF knowledge-base work.",
   },
 };

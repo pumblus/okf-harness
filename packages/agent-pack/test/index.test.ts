@@ -21,7 +21,7 @@ import {
   bootstrapAgentProfiles,
   bootstrapAgents,
   bootstrapReferenceTemplatePaths,
-  bootstrapSkillName,
+  hostSkillName,
   referenceTemplatePaths,
   skillName,
 } from "../src/profiles.js";
@@ -57,12 +57,12 @@ describe("@okf-harness/agent-pack", () => {
       const profile = bootstrapAgentProfiles[agent];
       const rendered = renderBootstrapAgent({ agent });
       expect(rendered.files.map((file) => file.path)).toEqual([
-        `skills/${bootstrapSkillName}/SKILL.md`,
+        `skills/${hostSkillName}/SKILL.md`,
         ...bootstrapReferenceTemplatePaths.map(
-          (templatePath) => `skills/${bootstrapSkillName}/references/${templatePath}`,
+          (templatePath) => `skills/${hostSkillName}/references/${templatePath}`,
         ),
       ]);
-      expect(fileContents(rendered.files, `skills/${bootstrapSkillName}/SKILL.md`)).toContain(
+      expect(fileContents(rendered.files, `skills/${hostSkillName}/SKILL.md`)).toContain(
         `okf-harness-agent: "${agent}"`,
       );
       expect(profile.command).toBe(agent);
@@ -320,17 +320,17 @@ describe("@okf-harness/agent-pack", () => {
     expect(skill).not.toContain("okf-harness-managed: true");
   });
 
-  it("renders global bootstrap skills for Claude and Codex", async () => {
+  it("renders the unified host skill for Claude and Codex", async () => {
     const packageJsonPath = fileURLToPath(new URL("../package.json", import.meta.url));
     const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as { version: string };
     const codex = renderBootstrapAgent({ agent: "codex" });
     const claude = renderBootstrapAgent({ agent: "claude" });
-    const setupReferencePath = "skills/okf-harness-bootstrap/references/setup.md";
-    const discoveryReferencePath = "skills/okf-harness-bootstrap/references/discovery.md";
-    const repairReferencePath = "skills/okf-harness-bootstrap/references/repair.md";
+    const setupReferencePath = "skills/okf-harness/references/setup.md";
+    const discoveryReferencePath = "skills/okf-harness/references/discovery.md";
+    const repairReferencePath = "skills/okf-harness/references/repair.md";
 
     const expectedPaths = [
-      "skills/okf-harness-bootstrap/SKILL.md",
+      "skills/okf-harness/SKILL.md",
       setupReferencePath,
       discoveryReferencePath,
       repairReferencePath,
@@ -338,31 +338,28 @@ describe("@okf-harness/agent-pack", () => {
     expect(codex.files.map((file) => file.path)).toEqual(expectedPaths);
     expect(claude.files.map((file) => file.path)).toEqual(expectedPaths);
 
-    const codexSkill = fileContents(codex.files, "skills/okf-harness-bootstrap/SKILL.md");
-    const claudeSkill = fileContents(claude.files, "skills/okf-harness-bootstrap/SKILL.md");
+    const codexSkill = fileContents(codex.files, "skills/okf-harness/SKILL.md");
+    const claudeSkill = fileContents(claude.files, "skills/okf-harness/SKILL.md");
     for (const skill of [codexSkill, claudeSkill]) {
-      expect(skill).toContain("name: okf-harness-bootstrap");
-      expect(skill).toContain("Bootstrap OKF Harness before a workspace exists");
+      expect(skill).toContain("name: okf-harness");
+      expect(skill).toContain("Unified OKF Harness entrypoint");
       expect(skill).toContain(`okf-harness-version: "${packageJson.version}"`);
       expect(skill).toContain('okf-harness-managed: "true"');
-      expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
+      expect(skill).toContain('okf-harness-entrypoint: "host"');
       expect(skill).toContain("references/setup.md");
       expect(skill).toContain("references/discovery.md");
       expect(skill).toContain("references/repair.md");
-      expect(skill).toContain("resolved `--workspace <path>`");
-      expect(skill).toContain("If `okfh` is missing");
-      expect(skill).toContain("npx @okf-harness/setup@latest");
+      expect(skill).toContain("WORKSPACE_NOT_FOUND");
+      expect(skill).toContain("RUNTIME_PIN_MISSING");
+      expect(skill).toContain("npx @okf-harness/setup@latest launch");
+      expect(skill).toContain("check --json");
+      expect(skill).toContain("source add <source> --json");
+      expect(skill).toContain('evidence "<question>" --json');
+      expect(skill).toContain("graph --json");
+      expect(skill).not.toContain("command -v okfh");
+      expect(skill).not.toContain("If `okfh` is missing");
       expect(skill).not.toContain("npm install -g @okf-harness/cli");
-      expect(skill).toContain("then stop with a fresh-session handoff");
-      expect(skill).toContain("first-loop blocker with one concrete next action");
-      expect(skill).toContain("Completion criterion");
-      expect(skill).not.toContain("references/check.md");
-      expect(skill).not.toContain("references/ingest.md");
-      expect(skill).not.toContain("references/answer.md");
-      expect(skill).not.toContain("references/graph.md");
-      expect(skill).not.toContain("## First-Answer Check");
-      expect(skill).not.toContain('okfh evidence "<question>"');
-      expect(skill).not.toContain("What is the source mainly about?");
+      expect(skill).not.toContain("okf-harness-bootstrap");
     }
     expect(codexSkill).toContain('okf-harness-agent: "codex"');
     const codexSetup = fileContents(codex.files, setupReferencePath);
@@ -371,9 +368,11 @@ describe("@okf-harness/agent-pack", () => {
     expect(codexSetup).toContain("--agents codex");
     expect(codexSetup).not.toContain("--agents claude");
     expect(codexSetup).not.toContain("--agents all");
-    expect(codexRepair).toContain("okfh agent install codex --workspace <workspace> --json");
-    expect(codexRepair).not.toContain("okfh agent install claude");
-    expect(codexRepair).not.toContain("okfh agent install all");
+    expect(codexRepair).toContain(
+      "npx @okf-harness/setup@latest launch --workspace <workspace> -- agent install codex --json",
+    );
+    expect(codexRepair).not.toContain("agent install claude");
+    expect(codexRepair).not.toContain("agent install all");
     expect(claudeSkill).toContain('okf-harness-agent: "claude"');
     const claudeSetup = fileContents(claude.files, setupReferencePath);
     const claudeRepair = fileContents(claude.files, repairReferencePath);
@@ -381,9 +380,11 @@ describe("@okf-harness/agent-pack", () => {
     expect(claudeSetup).toContain("--agents claude");
     expect(claudeSetup).not.toContain("--agents codex");
     expect(claudeSetup).not.toContain("--agents all");
-    expect(claudeRepair).toContain("okfh agent install claude --workspace <workspace> --json");
-    expect(claudeRepair).not.toContain("okfh agent install codex");
-    expect(claudeRepair).not.toContain("okfh agent install all");
+    expect(claudeRepair).toContain(
+      "npx @okf-harness/setup@latest launch --workspace <workspace> -- agent install claude --json",
+    );
+    expect(claudeRepair).not.toContain("agent install codex");
+    expect(claudeRepair).not.toContain("agent install all");
 
     expect(codexSetup).toContain("Ask only for inputs that remain missing or ambiguous");
     expect(codexSetup).toContain("Honor explicit user paths");
@@ -394,10 +395,11 @@ describe("@okf-harness/agent-pack", () => {
     expect(codexSetup).not.toMatch(/\b(?:git|commit|hash|branch)\b/i);
     expect(codexSetup).toContain("choose an empty directory or a new subdirectory");
     expect(codexSetup).toContain("data.refresh.commands");
-    expect(codexSetup).toContain("--dry-run --json");
+    expect(codexSetup).toContain("@okf-harness/cli@latest okfh init");
+    expect(codexSetup).not.toContain("`okfh status --workspace");
 
     const codexDiscovery = fileContents(codex.files, discoveryReferencePath);
-    expect(codexDiscovery).toContain("okfh status --json");
+    expect(codexDiscovery).toContain("npx @okf-harness/setup@latest launch -- status --json");
     expect(codexDiscovery).toContain("never create a nested workspace");
     expect(codexDiscovery).toContain("immediate child directories");
     expect(codexDiscovery).toContain("node_modules");
@@ -406,37 +408,27 @@ describe("@okf-harness/agent-pack", () => {
     expect(codexDiscovery).toContain("If multiple workspaces match");
 
     expect(codexRepair).toContain("Repair only Codex unless");
-    expect(codexRepair).toContain("redirect the user to `$okf-harness`");
+    expect(codexRepair).toContain("continue through `$okf-harness`");
     expect(codexRepair).toContain("data.refresh.commands");
   });
 
-  it("renders transitional setup-plus-source bootstrap guidance", () => {
+  it("keeps setup-plus-source inside the unified host skill", () => {
     const codex = renderBootstrapAgent({ agent: "codex" });
-    const skill = fileContents(codex.files, "skills/okf-harness-bootstrap/SKILL.md");
+    const skill = fileContents(codex.files, "skills/okf-harness/SKILL.md");
 
-    expect(skill).toContain("setup-plus-source");
-    expect(skill).toContain("Classify requested sources as local paths or URLs before setup");
-    expect(skill).toContain("setup-plus-source then additionally uses the registration");
+    expect(skill).toContain("## Setup-Plus-Source");
+    expect(skill).toContain("Validate every requested local source before creating a workspace");
+    expect(skill).toContain("missing, non-file, or unreadable input");
+    expect(skill).toContain("Treat URLs as source pointers");
+    expect(skill).toContain("register each accepted source and prepare its ingest plan");
     expect(skill).toContain(
-      "Validate every required local source path with metadata/readability checks before `okfh init`",
+      "npx @okf-harness/setup@latest launch --workspace <workspace> -- source add <source> --json",
     );
-    expect(skill).toContain("missing, non-file, or unreadable local inputs stop setup");
-    expect(skill).toContain("Report all invalid local inputs before creating or selecting");
-    expect(skill).toContain("URL sources are accepted as source pointers only");
     expect(skill).toContain(
-      "Do not fetch, scrape, summarize, or imply webpage content was captured",
-    );
-    expect(skill).toContain("register each accepted source and prepare an ingest plan");
-    expect(skill).toContain("returned `data.source.id`");
-    expect(skill).toContain("okfh source add <source> --workspace <workspace> --json");
-    expect(skill).toContain("okfh ingest plan <source-id> --workspace <workspace> --json");
-    expect(skill).toContain(
-      "local source validation, source registration, or ingest planning fails",
+      "npx @okf-harness/setup@latest launch --workspace <workspace> -- ingest plan <source-id> --json",
     );
     expect(skill).toContain("first-loop blocker with one concrete next action");
-    expect(skill).toContain("successful ingest plan, and a fresh-session handoff");
-    expect(skill).toContain("Do not read raw source bodies or write `wiki/` content");
-    expect(skill).toContain("Hand off wiki synthesis to `$okf-harness`");
+    expect(skill).toContain("Continue into wiki synthesis only when the user requested it");
   });
 
   it("installs an adapter while preserving user root guidance outside the managed block", async () => {
@@ -758,20 +750,20 @@ function expectBootstrapAgentContract(agent: (typeof bootstrapAgents)[number]): 
   const profile = bootstrapAgentProfiles[agent];
   const rendered = renderBootstrapAgent({ agent });
   const paths = new Set(rendered.files.map((file) => file.path));
-  const skillPath = `skills/${bootstrapSkillName}/SKILL.md`;
+  const skillPath = `skills/${hostSkillName}/SKILL.md`;
 
   expect(rendered.agent).toBe(agent);
   expect(paths.has(skillPath)).toBe(true);
   const skill = fileContents(rendered.files, skillPath);
-  expect(skill).toContain(`name: ${bootstrapSkillName}`);
+  expect(skill).toContain(`name: ${hostSkillName}`);
   expect(skill).toMatch(/^description: .+Use when .+Do not use .+$/m);
   expect(skill).toContain(profile.label);
   expect(skill).toContain('okf-harness-managed: "true"');
-  expect(skill).toContain('okf-harness-entrypoint: "bootstrap"');
+  expect(skill).toContain('okf-harness-entrypoint: "host"');
   expect(skill).toContain(`okf-harness-agent: "${agent}"`);
 
   for (const templatePath of bootstrapReferenceTemplatePaths) {
-    const referencePath = `skills/${bootstrapSkillName}/references/${templatePath}`;
+    const referencePath = `skills/${hostSkillName}/references/${templatePath}`;
     expect(paths.has(referencePath)).toBe(true);
     expect(skill).toContain(`references/${templatePath}`);
     const reference = fileContents(rendered.files, referencePath);
@@ -782,12 +774,14 @@ function expectBootstrapAgentContract(agent: (typeof bootstrapAgents)[number]): 
     expect(reference).toContain("## Completion Condition");
   }
 
-  const setup = fileContents(rendered.files, `skills/${bootstrapSkillName}/references/setup.md`);
-  const repair = fileContents(rendered.files, `skills/${bootstrapSkillName}/references/repair.md`);
+  const setup = fileContents(rendered.files, `skills/${hostSkillName}/references/setup.md`);
+  const repair = fileContents(rendered.files, `skills/${hostSkillName}/references/repair.md`);
   expect(setup).toContain(`${profile.routePrefix}${skillName}`);
   expect(setup).toContain(`--agents ${agent}`);
   expect(setup).not.toContain("--agents all");
-  expect(repair).toContain(`okfh agent install ${agent} --workspace <workspace> --json`);
+  expect(repair).toContain(
+    `npx @okf-harness/setup@latest launch --workspace <workspace> -- agent install ${agent} --json`,
+  );
   expect(repair).toContain(`${profile.routePrefix}${skillName}`);
 }
 
