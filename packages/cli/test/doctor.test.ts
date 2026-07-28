@@ -1,9 +1,10 @@
-import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   type BootstrapAgent,
   type BootstrapStatus,
+  isShadowingOkfhExecutable,
   shadowingGlobalInstallCleanupCommand,
 } from "@okf-harness/agent-pack";
 import { harnessRuntimeVersion } from "@okf-harness/core";
@@ -547,10 +548,7 @@ async function useFakeDoctorEnv(): Promise<{
   const codexStateDirectory = path.join(root, ".codex");
   const claudeHome = path.join(root, ".claude");
   const bin = path.join(root, "bin");
-  await mkdir(bin);
-  await writeFakeExecutable(bin, "git");
   await writeFakeExecutable(bin, "pnpm");
-  await writeFakeWindowsCommand(bin, "git.cmd");
   await writeFakeWindowsCommand(bin, "pnpm.cmd");
 
   const keys = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "HOME", "PATH", "USERPROFILE"] as const;
@@ -561,7 +559,9 @@ async function useFakeDoctorEnv(): Promise<{
   process.env.CLAUDE_CONFIG_DIR = claudeHome;
   process.env.CODEX_HOME = codexStateDirectory;
   process.env.HOME = home;
-  process.env.PATH = bin;
+  process.env.PATH = [bin, await pathWithoutShadowingOkfh(previous.PATH ?? "")].join(
+    path.delimiter,
+  );
   delete process.env.USERPROFILE;
 
   return {
@@ -617,4 +617,30 @@ async function writeFakeWindowsCommand(bin: string, name: string): Promise<void>
   const executable = path.join(bin, name);
   await writeFile(executable, "@exit /b 0\r\n", "utf8");
   await chmod(executable, 0o755);
+}
+
+async function pathWithoutShadowingOkfh(pathValue: string): Promise<string> {
+  const extensions = (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean);
+  const directories: string[] = [];
+  for (const directory of pathValue.split(path.delimiter).filter(Boolean)) {
+    const candidates = ["okfh", ...extensions.map((extension) => `okfh${extension}`)];
+    let containsShadowingOkfh = false;
+    for (const candidate of candidates) {
+      const executable = path.join(directory, candidate);
+      if (!isShadowingOkfhExecutable(executable)) {
+        continue;
+      }
+      try {
+        await access(executable);
+        containsShadowingOkfh = true;
+        break;
+      } catch {
+        // Keep looking for another executable candidate.
+      }
+    }
+    if (!containsShadowingOkfh) {
+      directories.push(directory);
+    }
+  }
+  return directories.join(path.delimiter);
 }
