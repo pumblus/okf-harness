@@ -786,7 +786,7 @@ irm https://okf-harness.dev/install.ps1 | iex</code></pre>
           <article class="proof-card">
             <h3>Start from your agent</h3>
             <p>Ask the agent you already use to create or select a local workspace.</p>
-            <pre class="code"><code>&lt;okf-harness-bootstrap&gt; Set up a workspace
+            <pre class="code"><code>&lt;okf-harness&gt; Set up a workspace
 for my AI research notes.
 
 &lt;okf-harness&gt; Add this PDF, update the wiki
@@ -963,9 +963,9 @@ okfh graph --workspace ./ai-research --json</code></pre>
           <div class="faq-pair">
             <dt>What does setup install?</dt>
             <dd>
-              Setup installs or updates the shared global <code>okfh</code> runtime after
-              confirmation, detects supported agent clients, and installs the native integrations
-              you select.
+              Setup detects supported agent clients and installs the native integrations you
+              select. Each integration exposes the unified <code>okf-harness</code> entrypoint;
+              workspace runtimes are resolved on demand rather than installed globally.
             </dd>
           </div>
         </dl>

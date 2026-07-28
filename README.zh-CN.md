@@ -56,9 +56,9 @@ irm https://okf-harness.dev/install.ps1 | iex
 npx @okf-harness/setup@latest
 ```
 
-普通使用需要 Node.js 22 或更高版本、由 setup 检查的工作区恢复依赖、共享的 `okfh` 运行时，以及至少一个受支持的智能体集成。只有参与仓库开发时才额外需要 `pnpm`。
+普通使用需要 Node.js 22 或更高版本、由 setup 检查的工作区恢复依赖、首次使用每个固定运行时版本时可访问 npm，以及至少一个受支持的智能体集成。只有参与仓库开发时才额外需要 `pnpm`。
 
-安装程序会在确认后安装或更新共享的全局 `okfh` 运行时，检测受支持的智能体客户端，并安装选中的原生集成。对于已经了解自己智能体的用户，可以直接使用原生安装路径：
+安装程序会检测受支持的智能体客户端并安装选中的原生集成。它不会安装全局 `okfh`；统一的宿主入口会通过启动器解析每个工作区固定的运行时。对于已经了解自己智能体的用户，可以直接使用原生安装路径：
 
 | 智能体 | 原生安装命令 |
 |---|---|
@@ -69,9 +69,9 @@ npx @okf-harness/setup@latest
 | Hermes Agent | `hermes skills tap add pumblus/okf-harness && hermes skills install pumblus/okf-harness/okf-harness` |
 | OpenClaw | `openclaw skills install @pumblus/okf-harness --global` |
 
-直接安装 CLI 运行时属于高级 CLI-only 路径，见 CLI 文档。它不会写入智能体引导入口。
+直接使用 CLI 属于高级路径，见 CLI 文档。它不会写入智能体入口。
 
-setup 后，普通首次启动流程是先在当前智能体里调用全局引导入口。若该智能体支持工作区本地指引，引导完成后会告诉你如何刷新到工作区里的 `okf-harness` 入口。
+setup 后，无论创建工作区前还是进入工作区后，都使用同一个 `okf-harness` 入口。受支持智能体的工作区本地指引可以补充细节，但不会引入另一个前缀。
 
 推荐父目录只是一个约定，不是 CLI 隐式默认路径。macOS 或 Linux 使用 `$HOME/Documents/OKF Harness`。Windows PowerShell 使用 `$env:USERPROFILE\Documents\OKF Harness`。Command Prompt 使用 `%USERPROFILE%\Documents\OKF Harness`。
 
@@ -82,16 +82,16 @@ setup 后，普通首次启动流程是先在当前智能体里调用全局引�
 复制下面的提示词时，把尖括号里的入口替换成当前智能体的实际调用方式。
 
 ```text
-<okf-harness-bootstrap> 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区，然后告诉我如何刷新当前智能体上下文。
+<okf-harness> 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区。
 ```
 
-完成设置或选择工作区后，在工作区内使用工作区本地入口：
+在工作区内继续使用同一个前缀：
 
 ```text
 <okf-harness> 检查这个工作区，并告诉我它是否已经就绪。
 ```
 
-全局引导入口也可以从本地工作区集合（Workspace collection）中发现或选择工作区，并为选中的工作区修复当前智能体设置（Current-agent setup）。它不会整理 Wiki 内容、迁移非空的非工作区目录，也不会写入全局根指引文件。
+这个入口可以从本地工作区集合（Workspace collection）中发现或选择工作区、修复受支持的工作区本地指引，并在内部路由日常维护。只有宿主集成存在时，它不会声称工作区本地适配器已经安装。
 
 临时诊断可以使用：
 
@@ -142,10 +142,10 @@ npx --package @okf-harness/cli okfh doctor --json
 
 ## 背后发生什么
 
-智能体会通过本地 shell 运行 `okfh --json`。例如：
+宿主入口会通过本地 shell 调用与版本无关的启动器；启动器再委托给工作区固定的准确运行时。例如：
 
-- 首次设置会通过全局引导入口解析工作区集合、确认写入、调用 `okfh init` 并传入当前智能体的适配器（Adapter），然后返回智能体上下文刷新（Agent context refresh）指引
-- ingest 调用 `okfh source add` 和 `okfh ingest plan`
+- 首次设置会解析工作区集合、确认写入、通过按需运行时创建工作区，然后返回智能体上下文刷新（Agent context refresh）指引
+- ingest 会通过启动器委托 `source add` 和 `ingest plan`
 - 回答问题时使用 `okfh evidence`，只有需要跟随续读提示时才再执行一次受控的 `okfh read`
 - 验证工作区时使用 `okfh check`
 - 图谱报告使用 `okfh graph`
@@ -162,13 +162,13 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 ## 排查问题
 
-如果 `okf-harness-bootstrap` 入口缺失、版本漂移，或被同名非受管理技能（Skill）阻挡，运行：
+如果 `okf-harness` 入口缺失、版本漂移，或被同名非受管理技能（Skill）阻挡，运行：
 
 ```bash
-okfh doctor --json
+npx --yes --package @okf-harness/cli@latest okfh doctor --json
 ```
 
-`doctor` 会分别报告运行时、原生集成、旧式引导 fallback 和工作区检查。`okfh bootstrap status|repair --agents codex|claude|all --json` 只用于 Claude/Codex 适配器的高级旧式 fallback 修复；主要的首次设置流程是 setup 加上上面的智能体提示词。
+`doctor` 会分别报告运行时、原生集成、宿主入口和工作区检查。`okfh bootstrap status|repair --agents codex|claude|all --json` 只用于 Claude/Codex 的高级 fallback 修复；主要设置流程是 setup 加上上面的智能体提示词。
 
 ## 文档
 

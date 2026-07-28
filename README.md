@@ -56,9 +56,9 @@ Already have Node.js 22 or newer?
 npx @okf-harness/setup@latest
 ```
 
-Normal use needs Node.js 22 or newer, the workspace recovery dependency checked by setup, the shared `okfh` runtime, and at least one supported agent integration. Repository development additionally needs `pnpm`.
+Normal use needs Node.js 22 or newer, the workspace recovery dependency checked by setup, npm access for the first use of each pinned runtime version, and at least one supported agent integration. Repository development additionally needs `pnpm`.
 
-Setup installs or updates the shared global `okfh` runtime after confirmation, detects supported agent clients, and installs the selected native integrations. Direct native install paths are available for users who already know their agent:
+Setup detects supported agent clients and installs the selected native integrations. It does not install a global `okfh`; the unified host entrypoint resolves each workspace's pinned runtime through the launcher. Direct native install paths are available for users who already know their agent:
 
 | Agent | Native install command |
 |---|---|
@@ -69,9 +69,9 @@ Setup installs or updates the shared global `okfh` runtime after confirmation, d
 | Hermes Agent | `hermes skills tap add pumblus/okf-harness && hermes skills install pumblus/okf-harness/okf-harness` |
 | OpenClaw | `openclaw skills install @pumblus/okf-harness --global` |
 
-Advanced direct CLI runtime installation is documented in the CLI reference. It does not write agent bootstrap entrypoints.
+Advanced direct CLI use is documented in the CLI reference. It does not write agent entrypoints.
 
-After setup, start from the global bootstrap entrypoint in your current agent. If that agent has workspace-local guidance, the bootstrap handoff tells you how to refresh into the workspace-local `okf-harness` entrypoint.
+After setup, use the same `okf-harness` entrypoint before and inside a workspace. Workspace-local guidance may add detail for supported agents, but it does not introduce another prefix.
 
 The recommended parent folder is only a convention, not a hidden CLI default. On macOS or Linux, use `$HOME/Documents/OKF Harness`. On Windows PowerShell, use `$env:USERPROFILE\Documents\OKF Harness`. On Command Prompt, use `%USERPROFILE%\Documents\OKF Harness`.
 
@@ -82,16 +82,16 @@ Use the OKF Harness entrypoint name exposed by the agent you already use. The en
 When copying a prompt below, replace the bracketed entrypoint with your agent's actual invocation.
 
 ```text
-<okf-harness-bootstrap> Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
+<okf-harness> Set up a workspace for my AI research notes in my Documents folder.
 ```
 
-After setup or workspace selection, work inside the workspace with the workspace-local entrypoint:
+Use the same prefix inside the workspace:
 
 ```text
 <okf-harness> Check this workspace and tell me whether it is ready.
 ```
 
-Bootstrap can also discover or select a workspace from a local workspace collection and repair current-agent setup for the selected workspace. It does not synthesize wiki content, migrate non-empty non-workspace folders, or write global root guidance files.
+The entrypoint can discover or select a workspace from a local workspace collection, repair supported workspace-local guidance, and route daily maintenance internally. It never claims a workspace-local adapter was installed when only the host integration is present.
 
 For a transient diagnostic command:
 
@@ -142,10 +142,10 @@ The product stays narrow on purpose: local files, terminal-native commands, boun
 
 ## What Happens Behind The Scenes
 
-The agent uses `okfh --json` through your local shell. For example:
+The host entrypoint invokes the version-independent launcher through your local shell; the launcher delegates to the exact runtime pinned by the workspace. For example:
 
-- first setup uses the global bootstrap entrypoint to resolve the workspace collection, confirm writes, call `okfh init` with the current agent adapter, and return agent context refresh guidance
-- ingest calls `okfh source add` and `okfh ingest plan`
+- first setup resolves the workspace collection, confirms writes, runs workspace creation through an on-demand runtime, and returns agent context refresh guidance
+- ingest delegates `source add` and `ingest plan` through the launcher
 - answers use `okfh evidence`, then at most one bounded `okfh read` when a continuation cue is needed
 - validation uses `okfh check`
 - graph reports use `okfh graph`
@@ -162,13 +162,13 @@ okfh graph --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 
 ## Troubleshooting
 
-If the `okf-harness-bootstrap` entrypoint is missing, stale, or blocked by an unmanaged same-name skill, run:
+If the `okf-harness` entrypoint is missing, stale, or blocked by an unmanaged same-name skill, run:
 
 ```bash
-okfh doctor --json
+npx --yes --package @okf-harness/cli@latest okfh doctor --json
 ```
 
-`doctor` reports runtime, native integration, legacy bootstrap fallback, and workspace checks separately. Use `okfh bootstrap status|repair --agents codex|claude|all --json` only as advanced legacy fallback repair tooling for Claude/Codex adapters; the primary first-setup workflow is setup plus the agent prompt above.
+`doctor` reports runtime, native integration, host entrypoint, and workspace checks separately. Use `okfh bootstrap status|repair --agents codex|claude|all --json` only as advanced fallback repair tooling for Claude/Codex; the primary setup workflow is setup plus the agent prompt above.
 
 ## Docs
 

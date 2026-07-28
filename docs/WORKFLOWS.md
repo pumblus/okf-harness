@@ -40,33 +40,31 @@ Already have Node.js 22 or newer?
 npx @okf-harness/setup@latest
 ```
 
-Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; the workspace recovery dependency checked by setup; the shared `okfh` runtime; and a supported native agent integration. `pnpm` is only for repository development.
+Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; the workspace recovery dependency checked by setup; npm access for the first use of each pinned runtime version; and a supported native agent integration. `pnpm` is only for repository development.
 
 ## Start With Your Agent
 
-Use the OKF Harness entrypoint name for your current agent. The name is stable; the invocation syntax belongs to the agent. Codex usually uses `$okf-harness`, Claude Code usually uses `/okf-harness`, and other native integrations expose their available OKF Harness entrypoint through their own skill or plugin UI. Some v0.6 native integrations expose only `okf-harness-bootstrap` until a workspace-local adapter exists.
+Use the OKF Harness entrypoint name for your current agent. Codex usually uses `$okf-harness`, Claude Code usually uses `/okf-harness`, and other native integrations expose `okf-harness` through their skill or plugin UI.
 
-The examples below use `<okf-harness-bootstrap>` and `<okf-harness>` for those entrypoints. Before a workspace exists, use the global bootstrap entrypoint installed by setup or a native integration. After setup or selection, bootstrap either hands off to the workspace-local `okf-harness` entrypoint or tells you the supported next step for that agent.
-
-No workspace yet:
+The same prefix works before and inside a workspace:
 
 ```text
-<okf-harness-bootstrap> Set up a workspace for my AI research notes in my Documents folder, then tell me how to refresh this agent context.
+<okf-harness> Set up a workspace for my AI research notes in my Documents folder.
 ```
 
-Bootstrap should discover or select an existing workspace from a shallow local workspace collection when possible. If none is selected, it should perform current-agent setup: infer the display name, target folder, and current agent, then ask before persistent writes when details are missing or ambiguous. Workspace recovery is established automatically and remains internal. When the current agent has a workspace-local adapter, bootstrap can call `okfh init` with that adapter. Today the workspace-local adapters are `codex` and `claude`; other native integrations use their bootstrap surface until a workspace adapter exists.
+The entrypoint first invokes the launcher. If no workspace resolves, it discovers a shallow local workspace collection or creates a workspace after inferring the display name, target folder, and current agent. If a workspace resolves, it routes directly to check, ingest, reconciliation, answer, graph, or repair work. A missing runtime pin is handled by running the launcher's exact adopt command and retrying; no global `okfh` is required.
 
-After setup, bootstrap should repair workspace-local guidance when that agent supports it and give an agent context refresh hint, usually opening a fresh agent session from the workspace folder so the client can load the new guidance.
-
-Bootstrap is not the daily workflow. It should not synthesize wiki content, migrate non-empty non-workspace folders, write global root guidance files, or promise unsupported agent clients.
+Workspace-local adapters remain available for Claude Code and Codex and may add workspace-specific guidance under the same name. Other native integrations keep using the host-level entrypoint for daily work; the skill does not claim that a workspace-local adapter was installed for them.
 
 To verify first start end to end:
 
 1. Run setup in a clean environment.
 2. Open a supported agent.
-3. Confirm `okf-harness-bootstrap` is discoverable in that agent.
-4. Use it to create one empty workspace for the current agent.
-5. Follow the refresh handoff and confirm the workspace-local `okf-harness` entrypoint is available when that agent supports workspace-local guidance.
+3. Confirm `okf-harness` is discoverable.
+4. Use it to create one empty workspace.
+5. From inside that workspace, use the same prefix to run a check.
+
+For readability, command blocks below show the delegated runtime's `okfh` form. The host skill never searches `PATH` for that command; it passes the same arguments through `npx @okf-harness/setup@latest launch`.
 
 ## Add A Source
 
@@ -207,15 +205,15 @@ okfh agent install claude --workspace <workspace> --json
 
 Use the command that matches the current workspace adapter. Use `all` only when you explicitly ask for both workspace adapters. Use `--force` only after reviewing conflicts. For native integrations without a workspace adapter, use setup or the host integration's repair flow instead.
 
-## Troubleshoot Bootstrap
+## Troubleshoot The Entrypoint
 
-If the `okf-harness-bootstrap` entrypoint is missing, stale, or blocked by unmanaged same-name content, run:
+If the `okf-harness` entrypoint is missing, stale, or blocked by unmanaged same-name content, run:
 
 ```bash
-okfh doctor --json
+npx --yes --package @okf-harness/cli@latest okfh doctor --json
 ```
 
-`doctor` reports runtime, native integration, legacy bootstrap fallback, and workspace checks separately. Use `okfh bootstrap status|repair --agents codex|claude|all --json` as advanced legacy Claude Code and Codex fallback repair tooling, not as the primary first-setup workflow.
+`doctor` reports runtime, native integration, host entrypoint, and workspace checks separately. Use `okfh bootstrap status|repair --agents codex|claude|all --json` as advanced Claude Code and Codex fallback repair tooling, not as the primary setup workflow.
 
 ## What Goes Where
 

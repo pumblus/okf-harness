@@ -4,15 +4,9 @@ Command-line package for OKF Harness local workspaces. It provides the `okfh` co
 
 OKF Harness is an independent open-source project built on Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern and Google's [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) / [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 
-Most users should start from the recommended setup flow in the main README. This package is the shared `okfh` runtime for setup, native integrations, scripting, and advanced diagnostics.
+Most users should start from the recommended setup flow in the main README. Workspaces pin this runtime package exactly, and the host skill resolves it on demand through `@okf-harness/setup`.
 
-Advanced direct runtime install:
-
-```bash
-npm install -g @okf-harness/cli
-```
-
-Try without a global install:
+Try a transient diagnostic without a global install:
 
 ```bash
 npx --package @okf-harness/cli okfh doctor --json
@@ -20,7 +14,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 Runtime requirements are macOS, Windows, or Linux; Node.js 22 or newer; the workspace recovery dependency checked by `okfh doctor --json`; and this package. Repository development additionally requires `pnpm` and can be checked with `okfh doctor --dev --json`.
 
-Direct CLI install does not write agent bootstrap entrypoints. Use `@okf-harness/setup` or a native agent integration for ordinary first setup, and use `okfh doctor --json` or `okfh bootstrap` only when diagnostics or legacy fallback repair need the CLI.
+Direct CLI use does not write the unified host entrypoint. Use `@okf-harness/setup` or a native agent integration for ordinary setup, and use `okfh doctor --json` or the compatibility-named `okfh bootstrap` only for diagnostics or advanced fallback repair.
 
 Common commands:
 

@@ -18,6 +18,6 @@ npx @okf-harness/setup@latest launch --workspace "/path/to/workspace" -- status 
 
 Arguments after `--` pass to `okfh` unchanged. A direct runtime result means `DELEGATED`; its exit code and streams pass through unchanged. Launcher-only failures are JSON on stderr with a closed outcome code and, when a runtime cannot be fetched or executed, the attempted invocation. `RUNTIME_PIN_MISSING` returns `data.adoptCommand` as an exact executable-and-arguments object.
 
-Setup checks Node.js 22+, detects supported agent clients on `PATH`, installs or updates the shared global `okfh` runtime when needed, verifies it with grouped `okfh doctor --json` output, and keeps `--dry-run` local-only with no network checks or filesystem writes. Workspace doctor warnings are reported but do not fail setup.
+Setup checks Node.js 22+, detects supported agent clients on `PATH`, installs selected native integrations containing the unified `okf-harness` host entrypoint, and keeps `--dry-run` local-only with no network checks or filesystem writes. It never installs a global `okfh`; workspace operations resolve their pinned runtime through `launch`.
 
 For project overview, workflows, and security notes, see the [main repository README](https://github.com/pumblus/okf-harness#readme).

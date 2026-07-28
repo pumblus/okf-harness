@@ -1,6 +1,6 @@
 # OKF Harness Native Integration
 
-This package exposes the global `okf-harness-bootstrap` integration for Pi, OpenCode, and OpenClaw.
+This package exposes the unified `okf-harness` host entrypoint for Pi, OpenCode, and OpenClaw.
 
 ## Install
 
@@ -16,12 +16,8 @@ opencode plugin @pumblus/okf-harness --global
 openclaw skills install @pumblus/okf-harness --global
 ```
 
-The package does not install or update the OKF Harness runtime. If `okfh` is missing, run Universal setup:
-
-```bash
-npx @okf-harness/setup@latest
-```
+The entrypoint invokes the version-independent launcher, which resolves each workspace's pinned Harness runtime on demand. Nothing is installed globally.
 
 ## Scope
 
-The native package only exposes `okf-harness-bootstrap`. Daily workspace-local OKF Harness skills remain installed by the runtime when a workspace supports that agent adapter.
+The host entrypoint handles workspace setup and daily maintenance. This package does not install workspace-local adapters for Pi, OpenCode, or OpenClaw.

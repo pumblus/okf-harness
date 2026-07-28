@@ -27,7 +27,7 @@ This file refines the root `AGENTS.md` for `packages/cli`.
 ## Hotspots
 
 - `packages/cli/src/index.ts` owns terminal-native command registration and connects core with agent-pack.
-- `packages/cli/test/bootstrap.test.ts` owns global bootstrap and adapter install contract coverage.
+- `packages/cli/test/bootstrap.test.ts` owns unified host entrypoint and adapter install contract coverage.
 - `packages/cli/test/helpers.ts` owns shared temp-workspace and JSON helpers.
 - Split command-domain tests instead of growing one catch-all test file.
 - If a command adds or changes JSON fields, update tests and public CLI docs together.

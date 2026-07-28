@@ -21,7 +21,7 @@ This file is the canonical agent guide for OKF Harness. Runtime-specific files s
 - For source ingestion behavior, copy source files and record hashes; never move or rewrite the user's originals.
 - For write-capable CLI behavior, support dry-run or a pending action before overwriting files.
 - The root package stays private. Publish only package manifests that explicitly declare public package metadata.
-- Runtime integrations have two surfaces: workspace-local adapters and native host bootstrap packages. Do not treat native bootstrap support as workspace-local daily adapter support unless the CLI and docs both expose it.
+- Runtime integrations have two surfaces: workspace-local adapters and the unified native host entrypoint. Do not claim a native package installs a workspace-local adapter unless the CLI and docs expose one.
 
 ## Repository map
 
@@ -31,7 +31,7 @@ This file is the canonical agent guide for OKF Harness. Runtime-specific files s
 | `packages/cli` | `okfh` command registration, terminal UX, JSON contracts, CLI integration | `packages/cli/AGENTS.md` | `pnpm test packages/cli/test && pnpm typecheck` |
 | `packages/agent-pack` | Claude/Codex adapter renderers, shared templates, managed guidance blocks | `packages/agent-pack/AGENTS.md` | `pnpm test packages/agent-pack/test && pnpm typecheck` |
 | `packages/setup` | Universal setup package, setup plans, runtime install/update flow, selected native integration installs | `packages/setup/AGENTS.md` | `pnpm test packages/setup/test && pnpm typecheck` |
-| `packages/native-integration` | Native host bootstrap package and global `okf-harness-bootstrap` | `packages/native-integration/AGENTS.md` | `pnpm test packages/native-integration/test && pnpm smoke:tarball` |
+| `packages/native-integration` | Pi, OpenCode, and OpenClaw package for the unified host-level `okf-harness` entrypoint | `packages/native-integration/AGENTS.md` | `pnpm test packages/native-integration/test && pnpm smoke:tarball` |
 | `docs` | Public docs, ADRs, product and website roadmaps, repo-local agent workflow docs | `docs/AGENTS.md` | Check links, command names, and matching zh-CN docs when applicable |
 
 ## Agent skills

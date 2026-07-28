@@ -40,33 +40,31 @@ irm https://okf-harness.dev/install.ps1 | iex
 npx @okf-harness/setup@latest
 ```
 
-普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、由 setup 检查的工作区恢复依赖、共享的 `okfh` 运行时，以及一个受支持的原生智能体集成。`pnpm` 只用于仓库开发。
+普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、由 setup 检查的工作区恢复依赖、首次使用每个固定运行时版本时可访问 npm，以及一个受支持的原生智能体集成。`pnpm` 只用于仓库开发。
 
 ## 从你的智能体开始
 
-使用当前智能体的 OKF Harness 入口名。入口名是稳定的，具体调用语法由智能体决定。Codex 通常使用 `$okf-harness`，Claude Code 通常使用 `/okf-harness`，其他原生集成会通过自己的 skill 或 plugin UI 暴露可用的 OKF Harness 入口。有些 v0.6 原生集成在工作区本地适配器出现前只暴露 `okf-harness-bootstrap`。
+使用当前智能体的 OKF Harness 入口名。Codex 通常使用 `$okf-harness`，Claude Code 通常使用 `/okf-harness`，其他原生集成会通过自己的 skill 或 plugin UI 暴露 `okf-harness`。
 
-下面的示例用 `<okf-harness-bootstrap>` 和 `<okf-harness>` 表示这些入口。还没有工作区时，使用 setup 或原生集成安装的全局引导入口。完成设置或选择工作区后，引导入口会把你交给工作区本地的 `okf-harness` 入口，或告诉你当前智能体支持的下一步。
-
-还没有工作区：
+创建工作区前和进入工作区后都使用同一个前缀：
 
 ```text
-<okf-harness-bootstrap> 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区，然后告诉我如何刷新当前智能体上下文。
+<okf-harness> 在我的 Documents 文件夹中为我的 AI 研究笔记设置一个工作区。
 ```
 
-全局引导入口会先从浅层本地工作区集合（Workspace collection）中发现或选择已有工作区。没有选中工作区时，再进入当前智能体设置（Current-agent setup）：推断显示名称、目标目录和当前智能体；细节缺失或有歧义时先询问，再做持久写入。工作区恢复会自动建立，并作为内部机制保持隐藏。当当前智能体有工作区本地适配器（Workspace-local adapter）时，引导入口可以用对应适配器调用 `okfh init`。目前工作区本地适配器是 `codex` 和 `claude`；其他原生集成在工作区适配器出现前使用自己的引导入口。
+入口会先调用启动器。没有解析到工作区时，它会从浅层本地工作区集合中发现工作区，或在推断显示名称、目标目录和当前智能体后创建工作区。解析到工作区时，它会直接路由到检查、ingest、对账、回答、图谱或修复。缺少运行时固定版本时，它会执行启动器返回的准确 adopt 命令并重试；无需全局 `okfh`。
 
-设置完成后，如果该智能体支持工作区本地指引，全局引导入口会修复它，并返回智能体上下文刷新（Agent context refresh）提示。通常是让你从工作区文件夹开启新的智能体会话，让客户端加载新的指引。
-
-全局引导入口不是日常工作流。它不应整理 Wiki 内容、迁移非空的非工作区目录、写入全局根指引文件，或承诺不支持的智能体客户端。
+Claude Code 和 Codex 的工作区本地适配器保持可用，并可在同名入口下补充工作区指引。其他原生集成继续通过宿主入口完成日常工作；该技能不会声称已经为它们安装工作区本地适配器。
 
 要端到端检查首次启动，可以按这五步操作：
 
 1. 在干净环境中运行 setup。
 2. 打开一个受支持智能体。
-3. 确认当前智能体能发现 `okf-harness-bootstrap`。
-4. 用它为当前智能体创建一个空工作区。
-5. 按刷新指引操作，并在该智能体支持工作区本地指引时，确认从工作区文件夹能使用 `okf-harness` 入口。
+3. 确认当前智能体能发现 `okf-harness`。
+4. 用它创建一个空工作区。
+5. 进入该工作区后，用同一个前缀运行检查。
+
+为便于阅读，下面的命令块展示委托后运行时一侧的 `okfh` 形式。宿主技能不会在 `PATH` 中查找该命令，而是通过 `npx @okf-harness/setup@latest launch` 传递相同参数。
 
 ## 添加资料
 
@@ -207,15 +205,15 @@ okfh agent install claude --workspace <workspace> --json
 
 使用与当前工作区适配器匹配的命令。只有在你明确要求同时准备两个工作区适配器时，才使用 `all`。仅在检查冲突后使用 `--force`。对于没有工作区适配器的原生集成，使用 setup 或该宿主集成自己的修复流程。
 
-## 排查引导入口
+## 排查入口
 
-如果 `okf-harness-bootstrap` 入口缺失、版本漂移，或被同名非受管理内容阻挡，运行：
+如果 `okf-harness` 入口缺失、版本漂移，或被同名非受管理内容阻挡，运行：
 
 ```bash
-okfh doctor --json
+npx --yes --package @okf-harness/cli@latest okfh doctor --json
 ```
 
-`doctor` 会分别报告运行时、原生集成、旧式引导 fallback 和工作区检查。`okfh bootstrap status|repair --agents codex|claude|all --json` 是高级 Claude Code 和 Codex 旧式 fallback 修复工具，不是主要的首次设置流程。
+`doctor` 会分别报告运行时、原生集成、宿主入口和工作区检查。`okfh bootstrap status|repair --agents codex|claude|all --json` 是高级 Claude Code 和 Codex fallback 修复工具，不是主要设置流程。
 
 ## 文件结构
 

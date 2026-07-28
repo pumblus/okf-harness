@@ -4,15 +4,9 @@ npm 包名为 `@okf-harness/cli`。安装后可用 `okfh` 命令，也提供了 
 
 [English](../CLI.md) | 中文
 
-## 安装
+## 直接运行
 
-多数用户应使用 [README](../../README.zh-CN.md) 中的推荐 setup 命令。直接安装 CLI 是高级 runtime-only 路径：
-
-```bash
-npm install -g @okf-harness/cli
-```
-
-临时诊断命令：
+多数用户应使用 [README](../../README.zh-CN.md) 中的推荐 setup 流程。工作区会通过启动器运行自己固定的包版本。临时诊断可以使用：
 
 ```bash
 npx --package @okf-harness/cli okfh doctor --json
@@ -25,11 +19,11 @@ npx --package @okf-harness/cli okfh doctor --json
 - macOS、Windows 或 Linux
 - Node.js 22 或更高版本
 - 工作区恢复依赖（由 setup 或 `okfh doctor --json` 检查）
-- `@okf-harness/cli`
+- 首次获取某个固定运行时版本时可访问 npm
 
 参与仓库开发时额外需要 `pnpm`；用 `okfh doctor --dev --json` 检查开发环境。
 
-普通首次设置应从 `@okf-harness/setup` 或原生智能体集成开始。直接安装 CLI 不会写入智能体引导入口。
+普通首次设置应从 `@okf-harness/setup` 或原生智能体集成开始。直接使用 CLI 不会写入统一宿主入口。
 
 ## 工作区规则
 
@@ -66,7 +60,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 ### doctor
 
-检查 CLI 运行环境、Node.js、工作区恢复依赖、运行平台、原生宿主 CLI 检测、旧式引导 fallback 状态，以及可解析到工作区时的工作区就绪状态。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
+检查 CLI 运行环境、Node.js、工作区恢复依赖、运行平台、原生宿主 CLI 检测、统一宿主入口状态，以及可解析到工作区时的工作区就绪状态。`pnpm` 只在参与仓库开发时需要，并由 `--dev` 检查。
 
 ```bash
 okfh doctor --json
@@ -76,7 +70,7 @@ okfh doctor --dev --json
 
 `doctor` 不会写入任何文件。
 
-JSON 输出中，`data.checks` 仍保留兼容用的扁平列表。`data.groups` 会把检查拆成 `runtime`、`nativeIntegrations`、`legacyBootstrapFallback` 和 `workspace`。`nativeIntegrations` 组报告宿主 CLI 检测；它不表示宿主已经验证 OKF Harness 原生集成安装状态。
+JSON 输出中，`data.checks` 仍保留兼容用的扁平列表。`data.groups` 会把检查拆成 `runtime`、`nativeIntegrations`、`legacyBootstrapFallback` 和 `workspace`。历史键 `legacyBootstrapFallback` 现在报告 Claude Code 和 Codex 的宿主入口；`nativeIntegrations` 只报告宿主 CLI 检测，不表示原生集成已安装。
 
 ### init
 
@@ -141,7 +135,7 @@ okfh agent install all --workspace "$HOME/Documents/OKF Harness/ai-research" --j
 
 ### bootstrap
 
-高级诊断和修复工具，用于 Claude Code 和 Codex 的旧式受管理全局引导入口。它不是主要的首次设置流程；常规设置从 `@okf-harness/setup` 或原生智能体集成开始。
+用于 Claude Code 和 Codex 统一宿主级 `okf-harness` 技能的高级诊断和修复工具。命令名为兼容性保留；常规设置从 `@okf-harness/setup` 或原生智能体集成开始。
 
 ```bash
 okfh bootstrap install --agents codex --json
@@ -152,7 +146,7 @@ okfh bootstrap repair --agents codex --json
 okfh bootstrap uninstall --agents codex --json
 ```
 
-使用 `--agents codex`、`--agents claude` 或 `--agents all`。`status` 会报告 `missing`、`installed`、`version-drifted`、`unmanaged-conflict` 或 `unwritable-target`。`install` 和 `repair` 会创建缺失的受管理文件，或替换发生漂移的受管理文件；遇到同名非受管理内容会拒绝覆盖，遇到不可读或不可写的 bootstrap 目标会报告状态而不是抛出通用错误。`uninstall` 只删除受管理的 bootstrap 文件，遇到同名非受管理内容也会拒绝删除。对 `install`、`repair` 或 `uninstall` 使用 `--dry-run --json` 可以查看计划写入或删除的文件，不实际修改文件系统。
+使用 `--agents codex`、`--agents claude` 或 `--agents all`。`status` 会报告 `missing`、`installed`、`version-drifted`、`unmanaged-conflict` 或 `unwritable-target`。`install` 和 `repair` 会创建或更新受管理的 `okf-harness` 宿主技能，并删除已退役且受管理的 `okf-harness-bootstrap` 目录。遇到同名非受管理内容时拒绝覆盖；遇到不可读或不可写的宿主目标时报告状态而不是抛出通用错误。`uninstall` 只删除受管理的宿主文件。对写操作使用 `--dry-run --json` 可以查看计划写入或删除的文件。
 
 ### status
 

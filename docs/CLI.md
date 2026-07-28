@@ -4,15 +4,9 @@ English | [中文](zh-CN/CLI.md)
 
 The npm package is `@okf-harness/cli`. It installs the `okfh` command and the longer `okf-harness` alias. Documentation uses `okfh`.
 
-## Install
+## Run Directly
 
-Most users should use the recommended setup commands in the [README](../README.md). Direct CLI install is an advanced runtime-only path:
-
-```bash
-npm install -g @okf-harness/cli
-```
-
-Transient diagnostic command:
+Most users should use the recommended setup flow in the [README](../README.md). Workspaces run their pinned package version through the launcher. For a transient diagnostic:
 
 ```bash
 npx --package @okf-harness/cli okfh doctor --json
@@ -25,11 +19,11 @@ Requirements for normal use:
 - macOS, Windows, or Linux
 - Node.js 22 or newer
 - workspace recovery dependency (checked by setup or `okfh doctor --json`)
-- `@okf-harness/cli`
+- npm access when a pinned runtime version is first fetched
 
 Repository development additionally requires `pnpm`; check that environment with `okfh doctor --dev --json`.
 
-Normal first setup should start from `@okf-harness/setup` or a native agent integration. Direct CLI install does not write agent bootstrap entrypoints.
+Normal first setup should start from `@okf-harness/setup` or a native agent integration. Direct CLI use does not write the unified host entrypoint.
 
 ## Workspace Rules
 
@@ -66,7 +60,7 @@ For workspace `status` and `check`, `next` reports the top-priority Workspace ne
 
 ### doctor
 
-Checks the running CLI, Node.js, the workspace recovery dependency, runtime platform, native host CLI detection, legacy bootstrap fallback status, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
+Checks the running CLI, Node.js, the workspace recovery dependency, runtime platform, native host CLI detection, unified host entrypoint status, and workspace readiness when a workspace can be resolved. `pnpm` is required only for repository development and is checked by `--dev`.
 
 ```bash
 okfh doctor --json
@@ -76,7 +70,7 @@ okfh doctor --dev --json
 
 `doctor` does not write files.
 
-In JSON output, `data.checks` remains the flat compatibility list. `data.groups` separates `runtime`, `nativeIntegrations`, `legacyBootstrapFallback`, and `workspace` checks. The `nativeIntegrations` group reports host CLI detection; it does not claim the host has verified the OKF Harness native integration install state.
+In JSON output, `data.checks` remains the flat compatibility list. `data.groups` separates `runtime`, `nativeIntegrations`, `legacyBootstrapFallback`, and `workspace` checks. The historical `legacyBootstrapFallback` key now reports the Claude Code and Codex host entrypoints; `nativeIntegrations` reports host CLI detection and does not claim the native integration is installed.
 
 ### init
 
@@ -141,7 +135,7 @@ Use the current workspace adapter by default. Use `all` only when you explicitly
 
 ### bootstrap
 
-Advanced diagnostic and repair tooling for legacy managed global bootstrap entrypoints for Claude Code and Codex. This is not the primary first-setup workflow; normal setup starts from `@okf-harness/setup` or a native agent integration.
+Advanced diagnostic and repair tooling for the unified host-level `okf-harness` skill in Claude Code and Codex. The command name remains for compatibility; normal setup starts from `@okf-harness/setup` or a native agent integration.
 
 ```bash
 okfh bootstrap install --agents codex --json
@@ -152,7 +146,7 @@ okfh bootstrap repair --agents codex --json
 okfh bootstrap uninstall --agents codex --json
 ```
 
-Use `--agents codex`, `--agents claude`, or `--agents all`. `status` reports `missing`, `installed`, `version-drifted`, `unmanaged-conflict`, or `unwritable-target`. `install` and `repair` create missing managed files or replace managed drift. They refuse unmanaged same-name content and report unreadable or unwritable bootstrap targets instead of throwing. `uninstall` removes only managed bootstrap files and also refuses unmanaged same-name content. Use `--dry-run --json` with `install`, `repair`, or `uninstall` to inspect planned writes or removals without changing files.
+Use `--agents codex`, `--agents claude`, or `--agents all`. `status` reports `missing`, `installed`, `version-drifted`, `unmanaged-conflict`, or `unwritable-target`. `install` and `repair` create or update the managed `okf-harness` host skill and remove the retired managed `okf-harness-bootstrap` directory. They refuse unmanaged same-name content and report unreadable or unwritable host targets instead of throwing. `uninstall` removes only managed host files. Use `--dry-run --json` with write-capable actions to inspect planned writes or removals.
 
 ### status
 

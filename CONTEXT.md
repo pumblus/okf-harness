@@ -45,12 +45,12 @@ The recommended README entry style where a person uses the current agent client'
 _Avoid_: CLI command, hidden automatic routing, adapter jargon
 
 **Unified agent entrypoint**:
-The single OKF Harness workflow entrypoint exposed to an agent client, named `okf-harness`. It lets a person use one stable prefix while the guidance routes setup, check, ingest, answer, and graph intents internally.
+The single OKF Harness workflow entrypoint exposed to an agent client, named `okf-harness`. It exists before a workspace is selected and keeps the same prefix inside one while routing setup, check, ingest, reconciliation, answer, and graph intents internally.
 _Avoid_: multiple user-facing workflow skills, command menu, CLI alias
 
-**Global bootstrap entrypoint**:
-The low-frequency discoverable `okf-harness-bootstrap` entrypoint available before a person has selected or entered a specific OKF Harness workspace. It supports setup, workspace discovery or selection, guidance repair, and handoff into workspace-local work without making the person learn CLI commands.
-_Avoid_: global workspace, CLI installer, hidden account
+**Host-level entrypoint**:
+The host-installed copy of the unified `okf-harness` skill. It invokes the runtime launcher, routes workspace creation when none resolves, and handles daily work inside a resolved workspace without implying that a workspace-local adapter was installed.
+_Avoid_: workspace-local adapter, global runtime, bootstrap-only skill
 
 **Workspace-local entrypoint**:
 The high-frequency `okf-harness` entrypoint loaded from a specific OKF Harness workspace's agent guidance. It handles workspace operations such as check, ingest, answer, and graph after the workspace context is selected.
@@ -73,7 +73,7 @@ A natural-language request made inside an agent context where OKF Harness is alr
 _Avoid_: command-shaped prompt, product-name repetition, adapter jargon
 
 **Current-agent setup**:
-The setup experience where OKF Harness prepares guidance for the agent client the person is already using. The person should not need to choose adapter names during normal setup; global bootstrap may prepare every detected client for bootstrap, but workspace-local setup repairs only the current agent unless the person explicitly asks for more.
+The setup experience where OKF Harness prepares guidance for the agent client the person is already using. The person should not need to choose adapter names during normal setup; universal setup may prepare every selected host integration, but workspace-local setup repairs only the current agent unless the person explicitly asks for more.
 _Avoid_: adapter selection, install all adapters by default, user-facing runtime setup, enablement toggle
 
 **Agent context refresh**:
@@ -113,7 +113,7 @@ The operating-system-independent local directory managed by OKF Harness around o
 _Avoid_: OKF workspace, Obsidian vault, project repo, global knowledge base
 
 **Workspace collection**:
-The set of separate OKF Harness workspaces a person keeps on one machine. It is a loose local organization pattern that bootstrap may inspect from a parent folder, not a global database, registry, or synchronized account.
+The set of separate OKF Harness workspaces a person keeps on one machine. It is a loose local organization pattern that the host entrypoint may inspect from a parent folder, not a global database, registry, or synchronized account.
 _Avoid_: global workspace, account, cloud library
 
 **Workspace plan**:
@@ -308,12 +308,12 @@ _Avoid_: schema, documentation, wiki content
 The rendered set of agent guidance files for a specific agent client, such as Claude Code or Codex. An adapter translates shared OKF Harness workflows into the conventions that client can discover and use.
 _Avoid_: agent client, plugin, integration
 
-**Harness runtime install**:
-The installation of the local OKF Harness command runtime that agent clients ultimately use for deterministic workspace operations. It is the shared capability layer behind agent-facing setup, not the primary product story for ordinary agent-first users.
-_Avoid_: agent install, plugin install, onboarding
+**Harness runtime execution**:
+The on-demand execution of the exact OKF Harness runtime version pinned by a workspace. The host skill reaches it through the version-independent launcher rather than a global install.
+_Avoid_: agent install, plugin install, global runtime
 
 **Universal setup**:
-The broad setup path for people who use multiple agent clients or do not know which agent integration they need. It detects supported agent clients, prepares the shared Harness runtime, and offers agent integrations without making the person choose a technical package first.
+The broad setup path for people who use multiple agent clients or do not know which agent integration they need. It detects supported agent clients and offers native integrations containing the unified host entrypoint without installing a global Harness runtime.
 _Avoid_: CLI install, native plugin, workspace setup
 
 **Setup plan**:
@@ -329,15 +329,15 @@ A supported agent client shown by universal setup even when it is not present on
 _Avoid_: hidden bootstrap, placeholder integration, preinstall
 
 **Native agent integration**:
-A host-specific distribution path, such as a plugin, extension, skill package, or package manager entry, that makes OKF Harness discoverable inside one agent client. It may prepare or verify the shared Harness runtime, but it should not replace the runtime contract.
-_Avoid_: Harness runtime, custom agent runtime, adapter
+A host-specific distribution path, such as a plugin, extension, skill package, or package manager entry, that installs the unified host-level `okf-harness` entrypoint into one agent client. It invokes the runtime launcher and remains distinct from a workspace-local adapter.
+_Avoid_: Harness runtime, custom agent runtime, workspace-local adapter
 
 **Native install command**:
 The concrete command or short command sequence that installs an OKF Harness native agent integration through the agent client's own plugin, extension, skill, or package mechanism. Universal setup should show this command before running it so the person can audit what will change.
 _Avoid_: hidden write, runtime command, workspace command
 
-**Bootstrap invocation example**:
-The exact user-facing phrase or command form a person should use in an agent client to start OKF Harness before a workspace exists. It is agent-specific and should only be shown when the invocation form has been verified for that client.
+**First-workspace invocation example**:
+The exact user-facing phrase or command form a person should use with `okf-harness` before a workspace exists. It is agent-specific and should only be shown when the invocation form has been verified for that client.
 _Avoid_: generic slash command, CLI command, assumed prefix
 
 **Manual integration option**:
