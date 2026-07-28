@@ -19,8 +19,8 @@ Create the first OKF Harness workspace for Claude Code from a parent folder.
 ## Allowed Commands
 
 ```bash
-npx --yes --package @okf-harness/cli@latest okfh init <workspace> --name <name> --agents claude --dry-run --json
-npx --yes --package @okf-harness/cli@latest okfh init <workspace> --name <name> --agents claude --json
+npx --yes --package @okf-harness/cli@0.6.0 okfh init <workspace> --name <name> --agents claude --dry-run --json
+npx --yes --package @okf-harness/cli@0.6.0 okfh init <workspace> --name <name> --agents claude --json
 npx @okf-harness/setup@latest launch --workspace <workspace> -- status --json
 ```
 

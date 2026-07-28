@@ -19,8 +19,8 @@ Create the first OKF Harness workspace for {{agentLabel}} from a parent folder.
 ## Allowed Commands
 
 ```bash
-npx --yes --package @okf-harness/cli@latest okfh init <workspace> --name <name> --agents {{agentAdapter}} --dry-run --json
-npx --yes --package @okf-harness/cli@latest okfh init <workspace> --name <name> --agents {{agentAdapter}} --json
+npx --yes --package @okf-harness/cli@{{runtimeVersion}} okfh init <workspace> --name <name> --agents {{agentAdapter}} --dry-run --json
+npx --yes --package @okf-harness/cli@{{runtimeVersion}} okfh init <workspace> --name <name> --agents {{agentAdapter}} --json
 npx @okf-harness/setup@latest launch --workspace <workspace> -- status --json
 ```
 

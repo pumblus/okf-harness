@@ -395,7 +395,8 @@ describe("@okf-harness/agent-pack", () => {
     expect(codexSetup).not.toMatch(/\b(?:git|commit|hash|branch)\b/i);
     expect(codexSetup).toContain("choose an empty directory or a new subdirectory");
     expect(codexSetup).toContain("data.refresh.commands");
-    expect(codexSetup).toContain("@okf-harness/cli@latest okfh init");
+    expect(codexSetup).toContain(`@okf-harness/cli@${packageJson.version} okfh init`);
+    expect(codexSetup).not.toContain("@okf-harness/cli@latest okfh init");
     expect(codexSetup).not.toContain("`okfh status --workspace");
 
     const codexDiscovery = fileContents(codex.files, discoveryReferencePath);

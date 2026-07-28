@@ -957,7 +957,7 @@ function renderHostSkillFiles(agent: BootstrapAgent, version: string): RenderedA
     },
     ...bootstrapReferenceTemplatePaths.map((templatePath) => ({
       path: `skills/${hostSkillName}/references/${templatePath}`,
-      contents: renderHostTemplate(`references/${templatePath}`, agent),
+      contents: renderHostTemplate(`references/${templatePath}`, agent, version),
     })),
   ];
 }
@@ -976,7 +976,7 @@ metadata:
   okf-harness-agent: "${agent}"
 ---
 
-${renderHostTemplate("SKILL.md", agent)}`;
+${renderHostTemplate("SKILL.md", agent, version)}`;
 }
 
 function readTemplate(relativePath: string): string {
@@ -990,11 +990,12 @@ function readHostTemplate(relativePath: string): string {
   );
 }
 
-function renderHostTemplate(relativePath: string, agent: BootstrapAgent): string {
+function renderHostTemplate(relativePath: string, agent: BootstrapAgent, version: string): string {
   const profile = bootstrapAgentProfiles[agent];
   return replaceTemplateVariables(readHostTemplate(relativePath), {
     agentAdapter: agent,
     agentLabel: profile.label,
+    runtimeVersion: version,
     sessionName: profile.sessionName,
     workspaceInvocation: `${profile.routePrefix}${skillName}`,
   });
