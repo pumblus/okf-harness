@@ -40,7 +40,7 @@ OKF Harness 是一个 agent 原生、文件契约优先、无需独立应用的�
 
 候选：
 
-- 为当前只暴露引导入口的原生集成补上工作区本地适配器
+- 为当前只有宿主级入口的原生集成补上工作区本地适配器
 - 跨客户端共享的适配器一致性测试
 - 每新增一个 adapter 时继续完善 supported-agent detection
 - 调研 Cursor、VS Code、Aider、Goose、Continue 和 GitHub Copilot coding agent

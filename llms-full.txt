@@ -1231,7 +1231,7 @@ Goal: support additional agent clients and deepen current integrations without w
 
 Candidates:
 
-- Workspace-local adapters for native integrations that currently expose only bootstrap.
+- Workspace-local adapters for native integrations that currently provide only the host-level entrypoint.
 - Adapter conformance tests shared across clients.
 - Improved supported-agent detection as each new adapter is added.
 - Investigation for Cursor, VS Code, Aider, Goose, Continue, and GitHub Copilot coding agent.
