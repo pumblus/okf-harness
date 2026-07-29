@@ -21,6 +21,8 @@ Requirements for normal use:
 - workspace recovery dependency (checked by setup or `okfh doctor --json`)
 - npm access when a pinned runtime version is first fetched
 
+Local-first describes where workspace files live, not an air-gap guarantee.
+
 Repository development additionally requires `pnpm`; check that environment with `okfh doctor --dev --json`.
 
 Normal first setup should start from `@okf-harness/setup` or a native agent integration. Direct CLI use does not write the unified host entrypoint.

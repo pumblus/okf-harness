@@ -42,6 +42,8 @@ npx @okf-harness/setup@latest
 
 Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; the workspace recovery dependency checked by setup; npm access for the first use of each pinned runtime version; and a supported native agent integration. `pnpm` is only for repository development.
 
+Local-first describes where workspace files live, not an air-gap guarantee.
+
 ## Start With Your Agent
 
 Use the OKF Harness entrypoint name for your current agent. Codex usually uses `$okf-harness`, Claude Code usually uses `/okf-harness`, and other native integrations expose `okf-harness` through their skill or plugin UI.

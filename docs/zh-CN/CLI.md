@@ -21,6 +21,8 @@ npx --package @okf-harness/cli okfh doctor --json
 - 工作区恢复依赖（由 setup 或 `okfh doctor --json` 检查）
 - 首次获取某个固定运行时版本时可访问 npm
 
+“本地优先”描述的是工作区文件存放在本机，不表示保证可在完全隔离网络（air-gapped）的环境中运行。
+
 参与仓库开发时额外需要 `pnpm`；用 `okfh doctor --dev --json` 检查开发环境。
 
 普通首次设置应从 `@okf-harness/setup` 或原生智能体集成开始。直接使用 CLI 不会写入统一宿主入口。

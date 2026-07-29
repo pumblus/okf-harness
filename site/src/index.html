@@ -865,8 +865,8 @@ okfh graph --workspace ./ai-research --json</code></pre>
           <p class="section-num">03 / Install</p>
           <h2 id="install-title" class="section-title">Use the installer path first.</h2>
           <p class="section-lede">
-            Setup installs or updates the shared <code>okfh</code> runtime after confirmation,
-            detects supported agent clients, and installs the selected native integrations.
+            Setup detects supported agent clients and installs the selected native integrations.
+            Each exposes the same <code>okf-harness</code> entrypoint and resolves workspace runtimes on demand.
           </p>
         </div>
 
@@ -961,11 +961,10 @@ okfh graph --workspace ./ai-research --json</code></pre>
             </dd>
           </div>
           <div class="faq-pair">
-            <dt>What does setup install?</dt>
+            <dt>Does it run fully offline?</dt>
             <dd>
-              Setup detects supported agent clients and installs the native integrations you
-              select. Each integration exposes the unified <code>okf-harness</code> entrypoint;
-              workspace runtimes are resolved on demand rather than installed globally.
+              No. Workspace files stay local, but the first use of each newly pinned runtime
+              version fetches that runtime once from npm.
             </dd>
           </div>
         </dl>

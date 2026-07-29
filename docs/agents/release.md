@@ -110,7 +110,6 @@ npm publish --access public
 After publishing:
 
 - Verify registry versions.
-- Verify the documented CLI install path when the release still documents one.
 - Verify documented setup package install paths when available in the release environment.
 - Verify documented native host integration install paths when available in the release environment.
 - Inspect the published `@pumblus/okf-harness` package contents for Pi, OpenCode, and OpenClaw entries.
@@ -123,14 +122,6 @@ After publishing:
 
 - Use the repository tag convention: `v{version}`.
 - Create no public `RELEASE.md`.
-- Before the v0.6 installer workflow ships, attach no extra release assets unless the release workflow intentionally adopts them.
-- Before the v0.6 installer workflow ships, keep the Install section to:
-
-```bash
-npm install -g @okf-harness/cli
-okfh doctor --json
-```
-
 - For v0.6.0 and later, attach `install.sh` and `install.ps1`, download both assets back, and verify they resolve to the intended setup version.
 - For v0.6.0 and later, keep the Install section to the recommended installer path. Do not list native, direct CLI, or `okfh bootstrap` commands there; link to docs for those.
 - Use the release title/body template from the root `AGENTS.md`.

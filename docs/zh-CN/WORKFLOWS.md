@@ -42,6 +42,8 @@ npx @okf-harness/setup@latest
 
 普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、由 setup 检查的工作区恢复依赖、首次使用每个固定运行时版本时可访问 npm，以及一个受支持的原生智能体集成。`pnpm` 只用于仓库开发。
 
+“本地优先”描述的是工作区文件存放在本机，不表示保证可在完全隔离网络（air-gapped）的环境中运行。
+
 ## 从你的智能体开始
 
 使用当前智能体的 OKF Harness 入口名。Codex 通常使用 `$okf-harness`，Claude Code 通常使用 `/okf-harness`，其他原生集成会通过自己的 skill 或 plugin UI 暴露 `okf-harness`。

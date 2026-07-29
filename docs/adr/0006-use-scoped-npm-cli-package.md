@@ -1,3 +1,5 @@
 # Use a scoped npm CLI package
 
-OKF Harness uses `@okf-harness/cli` as the npm package people install to get the `okfh` command, while `@okf-harness/core` and `@okf-harness/agent-pack` remain internal package-family members published for reuse. This keeps the release shape honest for a monorepo, while README copy explains that ordinary users install the CLI package once and then operate through Claude Code or Codex.
+_Status: package naming remains active; global CLI install guidance is superseded by the product-form migration in #90._
+
+OKF Harness uses `@okf-harness/cli` as the workspace runtime package that exposes the `okfh` command, while `@okf-harness/core` and `@okf-harness/agent-pack` remain package-family members published for reuse. This keeps the release shape honest for a monorepo, while public docs route ordinary users through universal setup and the pinned runtime launcher.

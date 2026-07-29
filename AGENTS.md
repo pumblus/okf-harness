@@ -96,7 +96,6 @@ okfh check --workspace <workspace> --json
 - A public release is not shipped until GitHub repository state, GitHub Release, npm registry state, package contents, and documented install commands are verified together.
 - Do not claim a release is shipped while README install commands can still fail.
 - Use `docs/agents/release.md` for the full release checklist.
-- Before the v0.6 installer workflow ships, release notes may keep the README global CLI install followed by `okfh doctor --json`.
 - For v0.6.0 and later, GitHub Releases attach `install.sh` and `install.ps1`; verify them by downloading the assets back before claiming installer publication.
 - For v0.6.0 and later, release body Install sections show the recommended installer path. Do not list native or direct CLI commands there; link to docs for those.
 

@@ -36,7 +36,9 @@ OKF Harness builds on:
 
 This repository is not affiliated with or endorsed by Andrej Karpathy or Google.
 
-## Before You Start
+## Install Once
+
+The recommended installer script for your operating system runs universal setup.
 
 If you're on macOS or Linux, run this script:
 
@@ -56,7 +58,9 @@ Already have Node.js 22 or newer?
 npx @okf-harness/setup@latest
 ```
 
-Normal use needs Node.js 22 or newer, the workspace recovery dependency checked by setup, npm access for the first use of each pinned runtime version, and at least one supported agent integration. Repository development additionally needs `pnpm`.
+Normal use needs Node.js 22 or newer, the workspace recovery dependency checked by setup, and at least one supported agent integration. Repository development additionally needs `pnpm`.
+
+OKF Harness is local-first, not air-gapped: workspace files stay on your machine, but the first use of each newly pinned runtime version fetches that runtime once from npm.
 
 Setup detects supported agent clients and installs the selected native integrations. It does not install a global `okfh`; the unified host entrypoint resolves each workspace's pinned runtime through the launcher. Direct native install paths are available for users who already know their agent:
 
