@@ -8,6 +8,7 @@ import { errorCode, isSourceId, readJsonlRows } from "./jsonl.js";
 import { safeSlug, titleFromFilename, titleFromUrl } from "./metadata.js";
 
 export const MANIFEST_INVALID = "MANIFEST_INVALID" as const;
+export const SOURCE_ADD_BUSY = "SOURCE_ADD_BUSY" as const;
 export const SOURCE_REGISTRATION_FAILED = "SOURCE_REGISTRATION_FAILED" as const;
 export const SOURCE_INPUT_NOT_FOUND = "SOURCE_INPUT_NOT_FOUND" as const;
 export const SOURCE_INPUT_UNSUPPORTED = "SOURCE_INPUT_UNSUPPORTED" as const;
@@ -78,25 +79,70 @@ export class SourceManagementError extends Error {
 export async function addSource(options: AddSourceOptions): Promise<SourceAddResult> {
   const workspaceRoot = path.resolve(options.workspaceRoot);
   const config = await loadWorkspaceConfig(workspaceRoot);
-  const manifest = await readSourceManifest(workspaceRoot, config);
-  if (manifest.issues.length > 0) {
-    throw new SourceManagementError("Source manifest contains invalid rows.", MANIFEST_INVALID);
-  }
+  const releaseLock =
+    options.dryRun === true ? undefined : await acquireSourceAddLock(workspaceRoot, config);
 
-  const now = options.now ?? new Date();
-  const url = parseHttpUrl(options.input);
-  if (url !== undefined) {
-    return addUrlSource({
+  try {
+    const manifest = await readSourceManifest(workspaceRoot, config);
+    if (manifest.issues.length > 0) {
+      throw new SourceManagementError("Source manifest contains invalid rows.", MANIFEST_INVALID);
+    }
+
+    const now = options.now ?? new Date();
+    const url = parseHttpUrl(options.input);
+    if (url !== undefined) {
+      return await addUrlSource({
+        workspaceRoot,
+        config,
+        input: options.input,
+        url,
+        now,
+        options,
+        manifest,
+      });
+    }
+    return await addFileSource({
       workspaceRoot,
       config,
       input: options.input,
-      url,
       now,
       options,
       manifest,
     });
+  } finally {
+    await releaseLock?.();
   }
-  return addFileSource({ workspaceRoot, config, input: options.input, now, options, manifest });
+}
+
+async function acquireSourceAddLock(
+  workspaceRoot: string,
+  config: WorkspaceConfig,
+): Promise<() => Promise<void>> {
+  const lockPath = path.posix.join(path.posix.dirname(config.paths.manifest), "source-add.lock");
+  const { absolutePath } = await safeResolveWorkspacePath(workspaceRoot, lockPath);
+  await mkdir(path.dirname(absolutePath), { recursive: true });
+
+  // ponytail: an abrupt process death leaves a diagnostic lock; add leased recovery if needed.
+  try {
+    await writeFile(
+      absolutePath,
+      `${JSON.stringify({ pid: process.pid, created_at: new Date().toISOString() })}\n`,
+      { encoding: "utf8", flag: "wx" },
+    );
+  } catch (error) {
+    if (errorCode(error) === "EEXIST") {
+      throw new SourceManagementError(
+        "Another source add is already running for this workspace.",
+        SOURCE_ADD_BUSY,
+        workspaceRoot,
+      );
+    }
+    throw error;
+  }
+
+  return async () => {
+    await rm(absolutePath, { force: true });
+  };
 }
 
 export async function listSources(options: ListSourcesOptions): Promise<ListSourcesResult> {

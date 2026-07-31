@@ -121,6 +121,91 @@ describe("@okf-harness/cli source", () => {
     expect(await readFile(path.join(outside, "sentinel.txt"), "utf8")).toBe("unchanged\n");
   });
 
+  it("fails fast when another source add holds the workspace lock", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    const sourcePath = path.join(root, "source.md");
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      { writeOut: () => {}, writeErr: () => {} },
+    );
+    await writeFile(sourcePath, "# Source\n", "utf8");
+    await writeFile(
+      path.join(workspace, ".okfh/source-add.lock"),
+      `${JSON.stringify({ pid: process.pid, created_at: new Date().toISOString() })}\n`,
+      "utf8",
+    );
+
+    const result = await runJsonCli([
+      "node",
+      "okfh",
+      "source",
+      "add",
+      sourcePath,
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+
+    expect(result.exitCode).toBe(5);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      ok: false,
+      command: "source add",
+      error: { code: "SOURCE_ADD_BUSY" },
+    });
+    await expect(readFile(path.join(workspace, ".okfh/manifest.jsonl"), "utf8")).resolves.toBe("");
+    await expect(listRawSourceFiles(workspace)).resolves.toEqual(["raw/sources/README.md"]);
+  });
+
+  it("prevents concurrent source adds from claiming the same manifest slot", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    const firstPath = path.join(root, "first", "paper.md");
+    const secondPath = path.join(root, "second", "paper.md");
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      { writeOut: () => {}, writeErr: () => {} },
+    );
+    await mkdir(path.dirname(firstPath), { recursive: true });
+    await mkdir(path.dirname(secondPath), { recursive: true });
+    await writeFile(firstPath, "# First\n", "utf8");
+    await writeFile(secondPath, "# Second\n", "utf8");
+
+    const results = await Promise.all(
+      [firstPath, secondPath].map((sourcePath) =>
+        runJsonCli([
+          "node",
+          "okfh",
+          "source",
+          "add",
+          sourcePath,
+          "--workspace",
+          workspace,
+          "--json",
+        ]),
+      ),
+    );
+
+    expect(results.map((result) => result.exitCode).sort()).toEqual([0, 5]);
+    const conflict = results.find((result) => result.exitCode === 5);
+    expect(JSON.parse(conflict?.stderr ?? "{}")).toMatchObject({
+      ok: false,
+      command: "source add",
+      error: { code: "SOURCE_ADD_BUSY" },
+    });
+    const manifestLines = (await readFile(path.join(workspace, ".okfh/manifest.jsonl"), "utf8"))
+      .trim()
+      .split(/\r?\n/);
+    expect(manifestLines).toHaveLength(1);
+    expect(
+      (await listRawSourceFiles(workspace)).filter((file) => file !== "raw/sources/README.md"),
+    ).toHaveLength(1);
+    await expect(stat(path.join(workspace, ".okfh/source-add.lock"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
   it("reuses an existing source when another local file has identical content", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
