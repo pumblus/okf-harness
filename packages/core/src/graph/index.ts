@@ -8,6 +8,7 @@ import {
   parseMarkdownLinks,
   resolveOkfLinkTarget,
 } from "../okf/links.js";
+import { safeResolveWorkspacePath } from "../paths/index.js";
 
 export const GRAPH_WRITE_FAILED = "GRAPH_WRITE_FAILED" as const;
 
@@ -110,12 +111,16 @@ export async function buildWorkspaceGraph(
   const { workspaceRoot, nodes, edges, issues, missingTargets } = data;
   const backlinksPath = path.join(workspaceRoot, ".okfh/backlinks.json");
   const htmlPath = path.join(workspaceRoot, ".okfh/reports/graph.html");
+  const [backlinks, html] = await Promise.all([
+    safeResolveWorkspacePath(workspaceRoot, ".okfh/backlinks.json"),
+    safeResolveWorkspacePath(workspaceRoot, ".okfh/reports/graph.html"),
+  ]);
 
   try {
-    await mkdir(path.dirname(backlinksPath), { recursive: true });
-    await mkdir(path.dirname(htmlPath), { recursive: true });
-    await writeFile(backlinksPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
-    await writeFile(htmlPath, renderGraphHtml(data), "utf8");
+    await mkdir(path.dirname(backlinks.absolutePath), { recursive: true });
+    await mkdir(path.dirname(html.absolutePath), { recursive: true });
+    await writeFile(backlinks.absolutePath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+    await writeFile(html.absolutePath, renderGraphHtml(data), "utf8");
   } catch (error) {
     throw new GraphWorkspaceError(
       error instanceof Error ? error.message : "Could not write graph artifacts.",

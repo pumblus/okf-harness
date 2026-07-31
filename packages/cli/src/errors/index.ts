@@ -37,6 +37,16 @@ export function handleCliError(
     return 1;
   }
 
+  if (isWorkspacePathError(error)) {
+    writeCliError(io, {
+      command: options.command,
+      error,
+      workspace: error.workspaceRoot,
+      json: options.json,
+    });
+    return 1;
+  }
+
   if (isCommanderError(error)) {
     if (options.json) {
       writeCliError(io, {
@@ -176,6 +186,15 @@ function normalizeObject(error: NormalizedCliError): NormalizedCliError {
     message: error.message,
     ...(error.details === undefined ? {} : { details: error.details }),
   };
+}
+
+function isWorkspacePathError(
+  error: unknown,
+): error is { code: "PATH_OUTSIDE_WORKSPACE"; message: string; workspaceRoot: string } {
+  if (!isErrorWithCode(error) || error.code !== "PATH_OUTSIDE_WORKSPACE") {
+    return false;
+  }
+  return "workspaceRoot" in error && typeof error.workspaceRoot === "string";
 }
 
 function isCommanderError(

@@ -3,7 +3,7 @@ import type { Stats } from "node:fs";
 import { access, appendFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { loadWorkspaceConfig, type WorkspaceConfig } from "../config/index.js";
-import { toPosixPath } from "../paths/index.js";
+import { safeResolveWorkspacePath, toPosixPath, WorkspacePathError } from "../paths/index.js";
 import { errorCode, isSourceId, readJsonlRows } from "./jsonl.js";
 import { safeSlug, titleFromFilename, titleFromUrl } from "./metadata.js";
 
@@ -227,13 +227,19 @@ async function addFileSource(context: {
     };
   }
 
-  const absoluteRawPath = path.join(context.workspaceRoot, entry.path);
+  const { absolutePath: absoluteRawPath } = await safeResolveWorkspacePath(
+    context.workspaceRoot,
+    entry.path,
+  );
   await mkdir(path.dirname(absoluteRawPath), { recursive: true });
   await writeFile(absoluteRawPath, contents, { flag: "wx" });
   try {
     await appendManifestEntry(context.workspaceRoot, context.config, entry);
   } catch (error) {
     await rm(absoluteRawPath, { force: true });
+    if (error instanceof WorkspacePathError) {
+      throw error;
+    }
     throw new SourceManagementError(
       error instanceof Error ? error.message : "Could not append source manifest entry.",
       SOURCE_REGISTRATION_FAILED,
@@ -303,13 +309,19 @@ async function addUrlSource(context: {
     };
   }
 
-  const absoluteRawPath = path.join(context.workspaceRoot, entry.path);
+  const { absolutePath: absoluteRawPath } = await safeResolveWorkspacePath(
+    context.workspaceRoot,
+    entry.path,
+  );
   await mkdir(path.dirname(absoluteRawPath), { recursive: true });
   await writeFile(absoluteRawPath, metadata, { flag: "wx" });
   try {
     await appendManifestEntry(context.workspaceRoot, context.config, entry);
   } catch (error) {
     await rm(absoluteRawPath, { force: true });
+    if (error instanceof WorkspacePathError) {
+      throw error;
+    }
     throw new SourceManagementError(
       error instanceof Error ? error.message : "Could not append source manifest entry.",
       SOURCE_REGISTRATION_FAILED,
@@ -331,7 +343,10 @@ async function appendManifestEntry(
   config: WorkspaceConfig,
   entry: SourceManifestEntry,
 ): Promise<void> {
-  const manifestPath = path.join(workspaceRoot, config.paths.manifest);
+  const { absolutePath: manifestPath } = await safeResolveWorkspacePath(
+    workspaceRoot,
+    config.paths.manifest,
+  );
   await mkdir(path.dirname(manifestPath), { recursive: true });
   await appendFile(manifestPath, `${JSON.stringify(entry)}\n`, "utf8");
 }

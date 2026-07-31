@@ -1,4 +1,4 @@
-import { realpath } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 
 export const PATH_OUTSIDE_WORKSPACE = "PATH_OUTSIDE_WORKSPACE" as const;
@@ -38,11 +38,16 @@ export async function safeResolveWorkspacePath(
     throw new WorkspacePathError("Workspace path input must not be empty.", workspaceRoot, input);
   }
 
-  const resolvedWorkspaceRoot = await realpathOrResolve(workspaceRoot);
+  const requestedWorkspaceRoot = path.resolve(workspaceRoot);
+  const resolvedWorkspaceRoot = await realpathExistingPrefix(
+    requestedWorkspaceRoot,
+    requestedWorkspaceRoot,
+    ".",
+  );
   const candidate = path.isAbsolute(input)
     ? path.resolve(input)
     : path.resolve(resolvedWorkspaceRoot, input);
-  const resolvedCandidate = await realpathExistingPrefix(candidate);
+  const resolvedCandidate = await realpathExistingPrefix(candidate, resolvedWorkspaceRoot, input);
 
   if (!isPathInside(resolvedWorkspaceRoot, resolvedCandidate)) {
     throw new WorkspacePathError(
@@ -64,18 +69,11 @@ function isPathInside(root: string, candidate: string): boolean {
   return relative.length === 0 || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
-async function realpathOrResolve(input: string): Promise<string> {
-  try {
-    return await realpath(input);
-  } catch (error) {
-    if (errorCode(error) === "ENOENT") {
-      return path.resolve(input);
-    }
-    throw error;
-  }
-}
-
-async function realpathExistingPrefix(candidate: string): Promise<string> {
+async function realpathExistingPrefix(
+  candidate: string,
+  workspaceRoot: string,
+  input: string,
+): Promise<string> {
   const missingSegments: string[] = [];
   let current = candidate;
 
@@ -84,6 +82,13 @@ async function realpathExistingPrefix(candidate: string): Promise<string> {
       const existing = await realpath(current);
       return path.join(existing, ...missingSegments.reverse());
     } catch (error) {
+      if (errorCode(error) === "ELOOP" || (await isSymbolicLink(current))) {
+        throw new WorkspacePathError(
+          `Path resolves outside workspace: ${input}`,
+          workspaceRoot,
+          input,
+        );
+      }
       if (errorCode(error) !== "ENOENT") {
         throw error;
       }
@@ -96,6 +101,17 @@ async function realpathExistingPrefix(candidate: string): Promise<string> {
       missingSegments.push(path.basename(current));
       current = parent;
     }
+  }
+}
+
+async function isSymbolicLink(filePath: string): Promise<boolean> {
+  try {
+    return (await lstat(filePath)).isSymbolicLink();
+  } catch (error) {
+    if (errorCode(error) === "ENOENT") {
+      return false;
+    }
+    throw error;
   }
 }
 

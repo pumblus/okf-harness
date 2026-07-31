@@ -6,6 +6,7 @@ import {
   mkdir,
   readdir,
   readFile,
+  realpath,
   rm,
   rmdir,
   writeFile,
@@ -560,11 +561,16 @@ async function planOldWorkflowSkillCleanup(
   for (const skillName of oldWorkflowSkillNames) {
     const skillDirectory = `${skillRoot}/${skillName}`;
     const skillPath = `${skillDirectory}/SKILL.md`;
-    if (!(await directoryExists(path.join(workspaceRoot, skillDirectory)))) {
+    const absoluteSkillDirectory = await resolveWorkspaceMutationPath(
+      workspaceRoot,
+      skillDirectory,
+    );
+    if (!(await directoryExists(absoluteSkillDirectory))) {
       continue;
     }
 
-    const skillContents = await readOptionalTextFile(path.join(workspaceRoot, skillPath));
+    const absoluteSkillPath = await resolveWorkspaceMutationPath(workspaceRoot, skillPath);
+    const skillContents = await readOptionalTextFile(absoluteSkillPath);
     context.result.removedFiles.push(skillContents === undefined ? skillDirectory : skillPath);
     if (context.dryRun) {
       continue;
@@ -572,7 +578,7 @@ async function planOldWorkflowSkillCleanup(
 
     const backupDirectory = await backupOldWorkflowSkillDirectory(workspaceRoot, skillDirectory);
     context.result.backupDirectories.push(backupDirectory);
-    await rm(path.join(workspaceRoot, skillDirectory), { recursive: true, force: true });
+    await rm(absoluteSkillDirectory, { recursive: true, force: true });
   }
 }
 
@@ -617,7 +623,7 @@ async function planRootGuidanceWrite(
   file: RenderedAgentFile,
   context: { dryRun: boolean; result: InstallAgentAdaptersResult },
 ): Promise<void> {
-  const absolutePath = path.join(workspaceRoot, file.path);
+  const absolutePath = await resolveWorkspaceMutationPath(workspaceRoot, file.path);
   const existing = await readOptionalTextFile(absolutePath);
   const nextContents = mergeRootGuidance(existing, file.contents);
   if (nextContents.conflict !== undefined) {
@@ -652,7 +658,7 @@ async function planManagedFileWrite(
   file: RenderedAgentFile,
   context: { dryRun: boolean; force: boolean; result: InstallAgentAdaptersResult },
 ): Promise<void> {
-  const absolutePath = path.join(workspaceRoot, file.path);
+  const absolutePath = await resolveWorkspaceMutationPath(workspaceRoot, file.path);
   const existing = await readOptionalTextFile(absolutePath);
 
   if (existing === file.contents) {
@@ -740,8 +746,11 @@ async function backupOldWorkflowSkillDirectory(
     ".okfh/backups/agent-skills",
     backupTimestamp(new Date()),
   );
-  const source = path.join(workspaceRoot, skillDirectory);
-  const destination = path.join(backupRoot, skillDirectory);
+  const source = await resolveWorkspaceMutationPath(workspaceRoot, skillDirectory);
+  const destination = await resolveWorkspaceMutationPath(
+    workspaceRoot,
+    toPosixRelativePath(workspaceRoot, path.join(backupRoot, skillDirectory)),
+  );
   await mkdir(path.dirname(destination), { recursive: true });
   await cp(source, destination, { recursive: true });
   return toPosixRelativePath(workspaceRoot, destination);
@@ -904,6 +913,95 @@ async function canExecute(filePath: string): Promise<boolean> {
     return true;
   } catch (error) {
     if (isNodeError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+const PATH_OUTSIDE_WORKSPACE = "PATH_OUTSIDE_WORKSPACE" as const;
+
+class AgentPackWorkspacePathError extends Error {
+  readonly code = PATH_OUTSIDE_WORKSPACE;
+
+  constructor(
+    message: string,
+    readonly workspaceRoot: string,
+    readonly input: string,
+  ) {
+    super(message);
+    this.name = "AgentPackWorkspacePathError";
+  }
+}
+
+async function resolveWorkspaceMutationPath(workspaceRoot: string, input: string): Promise<string> {
+  const requestedWorkspaceRoot = path.resolve(workspaceRoot);
+  const resolvedWorkspaceRoot = await realpathExistingPrefix(
+    requestedWorkspaceRoot,
+    requestedWorkspaceRoot,
+    ".",
+  );
+  const candidate = path.isAbsolute(input)
+    ? path.resolve(input)
+    : path.resolve(resolvedWorkspaceRoot, input);
+  const resolvedCandidate = await realpathExistingPrefix(candidate, resolvedWorkspaceRoot, input);
+  const relative = path.relative(resolvedWorkspaceRoot, resolvedCandidate);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new AgentPackWorkspacePathError(
+      `Path resolves outside workspace: ${input}`,
+      resolvedWorkspaceRoot,
+      input,
+    );
+  }
+  return resolvedCandidate;
+}
+
+async function realpathExistingPrefix(
+  candidate: string,
+  workspaceRoot: string,
+  input: string,
+): Promise<string> {
+  const missingSegments: string[] = [];
+  let current = candidate;
+
+  while (true) {
+    try {
+      const existing = await realpath(current);
+      return path.join(existing, ...missingSegments.reverse());
+    } catch (error) {
+      if (isNodeError(error) && error.code === "ELOOP") {
+        throw new AgentPackWorkspacePathError(
+          `Path resolves outside workspace: ${input}`,
+          workspaceRoot,
+          input,
+        );
+      }
+      if (!isNodeError(error) || error.code !== "ENOENT") {
+        throw error;
+      }
+      if (await isSymbolicLink(current)) {
+        throw new AgentPackWorkspacePathError(
+          `Path resolves outside workspace: ${input}`,
+          workspaceRoot,
+          input,
+        );
+      }
+
+      const parent = path.dirname(current);
+      if (parent === current) {
+        return path.resolve(candidate);
+      }
+      missingSegments.push(path.basename(current));
+      current = parent;
+    }
+  }
+}
+
+async function isSymbolicLink(filePath: string): Promise<boolean> {
+  try {
+    return (await lstat(filePath)).isSymbolicLink();
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
       return false;
     }
     throw error;

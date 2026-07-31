@@ -1,5 +1,15 @@
 import { createHash } from "node:crypto";
-import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -64,6 +74,51 @@ describe("@okf-harness/cli source", () => {
     expect(manifest).toContain('"original":"llm-wiki.md"');
     expect(manifest).not.toContain(sourcePath);
     expect(manifest).not.toContain("private-client");
+  });
+
+  it("refuses to copy a source through a symlink outside the workspace", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    const outside = path.join(root, "outside-sources");
+    const sourcePath = path.join(root, "source.md");
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      { writeOut: () => {}, writeErr: () => {} },
+    );
+    await mkdir(outside);
+    await writeFile(path.join(outside, "sentinel.txt"), "unchanged\n", "utf8");
+    await writeFile(sourcePath, "# Source\n", "utf8");
+    await rm(path.join(workspace, "raw/sources"), { recursive: true });
+    await symlink(
+      outside,
+      path.join(workspace, "raw/sources"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const manifestPath = path.join(workspace, ".okfh/manifest.jsonl");
+    const originalManifest = await readFile(manifestPath, "utf8");
+
+    const result = await runJsonCli([
+      "node",
+      "okfh",
+      "source",
+      "add",
+      sourcePath,
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      ok: false,
+      command: "source",
+      workspace: await realpath(workspace),
+      error: { code: "PATH_OUTSIDE_WORKSPACE" },
+    });
+    expect(await readFile(manifestPath, "utf8")).toBe(originalManifest);
+    expect(await readdir(outside)).toEqual(["sentinel.txt"]);
+    expect(await readFile(path.join(outside, "sentinel.txt"), "utf8")).toBe("unchanged\n");
   });
 
   it("reuses an existing source when another local file has identical content", async () => {

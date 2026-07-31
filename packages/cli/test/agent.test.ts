@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -110,6 +110,51 @@ describe("@okf-harness/cli agent", () => {
         expect.stringMatching(/\.agents\/skills\/okf-harness-query\/notes\.md$/),
       ]),
     );
+  });
+
+  it("refuses to install adapter files through a symlink outside the workspace", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    const outside = path.join(root, "outside-adapter");
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      { writeOut: () => {}, writeErr: () => {} },
+    );
+    await mkdir(outside);
+    await writeFile(path.join(outside, "sentinel.txt"), "unchanged\n", "utf8");
+    await rm(path.join(workspace, ".agents"), { recursive: true });
+    await symlink(
+      outside,
+      path.join(workspace, ".agents"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const originalGuidance = await readFile(path.join(workspace, "AGENTS.md"), "utf8");
+    let stdout = "";
+    let stderr = "";
+
+    const exitCode = await runCli(
+      ["node", "okfh", "agent", "install", "codex", "--workspace", workspace, "--json"],
+      {
+        writeOut: (chunk) => {
+          stdout += chunk;
+        },
+        writeErr: (chunk) => {
+          stderr += chunk;
+        },
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(stdout).toBe("");
+    expect(JSON.parse(stderr)).toMatchObject({
+      ok: false,
+      command: "agent",
+      workspace: await realpath(workspace),
+      error: { code: "PATH_OUTSIDE_WORKSPACE" },
+    });
+    expect(await readFile(path.join(workspace, "AGENTS.md"), "utf8")).toBe(originalGuidance);
+    expect(await readdir(outside)).toEqual(["sentinel.txt"]);
+    expect(await readFile(path.join(outside, "sentinel.txt"), "utf8")).toBe("unchanged\n");
   });
 
   it("refuses to install adapter support outside an initialized workspace", async () => {

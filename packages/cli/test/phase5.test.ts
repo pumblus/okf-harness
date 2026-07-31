@@ -1,4 +1,14 @@
-import { cp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -257,6 +267,38 @@ describe("@okf-harness/cli answer workflow", () => {
     } finally {
       process.chdir(previousCwd);
     }
+  });
+
+  it("refuses to write graph reports through a symlink outside the workspace", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    const outside = path.join(root, "outside-reports");
+    await cp(path.resolve("packages/core/test/fixtures/valid-workspace"), workspace, {
+      recursive: true,
+    });
+    await mkdir(outside);
+    await writeFile(path.join(outside, "sentinel.txt"), "unchanged\n", "utf8");
+    await symlink(
+      outside,
+      path.join(workspace, ".okfh/reports"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+
+    const result = await runJsonCli(["node", "okfh", "graph", "--workspace", workspace, "--json"]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      ok: false,
+      command: "graph",
+      workspace,
+      error: { code: "PATH_OUTSIDE_WORKSPACE" },
+    });
+    await expect(stat(path.join(workspace, ".okfh/backlinks.json"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(await readdir(outside)).toEqual(["sentinel.txt"]);
+    expect(await readFile(path.join(outside, "sentinel.txt"), "utf8")).toBe("unchanged\n");
   });
 
   it("returns SCAN_FAILED envelopes for query commands when wiki scanning fails", async () => {
