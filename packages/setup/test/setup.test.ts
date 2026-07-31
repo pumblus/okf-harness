@@ -511,12 +511,6 @@ process.exit(result.status ?? 1);
               stderr: "",
             };
           }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
-              stderr: "",
-            };
-          }
           return { stdout: "", stderr: "" };
         },
       },
@@ -537,8 +531,13 @@ process.exit(result.status ?? 1);
         args: ["plugin", "add", "okf-harness@okf-harness", "--json"],
       },
     ]);
-    expect(result.stdout).toContain("Post-install verification");
-    expect(result.stdout).toContain("Successful integrations: Codex");
+    expect(result.stdout).toContain("Install results");
+    expect(result.stdout).toContain("Install commands completed without errors: Codex");
+    expect(result.stdout).toContain(
+      "State verification: not performed; command success does not confirm integration state.",
+    );
+    expect(result.stdout).not.toContain("Post-install verification");
+    expect(result.stdout).not.toContain("Successful integrations");
     expect(result.stdout).not.toContain("Installing OpenClaw");
     expect(result.stderr).toBe("");
   });
@@ -567,12 +566,6 @@ process.exit(result.status ?? 1);
               stdout: JSON.stringify({
                 dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
-              stderr: "",
-            };
-          }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
               stderr: "",
             };
           }
@@ -618,12 +611,6 @@ process.exit(result.status ?? 1);
               stderr: "",
             };
           }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
-              stderr: "",
-            };
-          }
           if (
             command === path.join(bin, "claude") &&
             args.join(" ") === "plugin marketplace add pumblus/okf-harness"
@@ -654,7 +641,7 @@ process.exit(result.status ?? 1);
         args: ["plugin", "add", "okf-harness@okf-harness", "--json"],
       },
     ]);
-    expect(result.stdout).toContain("Successful integrations: Codex");
+    expect(result.stdout).toContain("Install commands completed without errors: Codex");
     expect(result.stdout).toContain("Failed integrations");
     expect(result.stdout).toContain(
       "Claude Code failed at claude plugin marketplace add pumblus/okf-harness",
@@ -682,12 +669,6 @@ process.exit(result.status ?? 1);
               stdout: JSON.stringify({
                 dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
-              stderr: "",
-            };
-          }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
               stderr: "",
             };
           }
@@ -730,12 +711,6 @@ process.exit(result.status ?? 1);
               stderr: "",
             };
           }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
-              stderr: "",
-            };
-          }
           return { stdout: "", stderr: "" };
         },
       },
@@ -750,7 +725,7 @@ process.exit(result.status ?? 1);
       command: path.join(bin, "hermes"),
       args: ["skills", "install", "pumblus/okf-harness/okf-harness"],
     });
-    expect(result.stdout).toContain("Successful integrations: Hermes Agent");
+    expect(result.stdout).toContain("Install commands completed without errors: Hermes Agent");
   });
 
   it("installs explicitly selected OpenClaw with --yes", async () => {
@@ -781,12 +756,6 @@ process.exit(result.status ?? 1);
               stderr: "",
             };
           }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
-              stderr: "",
-            };
-          }
           return { stdout: "", stderr: "" };
         },
       },
@@ -798,7 +767,7 @@ process.exit(result.status ?? 1);
       command: path.join(bin, "openclaw"),
       args: ["skills", "install", "@pumblus/okf-harness", "--global"],
     });
-    expect(result.stdout).toContain("Successful integrations: OpenClaw");
+    expect(result.stdout).toContain("Install commands completed without errors: OpenClaw");
   });
 
   it("shows an extra OpenClaw safety note before interactive native install", async () => {
@@ -824,12 +793,6 @@ process.exit(result.status ?? 1);
               stdout: JSON.stringify({
                 dependencies: { "@okf-harness/cli": { version: "0.6.0" } },
               }),
-              stderr: "",
-            };
-          }
-          if (command === "okfh" && args.join(" ") === "doctor --json") {
-            return {
-              stdout: JSON.stringify({ ok: true, data: { checks: [] } }),
               stderr: "",
             };
           }
@@ -938,7 +901,7 @@ process.exit(result.status ?? 1);
       },
     ]);
     expect(result.stdout).toContain("Shadowing global install cleanup verified.");
-    expect(result.stdout).toContain("Successful integrations: Codex");
+    expect(result.stdout).toContain("Install commands completed without errors: Codex");
     expect(result.stdout).not.toContain("npm install -g");
     expect(result.stdout).not.toContain("okfh doctor");
     expect(result.stderr).toBe("");
@@ -989,7 +952,7 @@ process.exit(result.status ?? 1);
     expect(result.stdout).toContain(
       "Clear with: npm uninstall -g @okf-harness/cli @pumblus/okf-harness",
     );
-    expect(result.stdout).toContain("Successful integrations: Codex");
+    expect(result.stdout).toContain("Install commands completed without errors: Codex");
     expect(result.stderr).toBe("");
   });
 });

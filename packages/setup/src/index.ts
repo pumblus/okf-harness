@@ -765,14 +765,19 @@ function writeNativeInstallSummary(
   successfulAgents: SetupAgentPlan[],
   failures: NativeInstallFailure[],
 ): void {
-  writeOut("Post-install verification\n");
+  writeOut("Install results\n");
   writeOut(
-    `Successful integrations: ${
+    `Install commands completed without errors: ${
       successfulAgents.length === 0
         ? "None"
         : successfulAgents.map((agent) => agent.label).join(", ")
     }\n`,
   );
+  if (successfulAgents.length > 0) {
+    writeOut(
+      "State verification: not performed; command success does not confirm integration state.\n",
+    );
+  }
   if (failures.length === 0) {
     writeOut("Failed integrations: None\n");
     return;
