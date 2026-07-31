@@ -67,6 +67,10 @@ export type RenderAgentAdapterOptions = {
 export type RenderedAgentAdapter = {
   adapter: AgentAdapter;
   files: RenderedAgentFile[];
+  rootGuidancePath: string;
+  skillRoot: string;
+  managedBlockStart: string;
+  managedBlockEnd: string;
 };
 
 export type ManagedBlockAction = "created" | "inserted" | "replaced" | "unchanged";
@@ -195,9 +199,14 @@ const legacyBootstrapSkillName = "okf-harness-bootstrap";
 
 export function renderAgentAdapter(options: RenderAgentAdapterOptions): RenderedAgentAdapter {
   const version = options.version ?? packageVersion.version;
+  const profile = adapterProfiles[options.adapter];
   return {
     adapter: options.adapter,
     files: [renderRootGuidance(options.adapter), ...renderSkillFiles(options.adapter, version)],
+    rootGuidancePath: profile.rootGuidancePath,
+    skillRoot: profile.skillRoot,
+    managedBlockStart,
+    managedBlockEnd,
   };
 }
 

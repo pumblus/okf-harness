@@ -4,11 +4,13 @@ import { access, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import {
+  type AgentAdapter,
   type BootstrapAgent,
   collectShadowingGlobalInstalls,
   isShadowingOkfhExecutable,
   parseGlobalPackageVersion,
   readBootstrapAgentStatus,
+  renderAgentAdapter,
   shadowingGlobalInstallCleanupCommand,
   shadowingGlobalInstallProfiles,
   supportedBootstrapAgents,
@@ -86,14 +88,6 @@ export type RunExecutable = (
 type ReadBootstrapStatus = typeof readBootstrapAgentStatus;
 
 const execFileAsync = promisify(execFile);
-const requiredSkillFiles = [
-  "okf-harness/SKILL.md",
-  "okf-harness/references/setup.md",
-  "okf-harness/references/check.md",
-  "okf-harness/references/ingest.md",
-  "okf-harness/references/answer.md",
-  "okf-harness/references/graph.md",
-] as const;
 
 export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorResult> {
   const runtimePlatform = options.runtimePlatform ?? process.platform;
@@ -590,29 +584,22 @@ async function checkRuntimePin(workspaceRoot: string): Promise<DoctorCheck> {
   };
 }
 
-async function checkAdapter(
-  workspaceRoot: string,
-  adapter: "claude" | "codex",
-): Promise<DoctorCheck> {
-  const rootGuidance = adapter === "claude" ? "CLAUDE.md" : "AGENTS.md";
-  const skillRoot = adapter === "claude" ? ".claude/skills" : ".agents/skills";
+async function checkAdapter(workspaceRoot: string, adapter: AgentAdapter): Promise<DoctorCheck> {
+  const rendered = renderAgentAdapter({ adapter });
+  const rootGuidance = rendered.rootGuidancePath;
+  const skillRoot = rendered.skillRoot;
   const missingFiles: string[] = [];
-  const rootPath = path.join(workspaceRoot, rootGuidance);
-  const rootContents = await readOptionalText(rootPath);
+  const rootContents = await readOptionalText(path.join(workspaceRoot, rootGuidance));
 
-  if (rootContents === undefined) {
-    missingFiles.push(rootGuidance);
-  }
-  for (const skill of requiredSkillFiles) {
-    const skillPath = `${skillRoot}/${skill}`;
-    if (!(await fileExists(path.join(workspaceRoot, skillPath)))) {
-      missingFiles.push(skillPath);
+  for (const file of rendered.files) {
+    if (!(await fileExists(path.join(workspaceRoot, file.path)))) {
+      missingFiles.push(file.path);
     }
   }
 
   const hasManagedBlock =
-    rootContents?.includes("<!-- OKF Harness: start -->") === true &&
-    rootContents.includes("<!-- OKF Harness: end -->");
+    rootContents?.includes(rendered.managedBlockStart) === true &&
+    rootContents.includes(rendered.managedBlockEnd);
   if (missingFiles.length === 0 && hasManagedBlock) {
     return {
       id: `workspace-adapter-${adapter}`,

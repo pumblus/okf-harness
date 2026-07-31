@@ -1,4 +1,4 @@
-import { access, chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -107,6 +107,39 @@ describe("@okf-harness/cli doctor", () => {
         next: [expect.stringContaining("okfh --json")],
       },
     });
+  });
+
+  it("warns when an installed adapter is missing a rendered contract file", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const workspace = path.join(root, "ai-research");
+    const missingFile = ".agents/skills/okf-harness/references/reconcile.md";
+    await runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
+      { writeOut: () => {}, writeErr: () => {} },
+    );
+    await runJsonCli([
+      "node",
+      "okfh",
+      "agent",
+      "install",
+      "codex",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+    await rm(path.join(workspace, missingFile));
+
+    const result = await runJsonCli(["node", "okfh", "doctor", "--workspace", workspace, "--json"]);
+
+    expect(result.result.data.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "workspace-adapter-codex",
+          status: "warn",
+          details: expect.objectContaining({ missingFiles: [missingFile] }),
+        }),
+      ]),
+    );
   });
 
   it("reports a missing runtime pin with its adopt command without failing the run", async () => {

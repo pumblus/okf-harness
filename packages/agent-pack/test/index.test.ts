@@ -134,6 +134,35 @@ describe("@okf-harness/agent-pack", () => {
     }
   });
 
+  it("describes rendered adapter paths and managed block markers", () => {
+    const claude = renderAgentAdapter({ adapter: "claude" });
+    const codex = renderAgentAdapter({ adapter: "codex" });
+
+    expect(claude).toMatchObject({
+      rootGuidancePath: "CLAUDE.md",
+      skillRoot: ".claude/skills",
+      managedBlockStart: "<!-- OKF Harness: start -->",
+      managedBlockEnd: "<!-- OKF Harness: end -->",
+    });
+    expect(codex).toMatchObject({
+      rootGuidancePath: "AGENTS.md",
+      skillRoot: ".agents/skills",
+      managedBlockStart: "<!-- OKF Harness: start -->",
+      managedBlockEnd: "<!-- OKF Harness: end -->",
+    });
+
+    for (const rendered of [claude, codex]) {
+      const rootGuidance = fileContents(rendered.files, rendered.rootGuidancePath);
+      expect(rootGuidance).toContain(rendered.managedBlockStart);
+      expect(rootGuidance).toContain(rendered.managedBlockEnd);
+      expect(
+        rendered.files
+          .filter((file) => file.path !== rendered.rootGuidancePath)
+          .every((file) => file.path.startsWith(`${rendered.skillRoot}/`)),
+      ).toBe(true);
+    }
+  });
+
   it("renders discoverable layered skills and root guidance for Claude and Codex", () => {
     const claude = renderAgentAdapter({ adapter: "claude" });
     const codex = renderAgentAdapter({ adapter: "codex" });
