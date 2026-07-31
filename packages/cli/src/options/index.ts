@@ -11,8 +11,18 @@ export function parseIntegerOption(value: string): number {
 }
 
 export function commandFromArgv(argv: string[]): string {
-  const command = argv.slice(2).find((arg) => !arg.startsWith("-"));
-  return command ?? "unknown";
+  const args = argv.slice(2);
+  const commandIndex = args.findIndex((arg) => !arg.startsWith("-"));
+  const command = args[commandIndex];
+  if (command === undefined) {
+    return "unknown";
+  }
+  const action = args[commandIndex + 1];
+  return ["agent", "bootstrap", "ingest", "source"].includes(command) &&
+    action !== undefined &&
+    !action.startsWith("-")
+    ? `${command} ${action}`
+    : command;
 }
 
 export function parseAgentInstallTarget(input: string): AgentInstallTarget | undefined {

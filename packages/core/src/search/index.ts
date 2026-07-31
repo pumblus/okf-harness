@@ -63,10 +63,10 @@ const stopWords = new Set(["a", "an", "and", "are", "for", "in", "is", "of", "or
 export async function searchWorkspace(
   options: SearchWorkspaceOptions,
 ): Promise<SearchWorkspaceResult> {
-  return searchWorkspaceWithoutConcepts(options, new Set());
+  return searchWorkspaceExcludingConcepts(options, new Set());
 }
 
-export async function searchWorkspaceWithoutConcepts(
+export async function searchWorkspaceExcludingConcepts(
   options: SearchWorkspaceOptions,
   excludedConceptIds: ReadonlySet<string>,
 ): Promise<SearchWorkspaceResult> {

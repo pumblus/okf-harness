@@ -112,7 +112,7 @@ describe("@okf-harness/cli source", () => {
     expect(result.stdout).toBe("");
     expect(JSON.parse(result.stderr)).toMatchObject({
       ok: false,
-      command: "source",
+      command: "source add",
       workspace: await realpath(workspace),
       error: { code: "PATH_OUTSIDE_WORKSPACE" },
     });

@@ -148,7 +148,7 @@ describe("@okf-harness/cli agent", () => {
     expect(stdout).toBe("");
     expect(JSON.parse(stderr)).toMatchObject({
       ok: false,
-      command: "agent",
+      command: "agent install",
       workspace: await realpath(workspace),
       error: { code: "PATH_OUTSIDE_WORKSPACE" },
     });

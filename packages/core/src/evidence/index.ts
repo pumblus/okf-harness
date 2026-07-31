@@ -29,7 +29,7 @@ import {
   readWorkspaceDocument,
 } from "../read/index.js";
 import type { SearchResultCard } from "../search/index.js";
-import { type SearchWorkspaceResult, searchWorkspaceWithoutConcepts } from "../search/index.js";
+import { type SearchWorkspaceResult, searchWorkspaceExcludingConcepts } from "../search/index.js";
 import { MANIFEST_INVALID, type SourceManifestEntry } from "../source/index.js";
 
 export type EvidenceCandidate = {
@@ -275,7 +275,7 @@ export async function planEvidenceBrief(
   const graph = await buildWorkspaceGraphData({ workspaceRoot });
   const seals = evidenceSeals(riskWarnings, lineage, graph);
   const sealedConceptIds = new Set(seals.flatMap((seal) => seal.sealed));
-  const search = await searchWorkspaceWithoutConcepts(
+  const search = await searchWorkspaceExcludingConcepts(
     { workspaceRoot, query: options.question },
     sealedConceptIds,
   );

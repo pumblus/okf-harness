@@ -712,7 +712,7 @@ async function installSelectedNativeIntegrations(options: {
     return 0;
   }
 
-  const successfulAgents: SetupAgentPlan[] = [];
+  const completedAgents: SetupAgentPlan[] = [];
   const failures: NativeInstallFailure[] = [];
   for (const agent of agents) {
     let failed = false;
@@ -738,11 +738,11 @@ async function installSelectedNativeIntegrations(options: {
       }
     }
     if (!failed) {
-      successfulAgents.push(agent);
+      completedAgents.push(agent);
     }
   }
 
-  writeNativeInstallSummary(options.io.writeOut, successfulAgents, failures);
+  writeNativeInstallSummary(options.io.writeOut, completedAgents, failures);
   return failures.length === 0 ? 0 : 1;
 }
 
@@ -762,18 +762,16 @@ function writeNativeInstallCommandFailure(
 
 function writeNativeInstallSummary(
   writeOut: (chunk: string) => void,
-  successfulAgents: SetupAgentPlan[],
+  completedAgents: SetupAgentPlan[],
   failures: NativeInstallFailure[],
 ): void {
   writeOut("Install results\n");
   writeOut(
     `Install commands completed without errors: ${
-      successfulAgents.length === 0
-        ? "None"
-        : successfulAgents.map((agent) => agent.label).join(", ")
+      completedAgents.length === 0 ? "None" : completedAgents.map((agent) => agent.label).join(", ")
     }\n`,
   );
-  if (successfulAgents.length > 0) {
+  if (completedAgents.length > 0) {
     writeOut(
       "State verification: not performed; command success does not confirm integration state.\n",
     );
