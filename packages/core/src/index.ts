@@ -43,7 +43,15 @@ export * from "./okf/links.js";
 export * from "./paths/index.js";
 export * from "./read/index.js";
 export * from "./recovery/index.js";
-export * from "./search/index.js";
+export {
+  type SearchFilter,
+  type SearchResultCard,
+  type SearchScoreBreakdown,
+  type SearchWarning,
+  type SearchWorkspaceOptions,
+  type SearchWorkspaceResult,
+  searchWorkspace,
+} from "./search/index.js";
 export * from "./source/index.js";
 export * from "./source/ingest.js";
 export * from "./source/reconciliation.js";

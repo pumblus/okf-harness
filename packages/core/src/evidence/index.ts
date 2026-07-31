@@ -29,7 +29,7 @@ import {
   readWorkspaceDocument,
 } from "../read/index.js";
 import type { SearchResultCard } from "../search/index.js";
-import { type SearchWorkspaceResult, searchWorkspace } from "../search/index.js";
+import { type SearchWorkspaceResult, searchWorkspaceWithoutConcepts } from "../search/index.js";
 import { MANIFEST_INVALID, type SourceManifestEntry } from "../source/index.js";
 
 export type EvidenceCandidate = {
@@ -272,15 +272,14 @@ export async function planEvidenceBrief(
       warnings: riskWarnings,
     };
   }
-  const [search, graph] = await Promise.all([
-    searchWorkspace({ workspaceRoot, query: options.question }),
-    buildWorkspaceGraphData({ workspaceRoot }),
-  ]);
+  const graph = await buildWorkspaceGraphData({ workspaceRoot });
   const seals = evidenceSeals(riskWarnings, lineage, graph);
   const sealedConceptIds = new Set(seals.flatMap((seal) => seal.sealed));
-  const availableResults = search.results.filter(
-    (result) => !sealedConceptIds.has(result.conceptId),
+  const search = await searchWorkspaceWithoutConcepts(
+    { workspaceRoot, query: options.question },
+    sealedConceptIds,
   );
+  const availableResults = search.results;
   const evidenceResults = availableResults.slice(0, maxEvidenceItems);
   const candidates = availableResults.slice(maxEvidenceItems).map((result, index) => ({
     item: maxEvidenceItems + index + 1,

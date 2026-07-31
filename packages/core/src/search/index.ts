@@ -63,6 +63,13 @@ const stopWords = new Set(["a", "an", "and", "are", "for", "in", "is", "of", "or
 export async function searchWorkspace(
   options: SearchWorkspaceOptions,
 ): Promise<SearchWorkspaceResult> {
+  return searchWorkspaceWithoutConcepts(options, new Set());
+}
+
+export async function searchWorkspaceWithoutConcepts(
+  options: SearchWorkspaceOptions,
+  excludedConceptIds: ReadonlySet<string>,
+): Promise<SearchWorkspaceResult> {
   const workspaceRoot = path.resolve(options.workspaceRoot);
   const limit = clampLimit(options.limit);
   const config = await loadWorkspaceConfig(workspaceRoot);
@@ -99,14 +106,15 @@ export async function searchWorkspace(
     .sort(compareSearchCards)
     .map((candidate) => candidate.card);
 
+  const available = scored.filter((card) => !excludedConceptIds.has(card.conceptId));
   return {
     workspaceRoot,
     query: options.query,
     filtersApplied: parsedQuery.filters,
     limit,
     totalMatches: scored.length,
-    truncated: scored.length > limit,
-    results: scored.slice(0, limit),
+    truncated: available.length > limit,
+    results: available.slice(0, limit),
     warnings,
   };
 }

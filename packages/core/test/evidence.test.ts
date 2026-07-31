@@ -396,6 +396,60 @@ Direct Source Only evidence.
     }
   });
 
+  it("filters sealed matches before limiting healthy evidence", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      for (let index = 1; index <= 10; index += 1) {
+        await writeFile(
+          path.join(workspace, `wiki/topics/priority-seal-${index}.md`),
+          `---
+type: Topic
+title: Priority Seal ${index}
+description: High-ranking damaged evidence.
+okfh:
+  sources:
+    - src_20260615_0001
+---
+
+# Overview
+
+Priority Seal ${index} is damaged.
+`,
+          "utf8",
+        );
+      }
+      await writeFile(
+        path.join(workspace, "wiki/topics/healthy-answer.md"),
+        `---
+type: Topic
+title: Healthy Answer
+description: Lower-ranking healthy evidence.
+---
+
+# Overview
+
+Priority Seal remains available from this healthy concept.
+`,
+        "utf8",
+      );
+      await rm(path.join(workspace, "raw/sources/2026/06/karpathy-llm-wiki.md"));
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "Priority Seal",
+      });
+
+      expect(result.evidence.map(({ conceptId }) => conceptId)).toContain("topics/healthy-answer");
+      expect(result.evidence.map(({ conceptId }) => conceptId)).not.toEqual(
+        expect.arrayContaining([expect.stringMatching(/^topics\/priority-seal-/)]),
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("withholds the same chain when a reference names an unregistered source", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
     const workspace = path.join(root, "workspace");
