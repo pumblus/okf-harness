@@ -122,6 +122,8 @@ export async function readSourceManifest(
   const manifestPath = path.join(workspaceRoot, workspaceConfig.paths.manifest);
   const entries: SourceManifestEntry[] = [];
   const issues: SourceManifestIssue[] = [];
+  const sourceIds = new Set<string>();
+  const sourcePaths = new Set<string>();
 
   for (const row of await readJsonlRows(manifestPath)) {
     if (!row.ok) {
@@ -135,17 +137,33 @@ export async function readSourceManifest(
     }
 
     const entry = parseManifestEntry(row.value, workspaceConfig);
-    if (entry.ok) {
-      entries.push(entry.entry);
+    if (!entry.ok) {
+      issues.push({
+        code: MANIFEST_INVALID,
+        path: workspaceConfig.paths.manifest,
+        line: row.line,
+        message: entry.message,
+      });
       continue;
     }
 
-    issues.push({
-      code: MANIFEST_INVALID,
-      path: workspaceConfig.paths.manifest,
-      line: row.line,
-      message: entry.message,
-    });
+    const duplicateId = sourceIds.has(entry.entry.id);
+    const duplicatePath = sourcePaths.has(entry.entry.path);
+    sourceIds.add(entry.entry.id);
+    sourcePaths.add(entry.entry.path);
+    if (duplicateId || duplicatePath) {
+      issues.push({
+        code: MANIFEST_INVALID,
+        path: workspaceConfig.paths.manifest,
+        line: row.line,
+        message: duplicateId
+          ? `Manifest source id must be unique: ${entry.entry.id}`
+          : `Manifest source path must be unique: ${entry.entry.path}`,
+      });
+      continue;
+    }
+
+    entries.push(entry.entry);
   }
 
   return { entries, issues };

@@ -1,7 +1,7 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { checkWorkspace } from "../src/check/index.js";
-import { addSource } from "../src/source/index.js";
+import { addSource, readSourceManifest } from "../src/source/index.js";
 import { clearReconciliation } from "../src/source/reconciliation.js";
 import { copyValidWorkspace, validWorkspaceFixture } from "./helpers.js";
 
@@ -306,6 +306,41 @@ describe("OKF workspace check", () => {
         },
       },
     });
+  });
+
+  it.each([
+    { field: "id" },
+    { field: "path" },
+  ] as const)("reports a duplicate manifest $field as MANIFEST_INVALID", async ({ field }) => {
+    const workspaceRoot = await copyValidWorkspace();
+    const manifestPath = `${workspaceRoot}/.okfh/manifest.jsonl`;
+    const manifest = await readFile(manifestPath, "utf8");
+    const original = JSON.parse(manifest) as Record<string, unknown>;
+    const duplicate = {
+      ...original,
+      ...(field === "id"
+        ? { path: "raw/sources/2026/06/duplicate-id.md" }
+        : { id: "src_20260615_0002" }),
+    };
+    await writeFile(manifestPath, `${manifest.trimEnd()}\n${JSON.stringify(duplicate)}\n`, "utf8");
+
+    const read = await readSourceManifest(workspaceRoot);
+    expect(read.issues).toEqual([
+      expect.objectContaining({
+        code: "MANIFEST_INVALID",
+        path: ".okfh/manifest.jsonl",
+        line: 2,
+      }),
+    ]);
+
+    const check = await checkWorkspace(workspaceRoot);
+    expect(check.currency).toMatchObject({
+      sealed: false,
+      diagnostics: [expect.objectContaining({ code: "MANIFEST_INVALID", line: 2 })],
+    });
+    expect(check.harnessLint.findings.high).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "MANIFEST_INVALID", line: 2 })]),
+    );
   });
 
   it("does not seal currency when the source manifest is missing", async () => {
