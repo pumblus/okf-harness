@@ -1,8 +1,8 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { runJsonCli } from "./helpers.js";
+import { makeTempDir as mkdtemp, runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli terminal-native smoke", () => {
   it("runs init, source add, ingest plan, check, lint retirement, and graph through okfh --json", async () => {

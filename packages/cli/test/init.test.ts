@@ -1,10 +1,10 @@
-import { chmod, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { harnessRuntimeVersion, parseWorkspaceConfig } from "@okf-harness/core";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
-import { runJsonCli } from "./helpers.js";
+import { makeTempDir as mkdtemp, runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli init", () => {
   it("requires an explicit agent adapter for direct CLI initialization", async () => {

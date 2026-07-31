@@ -1,6 +1,13 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { onTestFinished } from "vitest";
 import { runCli } from "../src/index.js";
+
+export async function makeTempDir(prefix: string): Promise<string> {
+  const root = await mkdtemp(prefix);
+  onTestFinished(() => rm(root, { force: true, recursive: true }));
+  return root;
+}
 
 /** Turns an initialized workspace back into one created before runtime pins existed. */
 export async function removeRuntimePin(workspace: string): Promise<void> {

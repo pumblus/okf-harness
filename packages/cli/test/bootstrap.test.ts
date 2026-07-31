@@ -1,9 +1,9 @@
 import { constants } from "node:fs";
-import { access, chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { runJsonCli } from "./helpers.js";
+import { makeTempDir as mkdtemp, runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli bootstrap", () => {
   it("drives the current-agent empty workspace setup path for Codex and Claude Code", async () => {

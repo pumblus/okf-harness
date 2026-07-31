@@ -1,10 +1,10 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { harnessRuntimeVersion, parseWorkspaceConfig } from "@okf-harness/core";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
-import { removeRuntimePin, runJsonCli } from "./helpers.js";
+import { makeTempDir as mkdtemp, removeRuntimePin, runJsonCli } from "./helpers.js";
 
 const NEXT_INITIALIZE_WORKSPACE =
   "Ask your agent to initialize this folder as an OKF Harness workspace before continuing.";

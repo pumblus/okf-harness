@@ -1,9 +1,9 @@
-import { cp, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { cp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
-import { runJsonCli } from "./helpers.js";
+import { makeTempDir as mkdtemp, runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli answer workflow", () => {
   it("runs status, evidence, search, read, graph, and check from an auto-resolved workspace", async () => {

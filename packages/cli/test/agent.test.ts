@@ -1,8 +1,9 @@
-import { mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../src/index.js";
+import { makeTempDir as mkdtemp } from "./helpers.js";
 
 describe("@okf-harness/cli agent", () => {
   it("installs Codex adapter support into an existing workspace", async () => {

@@ -1,4 +1,4 @@
-import { access, chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdtemp as createTempDir, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -11,10 +11,10 @@ import { harnessRuntimeVersion } from "@okf-harness/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type RunExecutable, runDoctor } from "../src/doctor/index.js";
 import { runCli } from "../src/index.js";
-import { removeRuntimePin, runJsonCli } from "./helpers.js";
+import { makeTempDir as mkdtemp, removeRuntimePin, runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli doctor", () => {
-  let restoreEnv: (() => void) | undefined;
+  let restoreEnv: (() => Promise<void>) | undefined;
   let fakeEnv: { claudeHome: string; codexStateDirectory: string };
 
   beforeEach(async () => {
@@ -23,8 +23,8 @@ describe("@okf-harness/cli doctor", () => {
     fakeEnv = env.paths;
   });
 
-  afterEach(() => {
-    restoreEnv?.();
+  afterEach(async () => {
+    await restoreEnv?.();
     restoreEnv = undefined;
   });
 
@@ -574,9 +574,9 @@ describe("@okf-harness/cli doctor", () => {
 
 async function useFakeDoctorEnv(): Promise<{
   paths: { claudeHome: string; codexStateDirectory: string };
-  restore: () => void;
+  restore: () => Promise<void>;
 }> {
-  const root = await mkdtemp(path.join(tmpdir(), "okfh-doctor-env-"));
+  const root = await createTempDir(path.join(tmpdir(), "okfh-doctor-env-"));
   const home = path.join(root, "home");
   const codexStateDirectory = path.join(root, ".codex");
   const claudeHome = path.join(root, ".claude");
@@ -601,7 +601,7 @@ async function useFakeDoctorEnv(): Promise<{
 
   return {
     paths: { claudeHome, codexStateDirectory },
-    restore: () => {
+    restore: async () => {
       for (const key of keys) {
         const value = previous[key];
         if (value === undefined) {
@@ -610,6 +610,7 @@ async function useFakeDoctorEnv(): Promise<{
           process.env[key] = value;
         }
       }
+      await rm(root, { force: true, recursive: true });
     },
   };
 }
