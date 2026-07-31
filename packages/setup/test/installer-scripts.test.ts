@@ -5,16 +5,15 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
+const bash = (await findCommand("bash")) ?? "";
+const powershell = (await findCommand("pwsh")) ?? "";
 
 // These tests spawn a real bash or pwsh process; shell startup on a loaded CI runner
 // regularly exceeds the default per-test timeout.
 describe("installer scripts", { timeout: 60_000 }, () => {
-  it("delegates macOS/Linux setup to @okf-harness/setup@latest with argument pass-through", async () => {
-    const bash = await findCommand("bash");
-    if (bash === undefined) {
-      return;
-    }
-
+  it("delegates macOS/Linux setup to @okf-harness/setup@latest with argument pass-through", {
+    skip: bash === "",
+  }, async () => {
     const fixture = await createInstallerFixture();
     const result = await run(
       bash,
@@ -39,12 +38,9 @@ describe("installer scripts", { timeout: 60_000 }, () => {
     ]);
   });
 
-  it("rejects missing or old Node.js on macOS/Linux without package-manager install advice", async () => {
-    const bash = await findCommand("bash");
-    if (bash === undefined) {
-      return;
-    }
-
+  it("rejects missing or old Node.js on macOS/Linux without package-manager install advice", {
+    skip: bash === "",
+  }, async () => {
     const fixture = await createInstallerFixture();
     const result = await run(bash, [path.join(repoRoot, "install.sh"), "--dry-run"], {
       env: {
@@ -60,12 +56,9 @@ describe("installer scripts", { timeout: 60_000 }, () => {
     expect(result.stderr).not.toMatch(/\b(?:brew|apt|yum|dnf|nvm|winget|choco|scoop)\b/i);
   });
 
-  it("delegates Windows setup to @okf-harness/setup@latest with argument pass-through", async () => {
-    const powershell = await findCommand("pwsh");
-    if (powershell === undefined) {
-      return;
-    }
-
+  it("delegates Windows setup to @okf-harness/setup@latest with argument pass-through", {
+    skip: powershell === "",
+  }, async () => {
     const fixture = await createInstallerFixture();
     const result = await run(
       powershell,
@@ -100,12 +93,9 @@ describe("installer scripts", { timeout: 60_000 }, () => {
     ]);
   });
 
-  it("rejects old Node.js on Windows without package-manager install advice", async () => {
-    const powershell = await findCommand("pwsh");
-    if (powershell === undefined) {
-      return;
-    }
-
+  it("rejects old Node.js on Windows without package-manager install advice", {
+    skip: powershell === "",
+  }, async () => {
     const fixture = await createInstallerFixture();
     const result = await run(
       powershell,
