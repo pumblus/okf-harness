@@ -14,7 +14,11 @@ import { makeTempDir as mkdtemp, removeRuntimePin, runJsonCli } from "./helpers.
 
 describe("@okf-harness/cli doctor", () => {
   let restoreEnv: (() => Promise<void>) | undefined;
-  let fakeEnv: { claudeHome: string; codexStateDirectory: string };
+  let fakeEnv: {
+    claudeHome: string;
+    codexStateDirectory: string;
+    runtimePath: string | undefined;
+  };
 
   beforeEach(async () => {
     const env = await useFakeDoctorEnv();
@@ -30,13 +34,7 @@ describe("@okf-harness/cli doctor", () => {
   it("checks CLI dependencies and installed adapters for an initialized workspace", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "all", "--json"],
-      {
-        writeOut: () => {},
-        writeErr: () => {},
-      },
-    );
+    await initTestWorkspace(workspace, "all", fakeEnv.runtimePath);
     await mkdir(fakeEnv.codexStateDirectory, { recursive: true });
     await mkdir(fakeEnv.claudeHome, { recursive: true });
     await runJsonCli(["node", "okfh", "bootstrap", "install", "--agents", "all", "--json"]);
@@ -112,10 +110,7 @@ describe("@okf-harness/cli doctor", () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     const missingFile = ".agents/skills/okf-harness/references/reconcile.md";
-    await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
-      { writeOut: () => {}, writeErr: () => {} },
-    );
+    await initTestWorkspace(workspace, "none", fakeEnv.runtimePath);
     await runJsonCli([
       "node",
       "okfh",
@@ -144,10 +139,7 @@ describe("@okf-harness/cli doctor", () => {
   it("reports a missing runtime pin with its adopt command without failing the run", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
-    await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
-      { writeOut: () => {}, writeErr: () => {} },
-    );
+    await initTestWorkspace(workspace, "none", fakeEnv.runtimePath);
     await removeRuntimePin(workspace);
 
     const result = await runJsonCli(["node", "okfh", "doctor", "--workspace", workspace, "--json"]);
@@ -691,7 +683,11 @@ function verifiedDoctorProbeStdout(executable: string, args: string[]): string {
 }
 
 async function useFakeDoctorEnv(): Promise<{
-  paths: { claudeHome: string; codexStateDirectory: string };
+  paths: {
+    claudeHome: string;
+    codexStateDirectory: string;
+    runtimePath: string | undefined;
+  };
   restore: () => Promise<void>;
 }> {
   const root = await createTempDir(path.join(tmpdir(), "okfh-doctor-env-"));
@@ -718,7 +714,7 @@ async function useFakeDoctorEnv(): Promise<{
   delete process.env.USERPROFILE;
 
   return {
-    paths: { claudeHome, codexStateDirectory },
+    paths: { claudeHome, codexStateDirectory, runtimePath: previous.PATH },
     restore: async () => {
       for (const key of keys) {
         const value = previous[key];
@@ -731,6 +727,38 @@ async function useFakeDoctorEnv(): Promise<{
       await rm(root, { force: true, recursive: true });
     },
   };
+}
+
+async function initTestWorkspace(
+  workspace: string,
+  agents: "all" | "none",
+  runtimePath: string | undefined,
+): Promise<void> {
+  const exitCode = await withPath(runtimePath, () =>
+    runCli(
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", agents, "--json"],
+      { writeOut: () => {}, writeErr: () => {} },
+    ),
+  );
+  expect(exitCode).toBe(0);
+}
+
+async function withPath<T>(value: string | undefined, run: () => Promise<T>): Promise<T> {
+  const fakePath = process.env.PATH;
+  if (value === undefined) {
+    delete process.env.PATH;
+  } else {
+    process.env.PATH = value;
+  }
+  try {
+    return await run();
+  } finally {
+    if (fakePath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = fakePath;
+    }
+  }
 }
 
 function fakeBootstrapStatus(
