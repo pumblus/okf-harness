@@ -1,8 +1,9 @@
-import { chmod, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { runSetup } from "../src/index.js";
+import { makeTempDir as mkdtemp } from "./helpers.js";
 
 describe("@okf-harness/setup", () => {
   it("delegates unchanged runtime arguments to the exact workspace pin", async () => {

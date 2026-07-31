@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { makeTempDir as mkdtemp } from "./helpers.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const bash = (await findCommand("bash")) ?? "";
