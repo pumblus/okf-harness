@@ -1,8 +1,16 @@
-import { mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  mkdtemp as createTempDir,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import {
   collectShadowingGlobalInstalls,
   installAgentAdapters,
@@ -25,6 +33,12 @@ import {
   referenceTemplatePaths,
   skillName,
 } from "../src/profiles.js";
+
+async function mkdtemp(prefix: string): Promise<string> {
+  const root = await createTempDir(prefix);
+  onTestFinished(() => rm(root, { force: true, recursive: true }));
+  return root;
+}
 
 describe("@okf-harness/agent-pack", () => {
   it("exposes package metadata", () => {
