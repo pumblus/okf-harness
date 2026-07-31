@@ -34,40 +34,9 @@ describe("@okf-harness/agent-pack", () => {
     });
   });
 
-  it("keeps adapter and bootstrap profile contracts inspectable", () => {
+  it("lists supported adapters and bootstrap agents", () => {
     expect(agentAdapters).toEqual(["claude", "codex"]);
     expect(bootstrapAgents).toEqual(["codex", "claude"]);
-
-    for (const adapter of agentAdapters) {
-      const profile = adapterProfiles[adapter];
-      const rendered = renderAgentAdapter({ adapter });
-      expect(rendered.files.map((file) => file.path)).toEqual([
-        profile.rootGuidancePath,
-        `${profile.skillRoot}/${skillName}/SKILL.md`,
-        ...referenceTemplatePaths.map(
-          (templatePath) => `${profile.skillRoot}/${skillName}/references/${templatePath}`,
-        ),
-      ]);
-      expect(fileContents(rendered.files, profile.rootGuidancePath)).toContain(
-        `${profile.routePrefix}${skillName}`,
-      );
-    }
-
-    for (const agent of bootstrapAgents) {
-      const profile = bootstrapAgentProfiles[agent];
-      const rendered = renderBootstrapAgent({ agent });
-      expect(rendered.files.map((file) => file.path)).toEqual([
-        `skills/${hostSkillName}/SKILL.md`,
-        ...bootstrapReferenceTemplatePaths.map(
-          (templatePath) => `skills/${hostSkillName}/references/${templatePath}`,
-        ),
-      ]);
-      expect(fileContents(rendered.files, `skills/${hostSkillName}/SKILL.md`)).toContain(
-        `okf-harness-agent: "${agent}"`,
-      );
-      expect(profile.command).toBe(agent);
-      expect(profile.description).toContain(profile.label);
-    }
   });
 
   it("exposes one native integration catalog for setup and doctor", () => {

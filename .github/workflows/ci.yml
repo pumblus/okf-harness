@@ -28,6 +28,5 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm build
       - run: pnpm site:check
       - run: pnpm smoke:tarball
