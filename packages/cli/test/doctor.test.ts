@@ -702,6 +702,7 @@ async function useFakeDoctorEnv(): Promise<{
   await writeFakeExecutable(bin, "git");
   await writeFakeExecutable(bin, "npm");
   await writeFakeExecutable(bin, "pnpm");
+  await writeFakeWindowsCommand(bin, "git.cmd");
   await writeFakeWindowsCommand(bin, "npm.cmd");
   await writeFakeWindowsCommand(bin, "pnpm.cmd");
 
