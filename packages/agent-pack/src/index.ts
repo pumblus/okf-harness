@@ -24,11 +24,20 @@ export type {
 export {
   collectShadowingGlobalInstalls,
   isShadowingOkfhExecutable,
+  nativeIntegrationProfile,
   parseGlobalPackageVersion,
   shadowingGlobalInstallCleanupCommand,
   shadowingGlobalInstallProfiles,
   supportedNativeIntegrationProfiles,
 } from "./integrations.js";
+export type {
+  NativeIntegrationProbeResult,
+  NativeIntegrationVerificationDefinition,
+  NativeIntegrationVerificationOutcome,
+  NativeIntegrationVerificationReason,
+  NativeIntegrationVerificationResult,
+} from "./verification.js";
+export { verifyNativeIntegration } from "./verification.js";
 
 import type { AgentAdapter, BootstrapAgent } from "./profiles.js";
 import {

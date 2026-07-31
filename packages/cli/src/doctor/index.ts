@@ -8,6 +8,8 @@ import {
   type BootstrapAgent,
   collectShadowingGlobalInstalls,
   isShadowingOkfhExecutable,
+  type NativeIntegrationProbeResult,
+  type NativeIntegrationVerificationResult,
   parseGlobalPackageVersion,
   readBootstrapAgentStatus,
   renderAgentAdapter,
@@ -15,6 +17,7 @@ import {
   shadowingGlobalInstallProfiles,
   supportedBootstrapAgents,
   supportedNativeIntegrationProfiles,
+  verifyNativeIntegration,
 } from "@okf-harness/agent-pack";
 import {
   readWorkspaceConfig,
@@ -121,9 +124,13 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
     );
   }
 
-  const nativeIntegrationChecks = await Promise.all(
-    supportedNativeIntegrationProfiles.map((profile) => checkNativeIntegration(profile, env)),
-  );
+  const nativeIntegrationChecks = (
+    await Promise.all(
+      supportedNativeIntegrationProfiles.map((profile) =>
+        checkNativeIntegration(profile, env, runtimePlatform, runExecutable),
+      ),
+    )
+  ).flat();
   const legacyBootstrapFallbackChecks = await Promise.all(
     supportedBootstrapAgents.map((agent) => checkHostEntrypoint(agent, readBootstrapStatus)),
   );
@@ -482,29 +489,96 @@ async function checkHostEntrypoint(
 async function checkNativeIntegration(
   profile: (typeof supportedNativeIntegrationProfiles)[number],
   env: NodeJS.ProcessEnv,
-): Promise<DoctorCheck> {
+  runtimePlatform: NodeJS.Platform | string,
+  runExecutable: RunExecutable,
+): Promise<DoctorCheck[]> {
   const executablePath = await findExecutable(profile.command, env);
-  const details = {
+  const hostDetails = {
     agent: profile.id,
     command: profile.command,
     installCommand: `npx @okf-harness/setup@latest --agents ${profile.id}`,
     verifiesIntegrationInstall: false,
   };
   if (executablePath === undefined) {
-    return skipCheck(
-      `native-host-cli-${profile.id}`,
-      `${profile.label} host CLI`,
-      `Native host check skipped: ${profile.label} CLI was not detected.`,
-      details,
-    );
+    return [
+      skipCheck(
+        `native-host-cli-${profile.id}`,
+        `${profile.label} host CLI`,
+        `Native host check skipped: ${profile.label} CLI was not detected.`,
+        hostDetails,
+      ),
+      skipCheck(
+        `native-integration-${profile.id}`,
+        `${profile.label} native integration`,
+        `Native integration verification skipped: ${profile.label} CLI was not detected.`,
+        nativeVerificationDetails(profile, {
+          outcome: "unavailable",
+          reason: "probe-command-unavailable",
+          expectedIdentity: profile.verification.expectedIdentity,
+        }),
+      ),
+    ];
   }
 
-  return {
+  const hostCheck: DoctorCheck = {
     id: `native-host-cli-${profile.id}`,
     label: `${profile.label} host CLI`,
     status: "pass",
     message: `Native host check passed: ${profile.label} CLI was detected.`,
-    details: { ...details, executablePath },
+    details: { ...hostDetails, executablePath },
+  };
+  const probeResults: NativeIntegrationProbeResult[] = [];
+  const shell =
+    runtimePlatform === "win32" &&
+    [".bat", ".cmd"].includes(path.extname(executablePath).toLowerCase());
+  const executable = shell ? path.basename(executablePath) : executablePath;
+  for (const command of profile.verification.commands) {
+    try {
+      const result = await runExecutable(executable, command.args, { env, shell });
+      probeResults.push({ stdout: result.stdout, exitCode: 0 });
+    } catch (error) {
+      const exitCode = commandExitCode(error);
+      probeResults.push({ stdout: "", ...(exitCode === undefined ? {} : { exitCode }) });
+      break;
+    }
+  }
+  const result = verifyNativeIntegration(profile.verification, probeResults);
+  return [hostCheck, nativeVerificationCheck(profile, result)];
+}
+
+function nativeVerificationCheck(
+  profile: (typeof supportedNativeIntegrationProfiles)[number],
+  result: NativeIntegrationVerificationResult,
+): DoctorCheck {
+  const installCommand = `npx @okf-harness/setup@latest --agents ${profile.id} --yes`;
+  const message =
+    result.outcome === "verified"
+      ? `Native integration verification passed: ${profile.label} recognizes the expected OKF Harness integration.`
+      : result.outcome === "unavailable"
+        ? `Native integration verification warning: ${profile.label} probe is unavailable (${result.reason}). Update ${profile.label} and retry doctor; the listed probe must be supported.`
+        : `Native integration verification warning: ${profile.label} did not verify the expected integration (${result.reason}). Run ${installCommand}, then retry doctor.`;
+  return {
+    id: `native-integration-${profile.id}`,
+    label: `${profile.label} native integration`,
+    status: result.outcome === "verified" ? "pass" : "warn",
+    message,
+    details: nativeVerificationDetails(profile, result),
+  };
+}
+
+function nativeVerificationDetails(
+  profile: (typeof supportedNativeIntegrationProfiles)[number],
+  result: NativeIntegrationVerificationResult,
+): Record<string, unknown> {
+  return {
+    agent: profile.id,
+    probeCommand: profile.verification.commands
+      .map((command) => [command.command, ...command.args].join(" "))
+      .join(" && "),
+    outcome: result.outcome,
+    reason: result.reason,
+    expectedIdentity: result.expectedIdentity,
+    ...(result.exitCode === undefined ? {} : { exitCode: result.exitCode }),
   };
 }
 
@@ -737,6 +811,16 @@ function commandStdout(error: unknown): string {
     typeof error.stdout === "string"
     ? error.stdout
     : "";
+}
+
+function commandExitCode(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  if ("exitCode" in error && typeof error.exitCode === "number") {
+    return error.exitCode;
+  }
+  return "code" in error && typeof error.code === "number" ? error.code : undefined;
 }
 
 function nodeErrorCode(error: unknown): string | undefined {

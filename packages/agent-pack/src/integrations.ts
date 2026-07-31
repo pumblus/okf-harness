@@ -1,3 +1,8 @@
+import {
+  type NativeIntegrationVerificationDefinition,
+  nativeIntegrationVerificationDefinition,
+} from "./verification.js";
+
 export type NativeIntegrationId = "claude" | "codex" | "opencode" | "pi" | "hermes" | "openclaw";
 
 export type NativeInstallCommand = {
@@ -13,6 +18,7 @@ export type NativeIntegrationProfile = {
   defaultSelected: boolean;
   nativeInstall: string;
   nativeInstallCommands: readonly NativeInstallCommand[];
+  verification: NativeIntegrationVerificationDefinition;
 };
 
 export type ShadowingGlobalInstallProfile =
@@ -118,6 +124,7 @@ export const supportedNativeIntegrationProfiles = [
       { command: "claude", args: ["plugin", "marketplace", "add", "pumblus/okf-harness"] },
       { command: "claude", args: ["plugin", "install", "okf-harness@okf-harness"] },
     ],
+    verification: nativeIntegrationVerificationDefinition("claude"),
   },
   {
     id: "codex",
@@ -133,6 +140,7 @@ export const supportedNativeIntegrationProfiles = [
       },
       { command: "codex", args: ["plugin", "add", "okf-harness@okf-harness", "--json"] },
     ],
+    verification: nativeIntegrationVerificationDefinition("codex"),
   },
   {
     id: "opencode",
@@ -144,6 +152,7 @@ export const supportedNativeIntegrationProfiles = [
     nativeInstallCommands: [
       { command: "opencode", args: ["plugin", "@pumblus/okf-harness", "--global"] },
     ],
+    verification: nativeIntegrationVerificationDefinition("opencode"),
   },
   {
     id: "pi",
@@ -153,6 +162,7 @@ export const supportedNativeIntegrationProfiles = [
     defaultSelected: true,
     nativeInstall: "pi install npm:@pumblus/okf-harness",
     nativeInstallCommands: [{ command: "pi", args: ["install", "npm:@pumblus/okf-harness"] }],
+    verification: nativeIntegrationVerificationDefinition("pi"),
   },
   {
     id: "hermes",
@@ -165,6 +175,7 @@ export const supportedNativeIntegrationProfiles = [
       { command: "hermes", args: ["skills", "tap", "add", "pumblus/okf-harness"] },
       { command: "hermes", args: ["skills", "install", "pumblus/okf-harness/okf-harness"] },
     ],
+    verification: nativeIntegrationVerificationDefinition("hermes"),
   },
   {
     id: "openclaw",
@@ -176,6 +187,7 @@ export const supportedNativeIntegrationProfiles = [
     nativeInstallCommands: [
       { command: "openclaw", args: ["skills", "install", "@pumblus/okf-harness", "--global"] },
     ],
+    verification: nativeIntegrationVerificationDefinition("openclaw"),
   },
 ] as const satisfies readonly NativeIntegrationProfile[];
 

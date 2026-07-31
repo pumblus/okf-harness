@@ -25,7 +25,7 @@ Local-first describes where workspace files live, not an air-gap guarantee.
 
 Repository development additionally requires `pnpm`; check that environment with `okfh doctor --dev --json`.
 
-Normal first setup should start from `@okf-harness/setup` or a native agent integration. Direct CLI use does not write the unified host entrypoint.
+Normal first setup should start from `@okf-harness/setup` or a native agent integration. Universal setup shows each selected integration's read-only verification commands and expected identity, then succeeds only when every final state is `verified`; `failed` and `unavailable` states exit nonzero. `--dry-run` shows the same plan without probing. Direct CLI use does not write the unified host entrypoint.
 
 ## Workspace Rules
 
@@ -72,7 +72,7 @@ okfh doctor --dev --json
 
 `doctor` does not write files.
 
-In JSON output, `data.checks` remains the flat compatibility list. `data.groups` separates `runtime`, `nativeIntegrations`, `legacyBootstrapFallback`, and `workspace` checks. The historical `legacyBootstrapFallback` key now reports the Claude Code and Codex host entrypoints; `nativeIntegrations` reports host CLI detection and does not claim the native integration is installed.
+In JSON output, `data.checks` remains the flat compatibility list. `data.groups` separates `runtime`, `nativeIntegrations`, `legacyBootstrapFallback`, and `workspace` checks. The historical `legacyBootstrapFallback` key reports the Claude Code and Codex host entrypoints. `nativeIntegrations` keeps `native-host-cli-*` detection separate from `native-integration-*` verification: a missing host CLI skips verification, a verified integration passes, and a failed or unavailable verification warns without failing the overall doctor run. Probe diagnostics identify the client, command, outcome, stable reason, expected identity, and relevant exit code, never raw host output.
 
 ### init
 

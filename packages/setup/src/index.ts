@@ -10,11 +10,15 @@ import {
   isShadowingOkfhExecutable,
   type NativeInstallCommand,
   type NativeIntegrationId,
+  type NativeIntegrationProbeResult,
   type NativeIntegrationProfile,
+  type NativeIntegrationVerificationResult,
+  nativeIntegrationProfile,
   parseGlobalPackageVersion,
   shadowingGlobalInstallCleanupCommand,
   shadowingGlobalInstallProfiles,
   supportedNativeIntegrationProfiles,
+  verifyNativeIntegration,
 } from "@okf-harness/agent-pack";
 import {
   type ConfigIssue,
@@ -141,6 +145,8 @@ export type SetupAgentPlan = {
   command: string;
   nativeInstall: string;
   nativeInstallCommands: readonly SetupNativeInstallCommand[];
+  verificationCommands: readonly SetupNativeInstallCommand[];
+  expectedIdentity: string;
   installLaterCommand: string;
   executablePath?: string;
 };
@@ -486,6 +492,8 @@ async function createSetupPlan(
         command: profile.command,
         nativeInstall: profile.nativeInstall,
         nativeInstallCommands: profile.nativeInstallCommands,
+        verificationCommands: profile.verification.commands,
+        expectedIdentity: profile.verification.expectedIdentity,
         installLaterCommand: `npx @okf-harness/setup@latest --agents ${profile.id}`,
         ...(executablePath === undefined ? {} : { executablePath }),
       };
@@ -562,6 +570,11 @@ export function renderSetupPlan(plan: SetupPlan): string {
       for (const command of agent.nativeInstallCommands) {
         lines.push(`  - ${commandToString(command)}`);
       }
+      lines.push("  Verification commands:");
+      for (const command of agent.verificationCommands) {
+        lines.push(`  - ${commandToString(command)}`);
+      }
+      lines.push(`  Expected identity: ${agent.expectedIdentity}`);
       if (agent.id === "openclaw") {
         lines.push("  Safety note: OpenClaw requires explicit opt-in before installation.");
       }
@@ -685,6 +698,11 @@ type NativeInstallFailure = {
   completedCommands: SetupNativeInstallCommand[];
 };
 
+type NativeVerificationReport = {
+  agent: SetupAgentPlan;
+  result: NativeIntegrationVerificationResult;
+};
+
 async function installSelectedNativeIntegrations(options: {
   env: NodeJS.ProcessEnv;
   io: Required<Pick<SetupIo, "writeOut" | "writeErr">> & Pick<SetupIo, "readLine">;
@@ -714,49 +732,108 @@ async function installSelectedNativeIntegrations(options: {
 
   const completedAgents: SetupAgentPlan[] = [];
   const failures: NativeInstallFailure[] = [];
+  const verifications: NativeVerificationReport[] = [];
   for (const agent of agents) {
     let failed = false;
     const completedCommands: SetupNativeInstallCommand[] = [];
     for (const installCommand of agent.nativeInstallCommands) {
       options.io.writeOut(`Installing ${agent.label}: ${commandToString(installCommand)}\n`);
-      const shell = shouldUseNativeInstallShell(options.runtimePlatform, agent.executablePath);
-      const executable = agent.executablePath ?? installCommand.command;
-      const command = shell ? path.basename(executable) : executable;
-      const cwd = shell ? path.dirname(executable) : undefined;
+      const invocation = nativeCommandInvocation(agent, installCommand, options.runtimePlatform);
       try {
-        await options.runCommand(command, installCommand.args, {
-          ...(cwd === undefined ? {} : { cwd }),
+        const result = await options.runCommand(invocation.command, installCommand.args, {
+          ...(invocation.cwd === undefined ? {} : { cwd: invocation.cwd }),
           env: options.env,
-          shell,
+          shell: invocation.shell,
         });
+        const exitCode = result.exitCode ?? 0;
+        if (exitCode !== 0) {
+          failed = true;
+          failures.push({ agent, command: installCommand, completedCommands });
+          writeNativeInstallCommandFailure(options.io.writeErr, agent, installCommand, exitCode);
+          break;
+        }
         completedCommands.push(installCommand);
       } catch (error) {
         failed = true;
         failures.push({ agent, command: installCommand, completedCommands });
-        writeNativeInstallCommandFailure(options.io.writeErr, agent, installCommand, error);
+        writeNativeInstallCommandFailure(
+          options.io.writeErr,
+          agent,
+          installCommand,
+          commandExitCode(error),
+        );
         break;
       }
     }
     if (!failed) {
       completedAgents.push(agent);
     }
+    verifications.push({
+      agent,
+      result: await runNativeIntegrationVerification(agent, options),
+    });
   }
 
-  writeNativeInstallSummary(options.io.writeOut, completedAgents, failures);
-  return failures.length === 0 ? 0 : 1;
+  writeNativeInstallSummary(options.io.writeOut, completedAgents, failures, verifications);
+  return verifications.every(({ result }) => result.outcome === "verified") ? 0 : 1;
+}
+
+async function runNativeIntegrationVerification(
+  agent: SetupAgentPlan,
+  options: Pick<
+    Parameters<typeof installSelectedNativeIntegrations>[0],
+    "env" | "io" | "runCommand" | "runtimePlatform"
+  >,
+): Promise<NativeIntegrationVerificationResult> {
+  const definition = nativeIntegrationProfile(agent.id).verification;
+  const probeResults: NativeIntegrationProbeResult[] = [];
+  for (const probeCommand of definition.commands) {
+    options.io.writeOut(`Verifying ${agent.label}: ${commandToString(probeCommand)}\n`);
+    const invocation = nativeCommandInvocation(agent, probeCommand, options.runtimePlatform);
+    try {
+      const result = await options.runCommand(invocation.command, probeCommand.args, {
+        ...(invocation.cwd === undefined ? {} : { cwd: invocation.cwd }),
+        env: options.env,
+        shell: invocation.shell,
+      });
+      probeResults.push({ stdout: result.stdout, exitCode: result.exitCode ?? 0 });
+      if ((result.exitCode ?? 0) !== 0) {
+        break;
+      }
+    } catch (error) {
+      const exitCode = commandExitCode(error);
+      probeResults.push({ stdout: "", ...(exitCode === undefined ? {} : { exitCode }) });
+      break;
+    }
+  }
+  return verifyNativeIntegration(definition, probeResults);
+}
+
+function nativeCommandInvocation(
+  agent: SetupAgentPlan,
+  command: SetupNativeInstallCommand,
+  runtimePlatform: NodeJS.Platform | string,
+): { command: string; cwd?: string; shell: boolean } {
+  const shell = shouldUseNativeInstallShell(runtimePlatform, agent.executablePath);
+  const executable = agent.executablePath ?? command.command;
+  return {
+    command: shell ? path.basename(executable) : executable,
+    ...(shell ? { cwd: path.dirname(executable) } : {}),
+    shell,
+  };
 }
 
 function writeNativeInstallCommandFailure(
   writeErr: (chunk: string) => void,
   agent: SetupAgentPlan,
   command: SetupNativeInstallCommand,
-  error: unknown,
+  exitCode: number | undefined,
 ): void {
-  writeErr(`Native integration failed: ${agent.label}\n`);
+  writeErr(`Native install warning: ${agent.label}\n`);
   writeErr(`Command: ${commandToString(command)}\n`);
-  const details = commandErrorDetails(error);
-  if (details.length > 0) {
-    writeErr(`Details: ${details}\n`);
+  writeErr("Reason: install-command-failed\n");
+  if (exitCode !== undefined) {
+    writeErr(`Exit code: ${exitCode}\n`);
   }
 }
 
@@ -764,6 +841,7 @@ function writeNativeInstallSummary(
   writeOut: (chunk: string) => void,
   completedAgents: SetupAgentPlan[],
   failures: NativeInstallFailure[],
+  verifications: NativeVerificationReport[],
 ): void {
   writeOut("Install results\n");
   writeOut(
@@ -771,29 +849,44 @@ function writeNativeInstallSummary(
       completedAgents.length === 0 ? "None" : completedAgents.map((agent) => agent.label).join(", ")
     }\n`,
   );
-  if (completedAgents.length > 0) {
-    writeOut(
-      "State verification: not performed; command success does not confirm integration state.\n",
-    );
-  }
   if (failures.length === 0) {
-    writeOut("Failed integrations: None\n");
-    return;
-  }
-  writeOut("Failed integrations:\n");
-  for (const failure of failures) {
-    writeOut(`- ${failure.agent.label} failed at ${commandToString(failure.command)}\n`);
-    if (failure.completedCommands.length > 0) {
-      writeOut("  Completed before failure:\n");
-      for (const command of failure.completedCommands) {
+    writeOut("Install command warnings: None\n");
+  } else {
+    writeOut("Install command warnings:\n");
+    for (const failure of failures) {
+      writeOut(`- ${failure.agent.label} failed at ${commandToString(failure.command)}\n`);
+      if (failure.completedCommands.length > 0) {
+        writeOut("  Completed before failure:\n");
+        for (const command of failure.completedCommands) {
+          writeOut(`  - ${commandToString(command)}\n`);
+        }
+      }
+      writeOut("  Retry from failed command:\n");
+      for (const command of failure.agent.nativeInstallCommands.slice(
+        failure.completedCommands.length,
+      )) {
         writeOut(`  - ${commandToString(command)}\n`);
       }
     }
-    writeOut("  Retry from failed command:\n");
-    for (const command of failure.agent.nativeInstallCommands.slice(
-      failure.completedCommands.length,
-    )) {
-      writeOut(`  - ${commandToString(command)}\n`);
+  }
+
+  writeOut("Native integration verification\n");
+  for (const { agent, result } of verifications) {
+    writeOut(`- ${agent.label}: ${result.outcome}\n`);
+    for (const command of agent.verificationCommands) {
+      writeOut(`  Probe: ${commandToString(command)}\n`);
+    }
+    writeOut(`  Reason: ${result.reason}\n`);
+    writeOut(`  Expected identity: ${result.expectedIdentity}\n`);
+    if (result.exitCode !== undefined) {
+      writeOut(`  Exit code: ${result.exitCode}\n`);
+    }
+    if (result.outcome === "unavailable") {
+      writeOut(
+        `  Next: Update ${agent.label} and retry setup; the listed probe must be supported.\n`,
+      );
+    } else if (result.outcome === "failed") {
+      writeOut("  Next: Retry the listed native install commands, then rerun setup.\n");
     }
   }
 }

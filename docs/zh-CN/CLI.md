@@ -25,7 +25,7 @@ npx --package @okf-harness/cli okfh doctor --json
 
 参与仓库开发时额外需要 `pnpm`；用 `okfh doctor --dev --json` 检查开发环境。
 
-普通首次设置应从 `@okf-harness/setup` 或原生智能体集成开始。直接使用 CLI 不会写入统一宿主入口。
+普通首次设置应从 `@okf-harness/setup` 或原生智能体集成开始。通用 setup 会显示每个已选集成的只读验证命令与预期身份，且只有所有最终状态均为 `verified` 时才成功；出现 `failed` 或 `unavailable` 时会以非零状态退出。`--dry-run` 会显示同一份计划，但不执行探测。直接使用 CLI 不会写入统一宿主入口。
 
 ## 工作区规则
 
@@ -72,7 +72,7 @@ okfh doctor --dev --json
 
 `doctor` 不会写入任何文件。
 
-JSON 输出中，`data.checks` 仍保留兼容用的扁平列表。`data.groups` 会把检查拆成 `runtime`、`nativeIntegrations`、`legacyBootstrapFallback` 和 `workspace`。历史键 `legacyBootstrapFallback` 现在报告 Claude Code 和 Codex 的宿主入口；`nativeIntegrations` 只报告宿主 CLI 检测，不表示原生集成已安装。
+JSON 输出中，`data.checks` 仍保留兼容用的扁平列表。`data.groups` 会把检查拆成 `runtime`、`nativeIntegrations`、`legacyBootstrapFallback` 和 `workspace`。历史键 `legacyBootstrapFallback` 报告 Claude Code 和 Codex 的宿主入口。`nativeIntegrations` 会把 `native-host-cli-*` 检测与 `native-integration-*` 验证分开：缺少宿主 CLI 时跳过验证，验证成功时通过，验证为 `failed` 或 `unavailable` 时发出警告，但不会使 doctor 整体失败。探测诊断只包含客户端、命令、结果、稳定原因、预期身份和相关退出码，绝不包含宿主原始输出。
 
 ### init
 

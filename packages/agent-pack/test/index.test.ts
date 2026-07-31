@@ -74,6 +74,10 @@ describe("@okf-harness/agent-pack", () => {
           },
           { command: "codex", args: ["plugin", "add", "okf-harness@okf-harness", "--json"] },
         ],
+        verification: expect.objectContaining({
+          commands: [{ command: "codex", args: ["plugin", "list", "--json"] }],
+          expectedIdentity: expect.stringContaining("pumblus/okf-harness"),
+        }),
       }),
     );
     expect(

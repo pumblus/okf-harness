@@ -1,10 +1,9 @@
-import { access, chmod, mkdtemp as createTempDir, mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp as createTempDir, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   type BootstrapAgent,
   type BootstrapStatus,
-  isShadowingOkfhExecutable,
   shadowingGlobalInstallCleanupCommand,
 } from "@okf-harness/agent-pack";
 import { harnessRuntimeVersion } from "@okf-harness/core";
@@ -301,9 +300,107 @@ describe("@okf-harness/cli doctor", () => {
     expect(result.checks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "native-host-cli-codex" }),
+        expect.objectContaining({ id: "native-integration-codex" }),
+        expect.objectContaining({ id: "native-integration-claude", status: "skip" }),
         expect.objectContaining({ id: "global-bootstrap-codex" }),
       ]),
     );
+  });
+
+  it("passes a separate native integration check for verified host state", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-cli-bin-"));
+    await writeFakeExecutable(bin, "codex");
+
+    const result = await runDoctor({
+      startDir: root,
+      env: { PATH: bin },
+      runExecutable: async (executable, args) => {
+        if (executable === "npm") {
+          return { stdout: JSON.stringify({ dependencies: {} }), stderr: "" };
+        }
+        if (args.join(" ") === "plugin list --json") {
+          return { stdout: verifiedDoctorProbeStdout(executable, args), stderr: "" };
+        }
+        return { stdout: `${executable} version\n`, stderr: "" };
+      },
+    });
+
+    const check = result.checks.find((entry) => entry.id === "native-integration-codex");
+    expect(check).toMatchObject({
+      status: "pass",
+      details: {
+        agent: "codex",
+        probeCommand: "codex plugin list --json",
+        outcome: "verified",
+        reason: "integration-verified",
+        expectedIdentity: expect.stringContaining("pumblus/okf-harness"),
+      },
+    });
+    expect(Object.keys(check?.details ?? {}).sort()).toEqual([
+      "agent",
+      "expectedIdentity",
+      "outcome",
+      "probeCommand",
+      "reason",
+    ]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("warns without failing for failed and unavailable integration probes and redacts output", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
+    const bin = await mkdtemp(path.join(tmpdir(), "okfh-cli-bin-"));
+    await writeFakeExecutable(bin, "claude");
+    await writeFakeExecutable(bin, "codex");
+
+    const result = await runDoctor({
+      startDir: root,
+      env: { PATH: bin },
+      runExecutable: async (executable, args) => {
+        if (executable === "npm") {
+          return { stdout: JSON.stringify({ dependencies: {} }), stderr: "" };
+        }
+        if (args.join(" ") === "plugin marketplace list --json") {
+          return { stdout: "[]", stderr: "" };
+        }
+        if (args.join(" ") === "plugin list --json" && executable.endsWith("claude")) {
+          return { stdout: "[]", stderr: "" };
+        }
+        if (args.join(" ") === "plugin list --json" && executable.endsWith("codex")) {
+          throw Object.assign(new Error("SECRET probe error"), {
+            code: 12,
+            stdout: "SECRET probe stdout",
+            stderr: "SECRET probe stderr",
+          });
+        }
+        return { stdout: `${executable} version\n`, stderr: "" };
+      },
+    });
+
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "native-integration-claude",
+          status: "warn",
+          details: expect.objectContaining({
+            outcome: "failed",
+            reason: "integration-not-installed",
+          }),
+        }),
+        expect.objectContaining({
+          id: "native-integration-codex",
+          status: "warn",
+          message: expect.stringContaining("Update Codex and retry doctor"),
+          details: expect.objectContaining({
+            outcome: "unavailable",
+            reason: "probe-command-failed",
+            exitCode: 12,
+          }),
+        }),
+      ]),
+    );
+    expect(result.ok).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("SECRET");
   });
 
   it("hard-warns with the shared clearing command for shadowing global installs", async () => {
@@ -572,6 +669,27 @@ describe("@okf-harness/cli doctor", () => {
   });
 });
 
+function verifiedDoctorProbeStdout(executable: string, args: string[]): string {
+  if (args.join(" ") !== "plugin list --json" || !executable.endsWith("codex")) {
+    return "";
+  }
+  return JSON.stringify({
+    installed: [
+      {
+        pluginId: "okf-harness@okf-harness",
+        marketplaceName: "okf-harness",
+        installed: true,
+        enabled: true,
+        marketplaceSource: {
+          sourceType: "git",
+          source: "https://github.com/pumblus/okf-harness.git",
+        },
+      },
+    ],
+    available: [],
+  });
+}
+
 async function useFakeDoctorEnv(): Promise<{
   paths: { claudeHome: string; codexStateDirectory: string };
   restore: () => Promise<void>;
@@ -581,6 +699,7 @@ async function useFakeDoctorEnv(): Promise<{
   const codexStateDirectory = path.join(root, ".codex");
   const claudeHome = path.join(root, ".claude");
   const bin = path.join(root, "bin");
+  await writeFakeExecutable(bin, "git");
   await writeFakeExecutable(bin, "npm");
   await writeFakeExecutable(bin, "pnpm");
   await writeFakeWindowsCommand(bin, "npm.cmd");
@@ -594,9 +713,7 @@ async function useFakeDoctorEnv(): Promise<{
   process.env.CLAUDE_CONFIG_DIR = claudeHome;
   process.env.CODEX_HOME = codexStateDirectory;
   process.env.HOME = home;
-  process.env.PATH = [bin, await pathWithoutShadowingOkfh(previous.PATH ?? "")].join(
-    path.delimiter,
-  );
+  process.env.PATH = bin;
   delete process.env.USERPROFILE;
 
   return {
@@ -653,30 +770,4 @@ async function writeFakeWindowsCommand(bin: string, name: string): Promise<void>
   const executable = path.join(bin, name);
   await writeFile(executable, "@exit /b 0\r\n", "utf8");
   await chmod(executable, 0o755);
-}
-
-async function pathWithoutShadowingOkfh(pathValue: string): Promise<string> {
-  const extensions = (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean);
-  const directories: string[] = [];
-  for (const directory of pathValue.split(path.delimiter).filter(Boolean)) {
-    const candidates = ["okfh", ...extensions.map((extension) => `okfh${extension}`)];
-    let containsShadowingOkfh = false;
-    for (const candidate of candidates) {
-      const executable = path.join(directory, candidate);
-      if (!isShadowingOkfhExecutable(executable)) {
-        continue;
-      }
-      try {
-        await access(executable);
-        containsShadowingOkfh = true;
-        break;
-      } catch {
-        // Keep looking for another executable candidate.
-      }
-    }
-    if (!containsShadowingOkfh) {
-      directories.push(directory);
-    }
-  }
-  return directories.join(path.delimiter);
 }

@@ -317,7 +317,7 @@ The broad setup path for people who use multiple agent clients or do not know wh
 _Avoid_: CLI install, native plugin, workspace setup
 
 **Setup plan**:
-A user-readable proposal produced by universal setup before it writes agent integrations or workspace files. It names the detected agent clients, the selected integrations, the required runtime checks, and the files or directories that would change.
+A user-readable proposal produced by universal setup before it writes agent integrations or workspace files. It names the detected agent clients, selected integrations, native install commands and verification actions, required runtime checks, and files or directories that would change.
 _Avoid_: hidden install, onboarding state, CLI dry run
 
 **Interactive agent selection**:
@@ -331,6 +331,18 @@ _Avoid_: hidden bootstrap, placeholder integration, preinstall
 **Native agent integration**:
 A host-specific distribution path, such as a plugin, extension, skill package, or package manager entry, that installs the unified host-level `okf-harness` entrypoint into one agent client. It invokes the runtime launcher and remains distinct from a workspace-local adapter.
 _Avoid_: Harness runtime, custom agent runtime, workspace-local adapter
+
+**Native integration verification**:
+Evidence that a supported agent client recognizes the exact OKF Harness native agent integration from its canonical distribution source as installed and, when the client exposes integration-level activation, enabled. User-controlled activation of individual resources inside an installed integration is outside setup verification.
+_Avoid_: install command completion, agent client detection, resource preference audit
+
+**Native integration verification outcome**:
+The authoritative post-install state of a selected native agent integration—`verified`, `failed`, or `unavailable`—independent of its install command result. Setup continues across integrations, but succeeds only when every selected integration is verified.
+_Avoid_: install command result, fail-fast installation, partial success
+
+**Native integration verification context**:
+The default profile or agent context addressed by an unqualified native install command. Named profiles and agents remain outside verification unless setup explicitly targets them.
+_Avoid_: all-profile audit, agent policy audit, implicit named profile
 
 **Native install command**:
 The concrete command or short command sequence that installs an OKF Harness native agent integration through the agent client's own plugin, extension, skill, or package mechanism. Universal setup should show this command before running it so the person can audit what will change.
