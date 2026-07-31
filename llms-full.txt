@@ -19,6 +19,7 @@ This file is meant for AI tools that need one public context bundle. It excludes
 - packages/core/README.md: Core package README
 - packages/agent-pack/README.md: Agent pack README
 - packages/setup/README.md: Setup package README
+- packages/native-integration/README.md: Native integration README
 
 ## Project README
 
@@ -1447,3 +1448,31 @@ Arguments after `--` pass to `okfh` unchanged. A direct runtime result means `DE
 Setup checks Node.js 22+, detects supported agent clients on `PATH`, installs selected native integrations containing the unified `okf-harness` host entrypoint, and keeps `--dry-run` local-only with no network checks or filesystem writes. It never installs a global `okfh`; workspace operations resolve their pinned runtime through `launch`.
 
 For project overview, workflows, and security notes, see the [main repository README](https://github.com/pumblus/okf-harness#readme).
+
+## Native integration README
+
+Source path: `packages/native-integration/README.md`
+
+### OKF Harness Native Integration
+
+This package exposes the unified `okf-harness` host entrypoint for Pi, OpenCode, and OpenClaw.
+
+#### Install
+
+```bash
+pi install npm:@pumblus/okf-harness
+```
+
+```bash
+opencode plugin @pumblus/okf-harness --global
+```
+
+```bash
+openclaw skills install @pumblus/okf-harness --global
+```
+
+The entrypoint invokes the version-independent launcher, which resolves each workspace's pinned Harness runtime on demand. Nothing is installed globally.
+
+#### Scope
+
+The host entrypoint handles workspace setup and daily maintenance. This package does not install workspace-local adapters for Pi, OpenCode, or OpenClaw.

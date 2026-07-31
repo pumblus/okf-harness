@@ -17,6 +17,7 @@ const sourceFiles = [
   { title: "Core package README", file: "packages/core/README.md" },
   { title: "Agent pack README", file: "packages/agent-pack/README.md" },
   { title: "Setup package README", file: "packages/setup/README.md" },
+  { title: "Native integration README", file: "packages/native-integration/README.md" },
 ];
 
 const intro = `# OKF Harness full LLM context
