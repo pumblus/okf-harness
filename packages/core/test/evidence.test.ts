@@ -297,6 +297,105 @@ Hop Three Answer remains available.
     }
   });
 
+  it.each([
+    {
+      code: "SOURCE_MISSING",
+      damage: (sourcePath: string) => rm(sourcePath),
+    },
+    {
+      code: "SOURCE_HASH_DRIFT",
+      damage: (sourcePath: string) => writeFile(sourcePath, "# Changed source\n", "utf8"),
+    },
+  ])("withholds topics linked directly to a damaged source for $code", async ({ code, damage }) => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(
+        path.join(workspace, "wiki/topics/llm-wiki.md"),
+        `---
+type: Topic
+title: Direct Source Only
+description: Topic linked directly to source material.
+okfh:
+  sources:
+    - src_20260615_0001
+---
+
+# Overview
+
+Direct Source Only evidence.
+`,
+        "utf8",
+      );
+      await damage(path.join(workspace, "raw/sources/2026/06/karpathy-llm-wiki.md"));
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "Direct Source Only",
+      });
+
+      expect(result.evidence.map(({ conceptId }) => conceptId)).not.toContain("topics/llm-wiki");
+      expect(result.candidates.map(({ conceptId }) => conceptId)).not.toContain("topics/llm-wiki");
+      expect(result.seals).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code,
+            sourceId: "src_20260615_0001",
+            sealed: expect.arrayContaining(["topics/llm-wiki"]),
+          }),
+        ]),
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports provenance for topics linked directly through okfh.sources", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(
+        path.join(workspace, "wiki/topics/llm-wiki.md"),
+        `---
+type: Topic
+title: Direct Source Only
+description: Topic linked directly to source material.
+okfh:
+  sources:
+    - src_20260615_0001
+---
+
+# Overview
+
+Direct Source Only evidence.
+`,
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "Direct Source Only",
+      });
+
+      expect(result.evidence[0]?.provenance).toMatchObject({
+        citations: [
+          expect.objectContaining({
+            kind: "source",
+            sourceId: "src_20260615_0001",
+            exists: true,
+          }),
+        ],
+        citationIssues: [],
+        sourceIds: ["src_20260615_0001"],
+        sources: [expect.objectContaining({ id: "src_20260615_0001" })],
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("withholds the same chain when a reference names an unregistered source", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
     const workspace = path.join(root, "workspace");

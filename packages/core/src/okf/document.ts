@@ -6,6 +6,7 @@ export type OkfDocumentView = {
   description?: string;
   tags: string[];
   timestamp?: string;
+  sourceIds: string[];
   body: string;
   frontmatterOk: boolean;
 };
@@ -17,6 +18,7 @@ export function okfDocumentView(file: OkfMarkdownFile): OkfDocumentView {
       ? (stringValue(file.frontmatter.data.title) ?? firstHeading(file.markdown) ?? file.conceptId)
       : (firstHeading(file.markdown) ?? file.conceptId),
     tags: file.frontmatter.ok ? stringArrayValue(file.frontmatter.data.tags) : [],
+    sourceIds: file.frontmatter.ok ? okfhSourceIds(file.frontmatter.data) : [],
     body,
     frontmatterOk: file.frontmatter.ok,
   };
@@ -59,4 +61,12 @@ function stringArrayValue(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function okfhSourceIds(frontmatter: Record<string, unknown>): string[] {
+  const okfh = frontmatter.okfh;
+  if (typeof okfh !== "object" || okfh === null || Array.isArray(okfh)) {
+    return [];
+  }
+  return [...new Set(stringArrayValue((okfh as { sources?: unknown }).sources))].filter(Boolean);
 }

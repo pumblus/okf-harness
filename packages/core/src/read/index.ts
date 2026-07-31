@@ -167,6 +167,7 @@ export async function readWorkspaceDocument(
     body,
     conceptIds,
     sourceEntries,
+    document.sourceIds,
     citationRange,
   );
   const source =
@@ -448,16 +449,28 @@ function parseCitations(
   body: string,
   conceptIds: Set<string>,
   sourceEntries: Map<string, SourceManifestEntry>,
+  frontmatterSourceIds: string[],
   citationRange: OffsetRange | undefined,
 ): { citations: ReadCitation[]; citationIssues: CitationIssue[] } {
+  const citations: ReadCitation[] = [];
+  const citationIssues: CitationIssue[] = [];
+  const citedSourceIds = new Set<string>();
+  for (const sourceId of frontmatterSourceIds) {
+    citedSourceIds.add(sourceId);
+    addSourceCitation(
+      citations,
+      citationIssues,
+      sourceEntries,
+      sourceId,
+      lineNumberAtOffset(file.markdown, Math.max(0, file.markdown.indexOf(sourceId))),
+    );
+  }
   if (citationRange === undefined) {
-    return { citations: [], citationIssues: [] };
+    return { citations, citationIssues };
   }
 
   const citationMarkdown = body.slice(citationRange.startOffset, citationRange.endOffset);
   const links = parseMarkdownLinks(citationMarkdown);
-  const citations: ReadCitation[] = [];
-  const citationIssues: CitationIssue[] = [];
   const linkedTargets = new Set<string>();
   for (const link of links) {
     linkedTargets.add(link.target);
@@ -507,33 +520,50 @@ function parseCitations(
     }
   }
 
-  const citedSourceIds = [...citationMarkdown.matchAll(/\b(src_\d{8}_\d{4})\b/g)];
-  for (const match of citedSourceIds) {
+  const sourceIdMatches = [...citationMarkdown.matchAll(/\b(src_\d{8}_\d{4})\b/g)];
+  for (const match of sourceIdMatches) {
     const sourceId = match[1];
-    if (sourceId === undefined) {
+    if (sourceId === undefined || citedSourceIds.has(sourceId)) {
       continue;
     }
-    const source = sourceEntries.get(sourceId);
-    const citation: ReadCitation = {
-      kind: "source",
+    citedSourceIds.add(sourceId);
+    addSourceCitation(
+      citations,
+      citationIssues,
+      sourceEntries,
       sourceId,
-      exists: source !== undefined,
-      line: citationRange.startLine + lineNumberAtOffset(citationMarkdown, match.index ?? 0) - 1,
-    };
-    if (source !== undefined) {
-      citation.source = source;
-    }
-    citations.push(citation);
-    if (source === undefined) {
-      citationIssues.push({
-        code: "BROKEN_CITATION_SOURCE",
-        line: citation.line,
-        message: `Citation source id is not registered: ${sourceId}`,
-      });
-    }
+      citationRange.startLine + lineNumberAtOffset(citationMarkdown, match.index ?? 0) - 1,
+    );
   }
 
   return { citations, citationIssues };
+}
+
+function addSourceCitation(
+  citations: ReadCitation[],
+  citationIssues: CitationIssue[],
+  sourceEntries: Map<string, SourceManifestEntry>,
+  sourceId: string,
+  line: number,
+): void {
+  const source = sourceEntries.get(sourceId);
+  const citation: ReadCitation = {
+    kind: "source",
+    sourceId,
+    exists: source !== undefined,
+    line,
+  };
+  if (source !== undefined) {
+    citation.source = source;
+  }
+  citations.push(citation);
+  if (source === undefined) {
+    citationIssues.push({
+      code: "BROKEN_CITATION_SOURCE",
+      line,
+      message: `Citation source id is not registered: ${sourceId}`,
+    });
+  }
 }
 
 type OffsetRange = {

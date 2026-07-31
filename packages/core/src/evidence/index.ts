@@ -19,6 +19,7 @@ import {
   SOURCE_MISSING,
 } from "../lint/index.js";
 import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import { okfDocumentView } from "../okf/document.js";
 import { safeResolveWorkspacePath, toPosixRelativePath } from "../paths/index.js";
 import {
   type CitationIssue,
@@ -707,11 +708,18 @@ function evidenceSeals(
   lineage: WorkspaceLineage,
   graph: GraphBacklinksData,
 ): EvidenceSeal[] {
-  const referencesBySource = new Map<string, Set<string>>();
+  const linkedPathsBySource = new Map<string, Set<string>>();
   for (const { sourceId, referencePath } of lineage.referenceLinks) {
-    const paths = referencesBySource.get(sourceId) ?? new Set<string>();
+    const paths = linkedPathsBySource.get(sourceId) ?? new Set<string>();
     paths.add(referencePath);
-    referencesBySource.set(sourceId, paths);
+    linkedPathsBySource.set(sourceId, paths);
+  }
+  for (const file of lineage.files) {
+    for (const sourceId of okfDocumentView(file).sourceIds) {
+      const paths = linkedPathsBySource.get(sourceId) ?? new Set<string>();
+      paths.add(file.workspacePath);
+      linkedPathsBySource.set(sourceId, paths);
+    }
   }
   const conceptIdByPath = new Map(graph.nodes.map((node) => [node.path, node.id]));
 
@@ -727,7 +735,7 @@ function evidenceSeals(
                 warning,
                 source.id,
                 source.path,
-                referencesBySource.get(source.id) ?? new Set(),
+                linkedPathsBySource.get(source.id) ?? new Set(),
                 conceptIdByPath,
                 graph,
               ),
