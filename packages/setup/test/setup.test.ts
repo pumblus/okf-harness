@@ -82,7 +82,7 @@ describe("@okf-harness/setup", () => {
       args: [
         "--yes",
         "--package",
-        "@okf-harness/cli@0.6.0",
+        "@okf-harness/cli@0.7.0",
         "okfh",
         "adopt-runtime",
         "--workspace",

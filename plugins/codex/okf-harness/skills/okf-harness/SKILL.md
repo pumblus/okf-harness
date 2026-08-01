@@ -4,7 +4,7 @@ description: Unified OKF Harness entrypoint for Codex. Use when the user asks to
 license: Apache-2.0
 compatibility: Designed for Codex with local shell and npx access. The Harness runtime is resolved through the launcher.
 metadata:
-  okf-harness-version: "0.6.0"
+  okf-harness-version: "0.7.0"
   okf-harness-managed: "true"
   okf-harness-entrypoint: "host"
   okf-harness-agent: "codex"

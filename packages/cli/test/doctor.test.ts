@@ -138,7 +138,7 @@ describe("@okf-harness/cli doctor", () => {
 
   it("reports a missing runtime pin with its adopt command without failing the run", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
-    const workspace = path.join(root, "ai-research");
+    const workspace = path.join(root, "ai research $draft's");
     await initTestWorkspace(workspace, "none", fakeEnv.runtimePath);
     await removeRuntimePin(workspace);
 
@@ -157,7 +157,19 @@ describe("@okf-harness/cli doctor", () => {
               status: "warn",
               details: expect.objectContaining({
                 pinnedVersion: null,
-                adoptCommand: `okfh adopt-runtime --workspace "${workspace}" --json`,
+                adoptCommand: {
+                  command: "npx",
+                  args: [
+                    "--yes",
+                    "--package",
+                    `@okf-harness/cli@${harnessRuntimeVersion}`,
+                    "okfh",
+                    "adopt-runtime",
+                    "--workspace",
+                    workspace,
+                    "--json",
+                  ],
+                },
               }),
             }),
           ]),

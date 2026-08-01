@@ -20,6 +20,7 @@ import {
   verifyNativeIntegration,
 } from "@okf-harness/agent-pack";
 import {
+  harnessRuntimeVersion,
   readWorkspaceConfig,
   readWorkspaceStatus,
   resolveWorkspaceRoot,
@@ -642,9 +643,19 @@ async function checkRuntimePin(workspaceRoot: string): Promise<DoctorCheck> {
       details: {
         workspace: workspaceRoot,
         pinnedVersion: null,
-        // Plain quotes, not JSON escaping: the command is pasted into a shell, where a
-        // JSON-escaped Windows path would no longer name the workspace.
-        adoptCommand: `okfh adopt-runtime --workspace "${workspaceRoot}" --json`,
+        adoptCommand: {
+          command: "npx",
+          args: [
+            "--yes",
+            "--package",
+            `@okf-harness/cli@${harnessRuntimeVersion}`,
+            "okfh",
+            "adopt-runtime",
+            "--workspace",
+            workspaceRoot,
+            "--json",
+          ],
+        },
       },
     };
   }

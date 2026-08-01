@@ -19,8 +19,8 @@ Create the first OKF Harness workspace for Codex from a parent folder.
 ## Allowed Commands
 
 ```bash
-npx --yes --package @okf-harness/cli@0.6.0 okfh init <workspace> --name <name> --agents codex --dry-run --json
-npx --yes --package @okf-harness/cli@0.6.0 okfh init <workspace> --name <name> --agents codex --json
+npx --yes --package @okf-harness/cli@0.7.0 okfh init <workspace> --name <name> --agents codex --dry-run --json
+npx --yes --package @okf-harness/cli@0.7.0 okfh init <workspace> --name <name> --agents codex --json
 npx @okf-harness/setup@latest launch --workspace <workspace> -- status --json
 ```
 

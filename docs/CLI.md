@@ -70,7 +70,7 @@ okfh doctor --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh doctor --dev --json
 ```
 
-`doctor` does not write files.
+`doctor` does not write files. For a pin-less workspace, the `workspace-runtime-pin` check reports `details.adoptCommand` as an exact executable-and-arguments object that runs `@okf-harness/cli@0.7.0` through `npx`; it does not require a global `okfh`.
 
 In JSON output, `data.checks` remains the flat compatibility list. `data.groups` separates `runtime`, `nativeIntegrations`, `legacyBootstrapFallback`, and `workspace` checks. The historical `legacyBootstrapFallback` key reports the Claude Code and Codex host entrypoints. `nativeIntegrations` keeps `native-host-cli-*` detection separate from `native-integration-*` verification: a missing host CLI skips verification, a verified integration passes, and a failed or unavailable verification warns without failing the overall doctor run. Probe diagnostics identify the client, command, outcome, stable reason, expected identity, and relevant exit code, never raw host output.
 
