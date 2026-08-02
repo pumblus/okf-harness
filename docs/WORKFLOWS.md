@@ -162,6 +162,8 @@ There is no `okfh query` command in the current CLI. The agent prepares an evide
 
 Normal answers use synthesized `wiki/` content. The agent should not read `raw/` source bodies unless you explicitly ask for a source-audit or ingest workflow. `search` and `read` remain available for retrieval debugging, candidate inspection, and bounded continuation, but they are no longer the default first step for answering.
 
+When the evidence brief proves that nothing in the wiki matched your question, the agent works the answer out from the conversation and may append one clause to the sentence that already tells you the wiki had no evidence: keep this answer? Saying yes writes one ordinary concept page plus its index link. Saying nothing writes nothing and persists nothing, and asking the same question later reopens the offer. The offer appears only on a proven coverage gap, so a withheld-evidence result or a brief that was merely truncated never produces one.
+
 ## Maintain A Workspace
 
 ```text

@@ -478,6 +478,10 @@ _Avoid_: answer, query engine, source search, evidence pool, RAG response
 A bounded pointer that tells an agent exactly where it may continue reading after a read result or evidence brief is truncated or incomplete. It is not permission to search raw sources, browse online, or freely expand scope.
 _Avoid_: next search, auto research, unbounded follow-up
 
+**Write-back offer**:
+The agent's one-clause offer to keep an answer the wiki could not supply, appended to the disclosure already owed when an evidence brief proves no concept document matched. It is permitted only by the no-match guidance string, and it is ephemeral: an accepted offer writes one ordinary concept page and its index link, and an ignored one persists nothing.
+_Avoid_: save mode, write queue, proposal, auto-capture, conversation source
+
 **Evidence sufficiency**:
 The agent-owned judgment that an evidence brief and any bounded follow-up reads are enough to answer a person's question responsibly. OKF Harness can expose mechanical limits, but it should not claim semantic sufficiency.
 _Avoid_: CLI confidence, harness answer score, automatic truth judgment
@@ -789,6 +793,8 @@ okfh read <concept-id-or-path> --workspace <workspace> --offset <offset> --limit
 There is no `okfh query` command in the current CLI. The agent prepares an evidence brief first, confirms that the returned question matches the request, follows at most one bounded continuation cue when needed, then answers or says that the evidence is missing, weak, truncated, or citation-poor.
 
 Normal answers use synthesized `wiki/` content. The agent should not read `raw/` source bodies unless you explicitly ask for a source-audit or ingest workflow. `search` and `read` remain available for retrieval debugging, candidate inspection, and bounded continuation, but they are no longer the default first step for answering.
+
+When the evidence brief proves that nothing in the wiki matched your question, the agent works the answer out from the conversation and may append one clause to the sentence that already tells you the wiki had no evidence: keep this answer? Saying yes writes one ordinary concept page plus its index link. Saying nothing writes nothing and persists nothing, and asking the same question later reopens the offer. The offer appears only on a proven coverage gap, so a withheld-evidence result or a brief that was merely truncated never produces one.
 
 #### Maintain A Workspace
 
@@ -1149,6 +1155,8 @@ Options:
 - `--max-chars <number>` overrides the preset with an explicit evidence-text character limit.
 
 The JSON data echoes the question and returns `budget`, selected `evidence`, thin `candidates`, `seals`, `limits`, and short `guidance`. Empty evidence is successful when the workspace is readable: an ordinary miss includes `NO_MATCHES`, while a fully sealed result keeps `ok: true` without returning the damaged documents.
+
+On the no-match result only, `guidance` carries one extra string permitting the agent to offer to write the answer back into the wiki as one concept page. Its presence is the whole permission; there is no structured write-back field and no write-back command. A fully sealed result, a truncated brief, and an ordinary match do not carry it, so an offer can never route around a seal or duplicate a page the wiki already holds.
 
 When a registered source is missing, its hash has drifted, or a reference names an unregistered source, evidence withholds that reference document and concepts that cite it directly. Concepts that cite only a sealed concept remain available. Sealed documents are also excluded from `candidates`, so unrelated documents in the same workspace can still be returned. If an invalid config or broken source manifest makes those chains uncomputable, evidence withholds every concept document instead. OKF conformance findings continue to produce a blocked result.
 

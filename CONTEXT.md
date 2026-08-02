@@ -240,6 +240,10 @@ _Avoid_: answer, query engine, source search, evidence pool, RAG response
 A bounded pointer that tells an agent exactly where it may continue reading after a read result or evidence brief is truncated or incomplete. It is not permission to search raw sources, browse online, or freely expand scope.
 _Avoid_: next search, auto research, unbounded follow-up
 
+**Write-back offer**:
+The agent's one-clause offer to keep an answer the wiki could not supply, appended to the disclosure already owed when an evidence brief proves no concept document matched. It is permitted only by the no-match guidance string, and it is ephemeral: an accepted offer writes one ordinary concept page and its index link, and an ignored one persists nothing.
+_Avoid_: save mode, write queue, proposal, auto-capture, conversation source
+
 **Evidence sufficiency**:
 The agent-owned judgment that an evidence brief and any bounded follow-up reads are enough to answer a person's question responsibly. OKF Harness can expose mechanical limits, but it should not claim semantic sufficiency.
 _Avoid_: CLI confidence, harness answer score, automatic truth judgment

@@ -283,6 +283,8 @@ okfh evidence "LLM Wiki" --workspace "$HOME/Documents/OKF Harness/ai-research" -
 
 JSON 数据会回显问题，并返回 `budget`、选中的 `evidence`、轻量 `candidates`、`seals`、`limits` 和短 `guidance`。只要工作区可读取，空证据就是成功结果：普通的无匹配结果会包含 `NO_MATCHES`；如果结果全部被封存，`ok` 仍为 `true`，但不会返回受损文档。
 
+只有在无匹配结果上，`guidance` 才会多出一条字符串，允许智能体提出把答案回写进 Wiki，作为一个概念页面。这条字符串出现即代表许可；没有结构化的回写字段，也没有回写命令。全部被封存的结果、被截断的摘要和普通匹配结果都不会带上它，因此回写既不能绕过封存，也不会重复 Wiki 已经收录的内容。
+
 当已登记来源缺失、哈希发生漂移，或参考文档指向未登记来源时，evidence 会拒绝返回该参考文档及直接引用它的概念。仅引用已封存概念的下一跳概念仍可使用。被封存文档也会从 `candidates` 中排除，因此同一工作区内无关的文档仍可返回。如果配置无效或来源清单损坏，导致这些链条无法计算，evidence 会拒绝返回所有概念文档。OKF 合规发现仍会产生 blocked 结果。
 
 每条 `seals` 记录都包含条件 `code`、`sealed` 中的受影响概念 ID，以及只陈述事实的 `basis`。带锚点的封存还会包含来源锚点（已登记时为 `sourceId` 和 `sourcePath`）；工作区级封存会省略这两个来源字段。封存记录不包含修复建议。人类可读输出会显示相同的封存字段。`limits` 现在只报告无匹配或截断等机械边界；这些来源完整性状态由 `seals` 承载，不再使用 `WORKSPACE_RISK`。
