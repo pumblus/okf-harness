@@ -322,6 +322,10 @@ describe("@okf-harness/agent-pack", () => {
     );
     expect(answer).toContain("Widen the internal seal beyond the Harness's two computed hops");
     expect(answer).toContain("report the widening instead of interrupting the user");
+    expect(answer).toContain("write-back permission");
+    expect(answer).toContain("no-match result and on no other result");
+    expect(answer).toContain("The offer is ephemeral");
+    expect(answer).toContain("one wiki concept page plus the index link");
   });
 
   it("renders strict skill metadata from the package version", async () => {
