@@ -176,7 +176,7 @@ okfh read <concept-id-or-path> --workspace <workspace> --offset <offset> --limit
 okfh check --workspace <workspace> --json
 ```
 
-`check` 会报告 `ready`、`needs_attention` 或 `blocked`。它会区分 OKF 合规和 Harness lint，所以断链或缺引用不会被说成 OKF 规范失败。每次编辑 Wiki 后，智能体应再次运行 check 并展示变更的文件。
+`check` 会报告 `ready`、`needs_attention` 或 `blocked`。它会区分 OKF 合规和 Harness lint，所以断链或缺少索引条目不会被说成 OKF 规范失败。每次编辑 Wiki 后，智能体应再次运行 check 并展示变更的文件。
 
 ## 生成图谱
 

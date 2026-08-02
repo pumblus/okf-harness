@@ -193,7 +193,7 @@ The newest-first computed list of workspace completions returned by `okfh histor
 _Avoid_: wiki log, evidence source, diff feed, audit file
 
 **Harness priority**:
-The priority assigned to Harness lint findings inside a workspace check. High priority covers evidence integrity problems such as source drift, missing registered sources, or reference documents that cannot be tied to source records; medium priority covers maintenance gaps such as ordinary missing citations or missing index entries; low priority covers tolerated navigation or cleanup issues such as broken links.
+The priority assigned to Harness lint findings inside a workspace check. High priority covers evidence integrity problems such as source drift, missing registered sources, or reference documents that cannot be tied to source records; medium priority covers maintenance gaps such as missing index entries; low priority covers tolerated navigation or cleanup issues such as broken links.
 _Avoid_: check status, OKF conformance severity, raw issue code
 
 **Currency seal**:

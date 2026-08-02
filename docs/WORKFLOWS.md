@@ -176,7 +176,7 @@ The agent should call:
 okfh check --workspace <workspace> --json
 ```
 
-`check` reports `ready`, `needs_attention`, or `blocked`. It keeps OKF conformance separate from Harness lint, so broken links or missing citations do not become OKF specification failures. After any wiki edit, the agent should run check again and show the changed files.
+`check` reports `ready`, `needs_attention`, or `blocked`. It keeps OKF conformance separate from Harness lint, so broken links or missing index entries do not become OKF specification failures. After any wiki edit, the agent should run check again and show the changed files.
 
 ## Generate A Graph
 
