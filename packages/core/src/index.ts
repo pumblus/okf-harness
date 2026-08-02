@@ -23,7 +23,6 @@ export {
   type LintResult,
   type LintSeverity,
   lintWorkspace,
-  MISSING_CITATIONS_SECTION,
   MISSING_INDEX_ENTRY,
   OKF_INVALID_FRONTMATTER,
   OKF_MISSING_FRONTMATTER,

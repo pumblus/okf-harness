@@ -43,6 +43,29 @@ describe("OKF evidence brief planning", () => {
     expect(JSON.stringify(result)).not.toContain("Fixture raw source for the LLM Wiki pattern.");
   });
 
+  it("warns about nothing when a wiki page carries no citations", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await writeFile(
+        path.join(workspace, "wiki/topics/llm-wiki.md"),
+        "---\ntype: Topic\ntitle: LLM Wiki\n---\n# Overview\n\nA topic without citations.\n",
+        "utf8",
+      );
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+
+      expect(result.warnings).toEqual([]);
+      expect(result.seals).toEqual([]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("returns section-first evidence items for matching wiki questions", async () => {
     const result = await planEvidenceBrief({
       workspaceRoot: validWorkspaceFixture,

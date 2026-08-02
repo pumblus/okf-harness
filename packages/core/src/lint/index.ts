@@ -39,7 +39,6 @@ export const SOURCE_LINEAGE_SUSPECTED = "SOURCE_LINEAGE_SUSPECTED" as const;
 export const SOURCE_MISSING = "SOURCE_MISSING" as const;
 export const BROKEN_LINK = "BROKEN_LINK" as const;
 export const MISSING_INDEX_ENTRY = "MISSING_INDEX_ENTRY" as const;
-export const MISSING_CITATIONS_SECTION = "MISSING_CITATIONS_SECTION" as const;
 export const WORKSPACE_READ_FAILED = "WORKSPACE_READ_FAILED" as const;
 
 export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> {
@@ -263,7 +262,6 @@ function lintWikiWarnings(files: OkfMarkdownFile[]): LintIssue[] {
   return [
     ...lintBrokenLinks(files, existingConceptIds),
     ...lintMissingIndexEntries(files, indexedConceptIds),
-    ...lintMissingCitationSections(files),
   ];
 }
 
@@ -308,33 +306,6 @@ function lintMissingIndexEntries(
   });
 }
 
-function lintMissingCitationSections(files: OkfMarkdownFile[]): LintIssue[] {
-  return files.flatMap((file) => {
-    if (file.isReserved || !file.frontmatter.ok) {
-      return [];
-    }
-    const document = okfDocumentView(file);
-    const type = document.type?.toLocaleLowerCase();
-    if (
-      type === undefined ||
-      !new Set(["topic", "entity", "project", "decision"]).has(type) ||
-      hasOkfhSources(file.frontmatter.data) ||
-      /^#\s+Citations\s*$/im.test(document.body)
-    ) {
-      return [];
-    }
-
-    return [
-      {
-        code: MISSING_CITATIONS_SECTION,
-        severity: "warning",
-        path: file.workspacePath,
-        message: `${file.bundlePath} should include # Citations or okfh.sources.`,
-      } satisfies LintIssue,
-    ];
-  });
-}
-
 function indexMentionedConceptIds(files: OkfMarkdownFile[]): Set<string> {
   const indexed = new Set<string>();
   for (const file of files) {
@@ -349,15 +320,6 @@ function indexMentionedConceptIds(files: OkfMarkdownFile[]): Set<string> {
     }
   }
   return indexed;
-}
-
-function hasOkfhSources(frontmatter: Record<string, unknown>): boolean {
-  const okfh = frontmatter.okfh;
-  if (typeof okfh !== "object" || okfh === null || Array.isArray(okfh)) {
-    return false;
-  }
-  const sources = (okfh as { sources?: unknown }).sources;
-  return Array.isArray(sources) && sources.length > 0;
 }
 
 function errorCode(error: unknown): string | undefined {

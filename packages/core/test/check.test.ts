@@ -237,7 +237,7 @@ describe("OKF workspace check", () => {
     });
   });
 
-  it("reports missing citations as medium-priority Harness lint", async () => {
+  it("leaves check status untouched when a concept carries no citations", async () => {
     const workspaceRoot = await copyValidWorkspace();
     await writeFile(
       `${workspaceRoot}/wiki/topics/llm-wiki.md`,
@@ -248,21 +248,16 @@ describe("OKF workspace check", () => {
     const result = await checkWorkspace(workspaceRoot);
 
     expect(result).toMatchObject({
-      status: "needs_attention",
+      status: "ready",
       okfConformance: {
         ok: true,
         findings: [],
       },
       harnessLint: {
-        ok: false,
+        ok: true,
         findings: {
           high: [],
-          medium: [
-            expect.objectContaining({
-              code: "MISSING_CITATIONS_SECTION",
-              path: "wiki/topics/llm-wiki.md",
-            }),
-          ],
+          medium: [],
           low: [],
         },
       },

@@ -308,7 +308,7 @@ describe("OKF hard linter", () => {
     ]);
   });
 
-  it("warns about content concepts missing citations without failing lint", async () => {
+  it("reports nothing for a content concept that carries no citations", async () => {
     const workspaceRoot = await copyValidWorkspace();
     await writeFile(
       `${workspaceRoot}/wiki/topics/llm-wiki.md`,
@@ -319,12 +319,6 @@ describe("OKF hard linter", () => {
     const result = await lintWorkspace(workspaceRoot);
 
     expect(result.ok).toBe(true);
-    expect(result.issues).toEqual([
-      expect.objectContaining({
-        code: "MISSING_CITATIONS_SECTION",
-        severity: "warning",
-        path: "wiki/topics/llm-wiki.md",
-      }),
-    ]);
+    expect(result.issues).toEqual([]);
   });
 });

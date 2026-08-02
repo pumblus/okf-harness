@@ -13,7 +13,6 @@ import {
   BROKEN_LINK,
   type LintIssue,
   lintWorkspaceFromLineage,
-  MISSING_CITATIONS_SECTION,
   REFERENCE_SOURCE_MISSING,
   SOURCE_HASH_DRIFT,
   SOURCE_MISSING,
@@ -192,7 +191,6 @@ const defaultEvidenceBudgetPreset: EvidenceBudgetPreset = "standard";
 const evidenceRiskCodes = new Set([
   BROKEN_LINK,
   CONFIG_INVALID,
-  MISSING_CITATIONS_SECTION,
   REFERENCE_SOURCE_MISSING,
   SOURCE_HASH_DRIFT,
   SOURCE_MISSING,
