@@ -317,6 +317,7 @@ export async function planEvidenceBrief(
         ? [
             "Treat this as a successful no-match result, not a command failure.",
             "Disclose that the synthesized wiki has no evidence for the question unless the user asks to broaden the search.",
+            "On that disclosure you may offer to write the answer back into the synthesized wiki as one concept page. The offer is ephemeral: write nothing without an explicit yes.",
           ]
         : availableResults.length === 0
           ? [

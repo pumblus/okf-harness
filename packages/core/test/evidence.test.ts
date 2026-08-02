@@ -6,6 +6,12 @@ import { planEvidenceBrief } from "../src/evidence/index.js";
 import { addSource } from "../src/source/index.js";
 import { validWorkspaceFixture } from "./helpers.js";
 
+// The guidance string's presence is the write-back boolean; match the fact it
+// carries rather than its wording.
+function permitsWriteBack(guidance: string[]): boolean {
+  return guidance.some((line) => /write .*back into the (synthesized )?wiki/i.test(line));
+}
+
 describe("OKF evidence brief planning", () => {
   it("treats no matching evidence as a successful brief result", async () => {
     const result = await planEvidenceBrief({
@@ -903,6 +909,53 @@ space proof ${"large page ".repeat(1_000)}
       expect(item?.continuationCues[0]?.command).toBe(
         `okfh read --workspace '${workspace}' --offset ${item?.range.endOffset} --limit 80 --json -- 'topics/space proof'`,
       );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("permits the write-back offer only when nothing matched", async () => {
+    const noMatch = await planEvidenceBrief({
+      workspaceRoot: validWorkspaceFixture,
+      question: "zqxjv noremote",
+    });
+    expect(permitsWriteBack(noMatch.guidance)).toBe(true);
+    expect(noMatch.limits).toEqual([{ code: "NO_MATCHES", message: expect.any(String) }]);
+
+    const matched = await planEvidenceBrief({
+      workspaceRoot: validWorkspaceFixture,
+      question: "LLM Wiki",
+    });
+    expect(permitsWriteBack(matched.guidance)).toBe(false);
+    expect(matched.limits).toEqual([]);
+
+    // A budget artifact is not a coverage gap: the wiki holds the content.
+    const truncated = await planEvidenceBrief({
+      workspaceRoot: validWorkspaceFixture,
+      question: "LLM Wiki",
+      maxChars: 120,
+    });
+    expect(permitsWriteBack(truncated.guidance)).toBe(false);
+    expect(truncated.limits).toEqual([{ code: "EVIDENCE_TRUNCATED", message: expect.any(String) }]);
+  });
+
+  it("keeps the write-back offer shut when every match is withheld by a seal", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "okfh-evidence-"));
+    const workspace = path.join(root, "workspace");
+    await cp(validWorkspaceFixture, workspace, { recursive: true });
+    try {
+      await rm(path.join(workspace, "raw/sources/2026/06/karpathy-llm-wiki.md"));
+
+      const result = await planEvidenceBrief({
+        workspaceRoot: workspace,
+        question: "LLM Wiki",
+      });
+
+      expect(result.evidence).toEqual([]);
+      expect(result.seals.length).toBeGreaterThan(0);
+      // Write-back must not become a bypass channel for a seal.
+      expect(permitsWriteBack(result.guidance)).toBe(false);
+      expect(result.limits).toEqual([]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
