@@ -43,7 +43,7 @@ Offer to keep an answer only when the Evidence Brief's `guidance` carries the wr
 
 When it is present, append the offer as one clause to the disclosure you already owe: the wiki had no evidence, you worked the answer out here, keep it? The offer is ephemeral. No answer means write nothing and persist nothing; the same question reopens the offer next time. A yes writes one ordinary concept page and its index link, and means only that the answer is worth keeping, not that the user certified it.
 
-An answer worked out from the conversation has no registered source behind it, so the written-back page carries no citations and the post-edit check reports `MISSING_CITATIONS_SECTION` for it. Report that finding as expected for self-authored knowledge. Never manufacture a citation, a reference document, or a `raw/` file to silence it.
+An answer worked out from the conversation has no registered source behind it, so the written-back page carries no citations. That is a legitimate state and the post-edit check reports nothing for it. Never manufacture a citation, a reference document, or a `raw/` file to give the page an anchor it does not have.
 
 ## First-Answer Check
 
