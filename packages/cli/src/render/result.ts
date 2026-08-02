@@ -24,9 +24,7 @@ function renderHumanResult(envelope: JsonEnvelope): string {
       `OKF version: ${data.okfVersion ?? "unknown"}`,
       `OKF conformance: ${data.okfConformance?.ok === false ? "fail" : "pass"}`,
       `Harness lint: ${data.harnessLint?.ok === false ? "needs attention" : "pass"}`,
-      `Currency: ${
-        data.currency?.sealed === false ? `not sealed (${currencyDetails.join(", ")})` : "sealed"
-      }`,
+      `Currency: ${humanCurrency(data.currency, currencyDetails)}`,
     ];
     for (const priority of ["high", "medium", "low"] as const) {
       const findings = data.harnessLint?.findings[priority] ?? [];
@@ -121,6 +119,13 @@ function renderHumanResult(envelope: JsonEnvelope): string {
   }
 
   return `${envelope.ok ? "OK" : "FAILED"} ${envelope.command}\n`;
+}
+
+function humanCurrency(currency: CheckResult["currency"] | undefined, details: string[]): string {
+  if (currency?.sealed === false) {
+    return `not sealed (${details.join(", ")})`;
+  }
+  return currency?.promotedSources === 0 ? "no promoted sources to reconcile" : "sealed";
 }
 
 function humanCheckStatus(status: string | undefined): string {

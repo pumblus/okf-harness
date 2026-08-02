@@ -171,6 +171,61 @@ describe("@okf-harness/cli workspace", () => {
     });
   });
 
+  it("distinguishes a workspace with nothing to reconcile from a sealed one", async () => {
+    const { root, workspace } = await initWorkspace();
+
+    const empty = await runJsonCli(["node", "okfh", "check", "--workspace", workspace, "--json"]);
+    let emptyStdout = "";
+    await runCli(["node", "okfh", "check", "--workspace", workspace], {
+      writeOut: (chunk) => {
+        emptyStdout += chunk;
+      },
+      writeErr: () => {},
+    });
+
+    expect(empty.result.data.currency).toMatchObject({ sealed: true, promotedSources: 0 });
+    expect(emptyStdout).toContain("Currency: no promoted sources to reconcile");
+    expect(emptyStdout).not.toContain("Currency: sealed");
+
+    const sourcePath = path.join(root, "paper.md");
+    await writeFile(sourcePath, "# Paper v1\n", "utf8");
+    const added = await runJsonCli([
+      "node",
+      "okfh",
+      "source",
+      "add",
+      sourcePath,
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+    await mkdir(path.join(workspace, "wiki/references"), { recursive: true });
+    await writeFile(
+      path.join(workspace, "wiki/references/paper.md"),
+      `---\ntype: Reference\ntitle: Paper\nokfh:\n  source_id: ${added.result.data.source.id}\n---\n# Paper\n`,
+      "utf8",
+    );
+
+    const promoted = await runJsonCli([
+      "node",
+      "okfh",
+      "check",
+      "--workspace",
+      workspace,
+      "--json",
+    ]);
+    let promotedStdout = "";
+    await runCli(["node", "okfh", "check", "--workspace", workspace], {
+      writeOut: (chunk) => {
+        promotedStdout += chunk;
+      },
+      writeErr: () => {},
+    });
+
+    expect(promoted.result.data.currency).toMatchObject({ sealed: true, promotedSources: 1 });
+    expect(promotedStdout).toContain("Currency: sealed");
+  });
+
   it("reports unsealed currency without changing the check exit code", async () => {
     const { root, workspace } = await initWorkspace();
     const sourcePath = path.join(root, "paper.md");
@@ -218,6 +273,7 @@ describe("@okf-harness/cli workspace", () => {
     expect(checked.exitCode).toBe(0);
     expect(checked.result.data.currency).toEqual({
       sealed: false,
+      promotedSources: 1,
       dangling: [
         {
           original: "paper.md",
@@ -253,6 +309,7 @@ describe("@okf-harness/cli workspace", () => {
     expect(checked.exitCode).toBe(0);
     expect(checked.result.data.currency).toEqual({
       sealed: false,
+      promotedSources: 0,
       dangling: [],
       diagnostics: [
         expect.objectContaining({ code: "MANIFEST_INVALID", path: ".okfh/manifest.jsonl" }),

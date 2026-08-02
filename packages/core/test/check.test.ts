@@ -14,6 +14,7 @@ describe("OKF workspace check", () => {
       okfVersion: "0.1",
       currency: {
         sealed: true,
+        promotedSources: 1,
         dangling: [],
         diagnostics: [],
       },
@@ -42,6 +43,7 @@ describe("OKF workspace check", () => {
 
     expect((await checkWorkspace(workspaceRoot)).currency).toEqual({
       sealed: true,
+      promotedSources: 1,
       dangling: [],
       diagnostics: [],
     });
@@ -52,6 +54,7 @@ describe("OKF workspace check", () => {
 
     expect((await checkWorkspace(workspaceRoot)).currency).toEqual({
       sealed: false,
+      promotedSources: 1,
       dangling: [
         {
           original: "karpathy-llm-wiki.md",
@@ -71,6 +74,7 @@ describe("OKF workspace check", () => {
     });
     expect((await checkWorkspace(workspaceRoot)).currency).toEqual({
       sealed: true,
+      promotedSources: 1,
       dangling: [],
       diagnostics: [],
     });
@@ -81,6 +85,7 @@ describe("OKF workspace check", () => {
 
     expect(reopened.currency).toEqual({
       sealed: false,
+      promotedSources: 1,
       dangling: [
         {
           original: "karpathy-llm-wiki.md",
@@ -92,6 +97,18 @@ describe("OKF workspace check", () => {
       diagnostics: [],
     });
     expect(reopened.status).toBe("needs_attention");
+  });
+
+  it("reports a workspace with zero promoted sources as having nothing to reconcile", async () => {
+    const workspaceRoot = await copyValidWorkspace();
+    await rm(`${workspaceRoot}/wiki/references`, { recursive: true });
+
+    expect((await checkWorkspace(workspaceRoot)).currency).toEqual({
+      sealed: true,
+      promotedSources: 0,
+      dangling: [],
+      diagnostics: [],
+    });
   });
 
   it("blocks workspaces that are not OKF-readable", async () => {
@@ -346,6 +363,7 @@ describe("OKF workspace check", () => {
 
     expect(result.currency).toEqual({
       sealed: false,
+      promotedSources: 0,
       dangling: [],
       diagnostics: [
         expect.objectContaining({ code: "MANIFEST_INVALID", path: ".okfh/manifest.jsonl" }),
@@ -363,6 +381,7 @@ describe("OKF workspace check", () => {
     expect(result.status).toBe("needs_attention");
     expect(result.currency).toEqual({
       sealed: false,
+      promotedSources: 1,
       dangling: [],
       diagnostics: [
         expect.objectContaining({
@@ -376,9 +395,13 @@ describe("OKF workspace check", () => {
 
   it("does not seal currency when config, manifest, or ledger files cannot be read", async () => {
     const cases = [
-      { path: "okfh.config.yaml", code: "CONFIG_INVALID" },
-      { path: ".okfh/manifest.jsonl", code: "MANIFEST_INVALID" },
-      { path: ".okfh/reconciliation.jsonl", code: "RECONCILIATION_LEDGER_INVALID" },
+      { path: "okfh.config.yaml", code: "CONFIG_INVALID", promotedSources: 0 },
+      { path: ".okfh/manifest.jsonl", code: "MANIFEST_INVALID", promotedSources: 0 },
+      {
+        path: ".okfh/reconciliation.jsonl",
+        code: "RECONCILIATION_LEDGER_INVALID",
+        promotedSources: 1,
+      },
     ];
 
     for (const testCase of cases) {
@@ -390,6 +413,7 @@ describe("OKF workspace check", () => {
 
       expect(result.currency).toEqual({
         sealed: false,
+        promotedSources: testCase.promotedSources,
         dangling: [],
         diagnostics: [expect.objectContaining({ code: testCase.code, path: testCase.path })],
       });
@@ -430,6 +454,7 @@ describe("OKF workspace check", () => {
     expect(result.status).toBe("needs_attention");
     expect(result.currency).toEqual({
       sealed: false,
+      promotedSources: 0,
       dangling: [],
       diagnostics: [expect.objectContaining({ code: "SCAN_FAILED", path: "wiki" })],
     });
@@ -449,6 +474,7 @@ describe("OKF workspace check", () => {
     const malformed = await checkWorkspace(malformedRoot);
     expect(malformed.currency).toEqual({
       sealed: false,
+      promotedSources: 1,
       dangling: [],
       diagnostics: [
         expect.objectContaining({
@@ -468,6 +494,7 @@ describe("OKF workspace check", () => {
     const missing = await checkWorkspace(missingRoot);
     expect(missing.currency).toEqual({
       sealed: false,
+      promotedSources: 2,
       dangling: [],
       diagnostics: [
         expect.objectContaining({

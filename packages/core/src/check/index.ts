@@ -23,6 +23,12 @@ export type HarnessPriority = "high" | "medium" | "low";
 
 export type CheckCurrency = {
   sealed: boolean;
+  /**
+   * How many distinct sources the wiki has promoted. Reporting only: it never
+   * enters the seal computation, but it separates a seal earned over promoted
+   * sources from one that is vacuously true because there are none.
+   */
+  promotedSources: number;
   dangling: Array<ReconciliationEdge & { promotedBy: string[] }>;
   /**
    * Deterministic diagnostics explaining why currency could not be verified
@@ -84,16 +90,17 @@ export function checkCurrencyFromLineage(
   lineage: WorkspaceLineage,
   lint: LintResult,
 ): CheckCurrency {
-  const diagnostics = lint.issues.filter((issue) => issue.severity === "error");
-  if (diagnostics.length > 0) {
-    return { sealed: false, dangling: [], diagnostics };
-  }
-
   const promotedBySource = new Map<string, string[]>();
   for (const { sourceId, referencePath } of lineage.referenceLinks) {
     const paths = promotedBySource.get(sourceId) ?? [];
     paths.push(referencePath);
     promotedBySource.set(sourceId, paths);
+  }
+  const promotedSources = promotedBySource.size;
+
+  const diagnostics = lint.issues.filter((issue) => issue.severity === "error");
+  if (diagnostics.length > 0) {
+    return { sealed: false, promotedSources, dangling: [], diagnostics };
   }
 
   const dangling = lineage.dangling.flatMap((edge) => {
@@ -103,7 +110,7 @@ export function checkCurrencyFromLineage(
     ];
     return promotedBy.length === 0 ? [] : [{ ...edge, promotedBy: [...new Set(promotedBy)] }];
   });
-  return { sealed: dangling.length === 0, dangling, diagnostics };
+  return { sealed: dangling.length === 0, promotedSources, dangling, diagnostics };
 }
 
 function groupHarnessFindings(issues: LintIssue[]): Record<HarnessPriority, LintIssue[]> {
