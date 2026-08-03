@@ -271,6 +271,10 @@ describe("@okf-harness/agent-pack", () => {
     expect(ingestReference).toContain("This limit is agent-enforced guidance");
     expect(ingestReference).toContain("Their reasons are mechanical metadata matches");
     expect(ingestReference).toContain("If it is present, the CLI has not created the file");
+    expect(ingestReference).toContain("does not stop again; the user has already adjudicated");
+    expect(ingestReference).toContain("cites a source it does not follow");
+    expect(ingestReference).toContain("rests on a claim with no registered source behind it");
+    expect(ingestReference).toContain("Changed paths alone do not carry it");
     expect(ingestReference).not.toContain("v0.3.2");
     expect(fileContents(codex.files, referencePaths[4])).toContain("No such command exists");
     expect(fileContents(codex.files, referencePaths[4])).toContain(

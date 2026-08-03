@@ -34,3 +34,5 @@ Treat `candidateConcepts` as existing non-reference content pages to inspect aft
 Treat `suggestedNewConcept` as a proposed `Topic` path to confirm after reading the source. If it is omitted, do not infer a hidden suggestion. If it is present, the CLI has not created the file.
 
 If registration or planning fails, stop before wiki edits and report the failing command's JSON error. Otherwise, read the registered source material, update only bounded wiki files, run check, and finish with the registered source ID, changed wiki paths, check status, and unresolved questions.
+
+An ingest that resolved a contradiction against a page does not stop again; the user has already adjudicated. Report the substance of that outcome: that the page now cites a source it does not follow, and that the divergence rests on a claim with no registered source behind it. Changed paths alone do not carry it.
