@@ -158,7 +158,7 @@ okfh evidence "<question>" --workspace <workspace> --json
 okfh read <concept-id-or-path> --workspace <workspace> --offset <offset> --limit <limit> --json
 ```
 
-当前 CLI 没有 `okfh query` 命令。智能体先准备证据摘要（Evidence Brief），确认返回的问题和用户请求一致；必要时最多跟随一次受控续读提示；然后回答，或说明证据缺失、偏弱、被截断，或引用不足。
+当前 CLI 没有 `okfh query` 命令。智能体先准备证据摘要（Evidence Brief），确认返回的问题和用户请求一致；必要时最多跟随一次受控续读提示；然后回答，或说明证据缺失、偏弱、被截断，或引用不足。当承载结论的论断依赖溯源载荷（provenance payload）为空的页面时，回答会点明这些知识来自对话而非你 ingest 的来源，让你始终看到溯源链在哪里终止；该论断的分量不会因此打折。
 
 常规回答使用已整理的 `wiki/` 内容。除非你明确要求做来源审计或 ingest，智能体不应读取 `raw/` 原始资料正文。`search` 和 `read` 仍可用于调试检索、查看候选文档和受控续读，但不再是默认问答起点。
 

@@ -795,7 +795,7 @@ okfh evidence "<question>" --workspace <workspace> --json
 okfh read <concept-id-or-path> --workspace <workspace> --offset <offset> --limit <limit> --json
 ```
 
-There is no `okfh query` command in the current CLI. The agent prepares an evidence brief first, confirms that the returned question matches the request, follows at most one bounded continuation cue when needed, then answers or says that the evidence is missing, weak, truncated, or citation-poor.
+There is no `okfh query` command in the current CLI. The agent prepares an evidence brief first, confirms that the returned question matches the request, follows at most one bounded continuation cue when needed, then answers or says that the evidence is missing, weak, truncated, or citation-poor. When a load-bearing claim rests on pages whose provenance payload is empty, the answer names that the knowledge came from conversation rather than an ingested source, so you always see where the provenance trail ends; the claim is not discounted.
 
 Normal answers use synthesized `wiki/` content. The agent should not read `raw/` source bodies unless you explicitly ask for a source-audit or ingest workflow. `search` and `read` remain available for retrieval debugging, candidate inspection, and bounded continuation, but they are no longer the default first step for answering.
 
