@@ -22,27 +22,7 @@ Windows 下按同样习惯放在 `%USERPROFILE%\Documents\OKF Harness\...`。
 
 ## 开始之前
 
-在本地终端运行一次 setup：
-
-```bash
-curl -fsSL https://okf-harness.dev/install.sh | sh
-```
-
-Windows PowerShell：
-
-```powershell
-irm https://okf-harness.dev/install.ps1 | iex
-```
-
-已经有 Node.js 22 或更高版本？
-
-```bash
-npx @okf-harness/setup@latest
-```
-
-普通使用需要 macOS、Windows 或 Linux、Node.js 22 或更高版本、由 setup 检查的工作区恢复依赖、首次使用每个固定运行时版本时可访问 npm，以及一个受支持的原生智能体集成。`pnpm` 只用于仓库开发。
-
-“本地优先”描述的是工作区文件存放在本机，不表示保证可在完全隔离网络（air-gapped）的环境中运行。
+先用 [README 安装说明](../../README.zh-CN.md#安装一次) 安装一次 OKF Harness，然后继续下面的智能体流程。
 
 ## 从你的智能体开始
 

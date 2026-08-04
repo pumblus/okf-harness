@@ -22,27 +22,7 @@ Avoid one hidden global knowledge base. Separate workspaces make agent prompts c
 
 ## Before You Start
 
-Run setup once in your local terminal:
-
-```bash
-curl -fsSL https://okf-harness.dev/install.sh | sh
-```
-
-Windows PowerShell:
-
-```powershell
-irm https://okf-harness.dev/install.ps1 | iex
-```
-
-Already have Node.js 22 or newer?
-
-```bash
-npx @okf-harness/setup@latest
-```
-
-Normal use needs macOS, Windows, or Linux; Node.js 22 or newer; the workspace recovery dependency checked by setup; npm access for the first use of each pinned runtime version; and a supported native agent integration. `pnpm` is only for repository development.
-
-Local-first describes where workspace files live, not an air-gap guarantee.
+Install OKF Harness once with the [README install instructions](../README.md#install-once), then continue with your agent below.
 
 ## Start With Your Agent
 

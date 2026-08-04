@@ -21,8 +21,6 @@ npx --package @okf-harness/cli okfh doctor --json
 - 工作区恢复依赖（由 setup 或 `okfh doctor --json` 检查）
 - 首次获取某个固定运行时版本时可访问 npm
 
-“本地优先”描述的是工作区文件存放在本机，不表示保证可在完全隔离网络（air-gapped）的环境中运行。
-
 参与仓库开发时额外需要 `pnpm`；用 `okfh doctor --dev --json` 检查开发环境。
 
 普通首次设置应从 `@okf-harness/setup` 或原生智能体集成开始。通用 setup 会显示每个已选集成的只读验证命令与预期身份，且只有所有最终状态均为 `verified` 时才成功；出现 `failed` 或 `unavailable` 时会以非零状态退出。`--dry-run` 会显示同一份计划，但不执行探测。直接使用 CLI 不会写入统一宿主入口。
@@ -76,7 +74,7 @@ JSON 输出中，`data.checks` 仍保留兼容用的扁平列表。`data.groups`
 
 ### init
 
-创建工作区，可选渲染工作区本地适配文件。当前 CLI 工作区适配器是 `codex` 和 `claude`；v0.6 原生集成通过 setup 或各宿主包安装，不表示 `okfh init --agents` 已支持这些集成。
+创建工作区，可选渲染工作区本地适配文件。当前 CLI 工作区适配器是 `codex` 和 `claude`；原生集成通过 setup 或各宿主包安装，不表示 `okfh init --agents` 已支持这些集成。
 
 ```bash
 okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --json

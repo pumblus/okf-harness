@@ -21,8 +21,6 @@ Requirements for normal use:
 - workspace recovery dependency (checked by setup or `okfh doctor --json`)
 - npm access when a pinned runtime version is first fetched
 
-Local-first describes where workspace files live, not an air-gap guarantee.
-
 Repository development additionally requires `pnpm`; check that environment with `okfh doctor --dev --json`.
 
 Normal first setup should start from `@okf-harness/setup` or a native agent integration. Universal setup shows each selected integration's read-only verification commands and expected identity, then succeeds only when every final state is `verified`; `failed` and `unavailable` states exit nonzero. `--dry-run` shows the same plan without probing. Direct CLI use does not write the unified host entrypoint.
@@ -76,7 +74,7 @@ In JSON output, `data.checks` remains the flat compatibility list. `data.groups`
 
 ### init
 
-Creates a workspace and optionally renders workspace-local adapter files. The current CLI workspace adapters are `codex` and `claude`; v0.6 native integrations are installed through setup or their host package surfaces and do not imply `okfh init --agents` support.
+Creates a workspace and optionally renders workspace-local adapter files. The current CLI workspace adapters are `codex` and `claude`; native agent integrations are installed through setup or their host package surfaces and do not imply `okfh init --agents` support.
 
 ```bash
 okfh init "$HOME/Documents/OKF Harness/ai-research" --name "AI Research" --agents codex --json

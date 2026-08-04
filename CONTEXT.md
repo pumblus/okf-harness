@@ -297,7 +297,7 @@ The user-facing client where a person talks to an agent, such as a desktop app o
 _Avoid_: agent, model, runtime
 
 **Supported agent set**:
-The agent clients OKF Harness actively considers for installation, native integration, documentation, and compatibility checks in a release. For the v0.6 planning context this set includes Claude Code, Codex, OpenCode, Pi, Hermes Agent, and OpenClaw.
+The agent clients OKF Harness actively considers for installation, native integration, documentation, and compatibility checks in a release. The current supported set includes Claude Code, Codex, OpenCode, Pi, Hermes Agent, and OpenClaw.
 _Avoid_: all agents, model providers, future integrations
 
 **Agent integration support level**:
@@ -369,7 +369,7 @@ The concrete OKF Harness setup version selected by a latest or version-pinned in
 _Avoid_: hidden latest, package range, release promise
 
 **Recommended install path**:
-The default install path shown first to ordinary users. For OKF Harness v0.6 planning, this is the operating-system installer script that launches universal setup; single-agent native install paths remain available below it for users who already know their preferred agent client.
+The default install path shown first to ordinary users. This is the operating-system installer script that launches universal setup; single-agent native install paths remain available below it for users who already know their preferred agent client.
 _Avoid_: only install path, CLI install, advanced install
 
 **Agent skill**:
