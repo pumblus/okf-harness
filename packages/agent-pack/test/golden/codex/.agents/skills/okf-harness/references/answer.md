@@ -37,6 +37,12 @@ When the Evidence Brief contains seals, treat their payloads as internal facts. 
 
 The Harness computes only two provable hops. Inspect concepts beyond that boundary when their prose may carry the same contamination. Widen the internal seal beyond the Harness's two computed hops on your own judgment by withholding those concepts too, and report the widening instead of interrupting the user.
 
+## Provenance Disclosure
+
+When a load-bearing claim rests on pages whose provenance payload is empty — no citations and no source pointers — name in the answer that the knowledge came from conversation rather than an ingested source. Weight is not discounted: the user's own recorded decision carries the same weight as any other evidence. The obligation is retraceability, not caveating; the answer always shows where the provenance trail ends.
+
+The empty provenance payload is the whole signal. No tier flag, no computed marker, and no authorship capture enters the evidence brief or any page's frontmatter.
+
 ## Write-Back Offer
 
 Offer to keep an answer only when the Evidence Brief's `guidance` carries the write-back permission. That string appears on the no-match result and on no other result, so its presence is the whole condition. Never offer on a withheld-evidence result, on a truncated brief, or after a continuation read.
@@ -44,6 +50,10 @@ Offer to keep an answer only when the Evidence Brief's `guidance` carries the wr
 When it is present, append the offer as one clause to the disclosure you already owe: the wiki had no evidence, you worked the answer out here, keep it? The offer is ephemeral. No answer means write nothing and persist nothing; the same question reopens the offer next time. A yes writes one ordinary concept page and its index link, and means only that the answer is worth keeping, not that the user certified it.
 
 An answer worked out from the conversation has no registered source behind it, so the written-back page carries no citations. That is a legitimate state and the post-edit check reports nothing for it. Never manufacture a citation, a reference document, or a `raw/` file to give the page an anchor it does not have.
+
+When the written-back answer drew on unanchored pages, the new page's prose names them as derived-from, with plain links. Harness parses, validates, and reports none of it. The lineage is prose, written for the next reader's walkable trail.
+
+Accepted ceiling: an Agent that skips the disclosure or the lineage prose is not caught by anything. Harness can prove the obligation was delivered, never that it was honored.
 
 ## First-Answer Check
 

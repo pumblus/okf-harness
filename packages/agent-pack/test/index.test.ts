@@ -330,6 +330,14 @@ describe("@okf-harness/agent-pack", () => {
     expect(answer).toContain("no-match result and on no other result");
     expect(answer).toContain("The offer is ephemeral");
     expect(answer).toContain("one wiki concept page plus the index link");
+    expect(answer).toContain("provenance payload is empty");
+    expect(answer).toContain("the knowledge came from conversation rather than an ingested source");
+    expect(answer).toContain("Weight is not discounted");
+    expect(answer).toContain("The obligation is retraceability");
+    expect(answer).toContain("The empty provenance payload is the whole signal");
+    expect(answer).toContain("names them as derived-from");
+    expect(answer).toContain("Harness parses, validates, and reports none of it");
+    expect(answer).toContain("not caught by anything");
   });
 
   it("renders strict skill metadata from the package version", async () => {
