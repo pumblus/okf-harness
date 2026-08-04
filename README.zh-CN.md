@@ -34,6 +34,11 @@ OKF Harness 建立在以下基础之上：
 - Andrej Karpathy 的 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)：一种由智能体维护的 Wiki 模式，包含索引、日志、链接页面、摄取、查询和检查功能。
 - Google 的 [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) 和 [OKF 规范](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)：用 Markdown 和 frontmatter 表达可移植知识包（bundle）的格式。
 
+在此基础上，OKF Harness 自己划出两条界线：
+
+- 变更历史存放在工作区的 git 仓库中，而不是 wiki 里。wiki 只承载知识。
+- Harness 会核查来源踪迹——每条引注是否真的落在已登记来源的字节上。它不评判 wiki 是否正确，也不要求每句话都带引注。
+
 本仓库与 Andrej Karpathy 或 Google 没有关联，也不代表其背书。
 
 ## 安装一次

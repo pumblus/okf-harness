@@ -61,6 +61,11 @@ OKF Harness builds on:
 - Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): the agent-maintained wiki pattern of index, log, linked pages, ingest, query, and lint.
 - Google's [Open Knowledge Format announcement](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) and [OKF specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): the markdown-plus-frontmatter bundle shape that keeps knowledge portable across tools.
 
+Within that, OKF Harness draws two lines of its own:
+
+- Change history lives in the workspace's git repository, not in the wiki. The wiki holds knowledge only.
+- Harness checks the source trail — whether each citation really lands on the bytes of a registered source. It does not judge whether the wiki is right, and it does not require every sentence to carry a citation.
+
 This repository is not affiliated with or endorsed by Andrej Karpathy or Google.
 
 #### Install Once
