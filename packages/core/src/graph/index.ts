@@ -1,7 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { loadWorkspaceConfig } from "../config/index.js";
-import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import {
+  assertSnapshotReadable,
+  readWorkspaceSnapshot,
+  type WorkspaceSnapshot,
+} from "../lineage/index.js";
+import type { OkfMarkdownFile } from "../okf/concepts.js";
 import { okfDocumentView } from "../okf/document.js";
 import {
   parseBareReferenceTargets,
@@ -83,10 +87,21 @@ export type BuildWorkspaceGraphResult = {
 export async function buildWorkspaceGraphData(
   options: BuildWorkspaceGraphOptions,
 ): Promise<GraphBacklinksData> {
-  const workspaceRoot = path.resolve(options.workspaceRoot);
-  const config = await loadWorkspaceConfig(workspaceRoot);
-  const scanResult = await scanConcepts(workspaceRoot, config);
-  const files = scanResult.files.filter((file) => !file.isReserved);
+  const snapshot = await readWorkspaceSnapshot(path.resolve(options.workspaceRoot));
+  assertSnapshotReadable(snapshot);
+  return buildWorkspaceGraphDataFromSnapshot(snapshot, options);
+}
+
+/**
+ * The graph data core over one already-loaded workspace snapshot; the report
+ * writing stays in buildWorkspaceGraph, which calls this after loading once.
+ */
+export async function buildWorkspaceGraphDataFromSnapshot(
+  snapshot: WorkspaceSnapshot,
+  options: { now?: Date | undefined } = {},
+): Promise<GraphBacklinksData> {
+  const workspaceRoot = snapshot.workspaceRoot;
+  const files = snapshot.files.filter((file) => !file.isReserved);
   const nodes = files.map(graphNodeFromFile);
   const { edges, missingTargets, issues } = graphEdgesFromFiles(
     files,

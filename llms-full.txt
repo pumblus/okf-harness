@@ -411,6 +411,10 @@ _Avoid_: state machine, onboarding progress, auto-fix, task list, semantic score
 The local capability that records completed workspace states and lets an agent list or revisit them through closed Harness verbs. It remains internal to workspace operation and stays outside the wiki and normal evidence path.
 _Avoid_: backup product, wiki history, user-facing version control
 
+**Workspace snapshot**:
+The internal read-side mechanism by which the Harness loads a workspace once per command: resolved root, config, full wiki scan, source manifest, and reconciliation ledger, plus the deterministic facts derived from them. Read-side entry points load exactly one snapshot and thread it through, so every module observes the same workspace state and the wiki tree is scanned once per command; it is invisible to agents and never appears in command output.
+_Avoid_: cache, index, session state, agent-visible read model
+
 **Completion**:
 A known-good full workspace state recorded when a maintenance cycle completes. It has an opaque completion id and stores only the non-reproducible judgment for that cycle; the initialization baseline is not a completion. `okfh history` lists completions newest first, and `okfh restore` steps back to one; history is recovery context, never citable evidence.
 _Avoid_: individual write, intermediate edit, proposal, raw internal identifier

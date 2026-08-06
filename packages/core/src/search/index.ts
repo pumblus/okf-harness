@@ -1,7 +1,10 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { loadWorkspaceConfig } from "../config/index.js";
-import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import {
+  assertSnapshotReadable,
+  readWorkspaceSnapshot,
+  type WorkspaceSnapshot,
+} from "../lineage/index.js";
+import type { OkfMarkdownFile } from "../okf/concepts.js";
 import { type OkfDocumentView, okfDocumentView } from "../okf/document.js";
 import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
 
@@ -63,22 +66,27 @@ const stopWords = new Set(["a", "an", "and", "are", "for", "in", "is", "of", "or
 export async function searchWorkspace(
   options: SearchWorkspaceOptions,
 ): Promise<SearchWorkspaceResult> {
-  return searchWorkspaceExcludingConcepts(options, new Set());
+  const snapshot = await readWorkspaceSnapshot(path.resolve(options.workspaceRoot));
+  assertSnapshotReadable(snapshot);
+  return searchWorkspaceFromSnapshot(snapshot, options, new Set());
 }
 
-export async function searchWorkspaceExcludingConcepts(
-  options: SearchWorkspaceOptions,
+/**
+ * The search core over one already-loaded workspace snapshot. The root index
+ * mentions come from the snapshot's files, so search adds no extra reads.
+ */
+export function searchWorkspaceFromSnapshot(
+  snapshot: WorkspaceSnapshot,
+  options: Omit<SearchWorkspaceOptions, "workspaceRoot">,
   excludedConceptIds: ReadonlySet<string>,
-): Promise<SearchWorkspaceResult> {
-  const workspaceRoot = path.resolve(options.workspaceRoot);
+): SearchWorkspaceResult {
+  const workspaceRoot = snapshot.workspaceRoot;
   const limit = clampLimit(options.limit);
-  const config = await loadWorkspaceConfig(workspaceRoot);
-  const scanResult = await scanConcepts(workspaceRoot, config);
-  const indexMentions = await readRootIndexMentions(workspaceRoot, config.okf.bundle_root);
+  const indexMentions = indexMentionsFromSnapshot(snapshot.files);
   const parsedQuery = parseSearchQuery(options.query);
   const warnings: SearchWarning[] = [];
 
-  const scored = scanResult.files
+  const scored = snapshot.files
     .filter((file) => !file.isReserved)
     .map((file) => {
       const document = okfDocumentView(file);
@@ -315,27 +323,20 @@ function normalizePathFilter(input: string): string {
   return input.startsWith("wiki/") ? input : `wiki/${input.replace(/^\/+/, "")}`;
 }
 
-async function readRootIndexMentions(
-  workspaceRoot: string,
-  wikiRoot: string,
-): Promise<Map<string, string[]>> {
-  const indexPath = path.join(workspaceRoot, wikiRoot, "index.md");
-  try {
-    const indexMarkdown = await readFile(indexPath, "utf8");
-    const mentions = new Map<string, string[]>();
-    for (const link of parseMarkdownLinks(indexMarkdown)) {
+function indexMentionsFromSnapshot(files: OkfMarkdownFile[]): Map<string, string[]> {
+  const mentions = new Map<string, string[]>();
+  for (const file of files) {
+    if (file.bundlePath !== "index.md") {
+      continue;
+    }
+    for (const link of parseMarkdownLinks(file.markdown)) {
       const conceptId = resolveOkfLinkTarget(link.target, "index.md");
       if (conceptId !== undefined) {
         mentions.set(conceptId, [...(mentions.get(conceptId) ?? []), link.text]);
       }
     }
-    return mentions;
-  } catch (error) {
-    if (errorCode(error) === "ENOENT") {
-      return new Map();
-    }
-    throw error;
   }
+  return mentions;
 }
 
 function countOccurrences(input: string, needle: string): number {
@@ -360,13 +361,4 @@ function clampLimit(limit: number | undefined): number {
     return defaultLimit;
   }
   return Math.max(1, Math.min(maxLimit, Math.trunc(limit)));
-}
-
-function errorCode(error: unknown): string | undefined {
-  if (typeof error !== "object" || error === null || !("code" in error)) {
-    return undefined;
-  }
-
-  const code = (error as { code?: unknown }).code;
-  return typeof code === "string" ? code : undefined;
 }

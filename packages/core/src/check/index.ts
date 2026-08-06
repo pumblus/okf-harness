@@ -1,9 +1,9 @@
-import { readWorkspaceLineage, type WorkspaceLineage } from "../lineage/index.js";
+import { readWorkspaceSnapshot, type WorkspaceSnapshot } from "../lineage/index.js";
 import {
   BROKEN_LINK,
   type LintIssue,
   type LintResult,
-  lintWorkspaceFromLineage,
+  lintWorkspaceFromSnapshot,
   OKF_INVALID_FRONTMATTER,
   OKF_MISSING_FRONTMATTER,
   OKF_MISSING_TYPE,
@@ -52,10 +52,24 @@ export type CheckResult = {
   };
 };
 
+export type CheckPipelineResult = {
+  lint: LintResult;
+  check: CheckResult;
+};
+
+/**
+ * The one place the lineage → lint → currency → check assembly happens. All
+ * consumers (checkWorkspace, readWorkspaceStatus, planEvidenceBrief) compose
+ * this instead of re-assembling the pipeline, so lint, the currency seal, and
+ * the check verdict always derive from the same snapshot and the same facts.
+ */
+export async function runCheckPipeline(snapshot: WorkspaceSnapshot): Promise<CheckPipelineResult> {
+  const lint = await lintWorkspaceFromSnapshot(snapshot);
+  return { lint, check: checkLintResult(lint, checkCurrencyFromSnapshot(snapshot, lint)) };
+}
+
 export async function checkWorkspace(workspaceRoot: string): Promise<CheckResult> {
-  const lineage = await readWorkspaceLineage(workspaceRoot);
-  const lint = await lintWorkspaceFromLineage(workspaceRoot, lineage);
-  return checkLintResult(lint, checkCurrencyFromLineage(lineage, lint));
+  return (await runCheckPipeline(await readWorkspaceSnapshot(workspaceRoot))).check;
 }
 
 export function checkLintResult(lint: LintResult, currency: CheckCurrency): CheckResult {
@@ -80,22 +94,11 @@ export function checkLintResult(lint: LintResult, currency: CheckCurrency): Chec
   };
 }
 
-export async function readCheckCurrency(workspaceRoot: string): Promise<CheckCurrency> {
-  const lineage = await readWorkspaceLineage(workspaceRoot);
-  const lint = await lintWorkspaceFromLineage(workspaceRoot, lineage);
-  return checkCurrencyFromLineage(lineage, lint);
-}
-
-export function checkCurrencyFromLineage(
-  lineage: WorkspaceLineage,
+export function checkCurrencyFromSnapshot(
+  snapshot: WorkspaceSnapshot,
   lint: LintResult,
 ): CheckCurrency {
-  const promotedBySource = new Map<string, string[]>();
-  for (const { sourceId, referencePath } of lineage.referenceLinks) {
-    const paths = promotedBySource.get(sourceId) ?? [];
-    paths.push(referencePath);
-    promotedBySource.set(sourceId, paths);
-  }
+  const promotedBySource = snapshot.referencePathsBySource;
   const promotedSources = promotedBySource.size;
 
   const diagnostics = lint.issues.filter((issue) => issue.severity === "error");
@@ -103,7 +106,7 @@ export function checkCurrencyFromLineage(
     return { sealed: false, promotedSources, dangling: [], diagnostics };
   }
 
-  const dangling = lineage.dangling.flatMap((edge) => {
+  const dangling = snapshot.dangling.flatMap((edge) => {
     const promotedBy = [
       ...(promotedBySource.get(edge.priorSourceId) ?? []),
       ...(promotedBySource.get(edge.revisionSourceId) ?? []),

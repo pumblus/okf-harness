@@ -1,6 +1,18 @@
-import { readWorkspaceConfig, type WorkspaceConfig } from "../config/index.js";
+import path from "node:path";
+import {
+  CONFIG_INVALID,
+  readWorkspaceConfig,
+  type WorkspaceConfig,
+  WorkspaceConfigError,
+} from "../config/index.js";
 import { REFERENCE_SOURCE_MISSING } from "../lint/codes.js";
-import { type OkfMarkdownFile, SCAN_FAILED, scanConcepts } from "../okf/concepts.js";
+import {
+  ConceptScanError,
+  type OkfConcept,
+  type OkfMarkdownFile,
+  SCAN_FAILED,
+  scanConcepts,
+} from "../okf/concepts.js";
 import {
   MANIFEST_INVALID,
   readSourceManifest,
@@ -33,15 +45,23 @@ export type LineageIssue = {
 };
 
 /**
- * Shared deterministic lineage/reconciliation facts behind Harness lint and the
- * currency seal. Input failures are captured separately so diagnostics identify
- * the unreadable config, wiki, manifest, or ledger rather than claiming a seal.
+ * One consistent read of a workspace: the resolved root, config, full wiki scan,
+ * source manifest, and reconciliation ledger, plus the deterministic facts
+ * derived from them. Read-side entry points load exactly one snapshot per
+ * invocation and thread it through, so every module observes the same workspace
+ * state and the wiki tree is scanned once per command. Input failures are
+ * captured on the snapshot so diagnostics identify the unreadable config, wiki,
+ * manifest, or ledger rather than claiming a seal.
  */
-export type WorkspaceLineage = {
+export type WorkspaceSnapshot = {
+  workspaceRoot: string;
   config: WorkspaceConfig | undefined;
   bundleRoot: string | undefined;
   files: OkfMarkdownFile[];
+  concepts: OkfConcept[];
   conceptCount: number;
+  /** Promoted source → reference document paths; the currency seal's fact base. */
+  referencePathsBySource: ReadonlyMap<string, string[]>;
   referenceLinks: ReferenceSourceLink[];
   referenceIssues: LineageIssue[];
   manifestEntries: SourceManifestEntry[];
@@ -51,10 +71,17 @@ export type WorkspaceLineage = {
   dangling: ReconciliationEdge[];
 };
 
-export async function readWorkspaceLineage(workspaceRoot: string): Promise<WorkspaceLineage> {
+/** @deprecated Use {@link WorkspaceSnapshot}; kept as a transition alias. */
+export type WorkspaceLineage = WorkspaceSnapshot;
+
+export async function readWorkspaceSnapshot(
+  workspaceRootInput: string,
+): Promise<WorkspaceSnapshot> {
+  const workspaceRoot = path.resolve(workspaceRootInput);
   const configResult = await readWorkspaceConfig(workspaceRoot);
   if (!configResult.ok) {
-    return emptyLineage(
+    return emptySnapshot(
+      workspaceRoot,
       undefined,
       configResult.bundleRoot,
       configResult.issues.map((issue) => ({ ...issue, severity: "error" as const })),
@@ -100,11 +127,21 @@ export async function readWorkspaceLineage(workspaceRoot: string): Promise<Works
   const canDeriveReconciliations =
     manifestRead.ok && manifest.issues.length === 0 && ledgerRead.ok && ledger.issues.length === 0;
 
+  const referencePathsBySource = new Map<string, string[]>();
+  for (const link of referenceFacts.links) {
+    const paths = referencePathsBySource.get(link.sourceId) ?? [];
+    paths.push(link.referencePath);
+    referencePathsBySource.set(link.sourceId, paths);
+  }
+
   return {
+    workspaceRoot,
     config,
     bundleRoot: config.okf.bundle_root,
     files: scan?.files ?? [],
+    concepts: scan?.concepts ?? [],
     conceptCount: scan?.concepts.length ?? 0,
+    referencePathsBySource,
     referenceLinks: referenceFacts.links,
     referenceIssues: referenceFacts.issues,
     manifestEntries: manifest.entries,
@@ -117,9 +154,38 @@ export async function readWorkspaceLineage(workspaceRoot: string): Promise<Works
   };
 }
 
-/** Reference document → source id links, the deterministic promotion facts. */
-export function referenceSourceLinks(files: OkfMarkdownFile[]): ReferenceSourceLink[] {
-  return deriveReferenceFacts(files).links;
+/**
+ * Throws the scan failure a direct workspace read would hit. Entry points that
+ * fail on a broken wiki (read, search, graph, evidence) call this after loading
+ * a snapshot; entry points that degrade gracefully (lint, check, status) use
+ * the snapshot's captured issues instead.
+ */
+export function assertSnapshotScannable(snapshot: WorkspaceSnapshot): void {
+  const scanIssue = snapshot.issues.find((issue) => issue.code === SCAN_FAILED);
+  if (scanIssue !== undefined) {
+    throw new ConceptScanError(scanIssue.message, { wikiRoot: snapshot.bundleRoot });
+  }
+}
+
+/**
+ * Throws the config or scan failure a direct workspace read would hit.
+ * Evidence calls only assertSnapshotScannable: an unreadable config degrades
+ * into the unanchored-seal path instead of failing.
+ */
+export function assertSnapshotReadable(snapshot: WorkspaceSnapshot): void {
+  if (snapshot.config === undefined) {
+    throw new WorkspaceConfigError(
+      snapshot.issues
+        .filter((issue) => issue.code === CONFIG_INVALID)
+        .map((issue) => ({
+          code: CONFIG_INVALID,
+          path: issue.path,
+          message: issue.message,
+        })),
+    );
+  }
+
+  assertSnapshotScannable(snapshot);
 }
 
 /** Map a manifest or ledger row issue to an error-severity diagnostic. */
@@ -186,16 +252,20 @@ function deriveReferenceFacts(
   return { links, issues };
 }
 
-function emptyLineage(
+function emptySnapshot(
+  workspaceRoot: string,
   config: WorkspaceConfig | undefined,
   bundleRoot: string | undefined,
   issues: LineageIssue[],
-): WorkspaceLineage {
+): WorkspaceSnapshot {
   return {
+    workspaceRoot,
     config,
     bundleRoot,
     files: [],
+    concepts: [],
     conceptCount: 0,
+    referencePathsBySource: new Map(),
     referenceLinks: [],
     referenceIssues: [],
     manifestEntries: [],

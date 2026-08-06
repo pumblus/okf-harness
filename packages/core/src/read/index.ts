@@ -1,15 +1,19 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { TextDecoder } from "node:util";
-import { loadWorkspaceConfig } from "../config/index.js";
-import { type OkfMarkdownFile, scanConcepts } from "../okf/concepts.js";
+import {
+  assertSnapshotReadable,
+  readWorkspaceSnapshot,
+  type WorkspaceSnapshot,
+} from "../lineage/index.js";
+import type { OkfMarkdownFile } from "../okf/concepts.js";
 import { type OkfDocumentView, okfDocumentView } from "../okf/document.js";
 import {
   parseBareReferenceTargets,
   parseMarkdownLinks,
   resolveOkfLinkTarget,
 } from "../okf/links.js";
-import { readSourceManifest, type SourceManifestEntry } from "../source/index.js";
+import type { SourceManifestEntry } from "../source/index.js";
 
 export const INVALID_TARGET = "INVALID_TARGET" as const;
 export const TARGET_NOT_FOUND = "TARGET_NOT_FOUND" as const;
@@ -46,6 +50,9 @@ export type ReadWorkspaceOptions = {
   limit?: number | undefined;
   full?: boolean | undefined;
 };
+
+/** The read options a snapshot-based read accepts: the workspace is already loaded. */
+export type ReadWorkspaceTargetOptions = Omit<ReadWorkspaceOptions, "workspaceRoot">;
 
 export type ReadTarget = {
   input: string;
@@ -145,17 +152,26 @@ const maxFullReadChars = 100_000;
 export async function readWorkspaceDocument(
   options: ReadWorkspaceOptions,
 ): Promise<ReadWorkspaceResult> {
-  const workspaceRoot = path.resolve(options.workspaceRoot);
-  const config = await loadWorkspaceConfig(workspaceRoot);
-  const [scanResult, sourceManifest] = await Promise.all([
-    scanConcepts(workspaceRoot, config),
-    readSourceManifest(workspaceRoot, config),
-  ]);
-  const file = resolveReadTarget(scanResult.files, options.target);
+  const snapshot = await readWorkspaceSnapshot(path.resolve(options.workspaceRoot));
+  assertSnapshotReadable(snapshot);
+  return readWorkspaceDocumentFromSnapshot(snapshot, options);
+}
+
+/**
+ * The read core: target resolution, section math, and citation parsing over one
+ * already-loaded workspace snapshot. Callers that hold a snapshot (evidence,
+ * wrappers) use this directly; the wiki tree is never rescanned per call.
+ */
+export async function readWorkspaceDocumentFromSnapshot(
+  snapshot: WorkspaceSnapshot,
+  options: ReadWorkspaceTargetOptions,
+): Promise<ReadWorkspaceResult> {
+  const workspaceRoot = snapshot.workspaceRoot;
+  const file = resolveReadTarget(snapshot.files, options.target);
   await assertUtf8Target(file);
-  const sourceEntries = new Map(sourceManifest.entries.map((entry) => [entry.id, entry]));
+  const sourceEntries = new Map(snapshot.manifestEntries.map((entry) => [entry.id, entry]));
   const conceptIds = new Set(
-    scanResult.files.filter((item) => !item.isReserved).map((item) => item.conceptId),
+    snapshot.files.filter((item) => !item.isReserved).map((item) => item.conceptId),
   );
   const document = okfDocumentView(file);
   const body = document.body;
@@ -290,7 +306,7 @@ function targetAliases(target: string): string[] {
 function selectContent(
   body: string,
   sections: ReadSection[],
-  options: ReadWorkspaceOptions,
+  options: ReadWorkspaceTargetOptions,
 ): ReadContent {
   const contentLength = body.length;
   if (options.full === true) {
@@ -318,7 +334,7 @@ function selectContent(
   return contentForRange(body, 0, Math.min(body.length, defaultReadPreviewChars), "preview");
 }
 
-function resolveSection(sections: ReadSection[], options: ReadWorkspaceOptions): ReadSection {
+function resolveSection(sections: ReadSection[], options: ReadWorkspaceTargetOptions): ReadSection {
   if (options.sectionId !== undefined) {
     const section = sections.find((candidate) => candidate.sectionId === options.sectionId);
     if (section === undefined) {

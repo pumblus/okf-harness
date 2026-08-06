@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { readWorkspaceLineage, toErrorIssue, type WorkspaceLineage } from "../lineage/index.js";
+import { readWorkspaceSnapshot, toErrorIssue, type WorkspaceSnapshot } from "../lineage/index.js";
 import type { OkfMarkdownFile } from "../okf/concepts.js";
 import { okfDocumentView } from "../okf/document.js";
 import { parseMarkdownLinks, resolveOkfLinkTarget } from "../okf/links.js";
@@ -10,7 +10,7 @@ import { MANIFEST_INVALID, type SourceManifestEntry } from "../source/index.js";
 import type { ReconciliationEdge } from "../source/reconciliation.js";
 import { REFERENCE_SOURCE_MISSING } from "./codes.js";
 
-export { type ReferenceSourceLink, referenceSourceLinks } from "../lineage/index.js";
+export type { ReferenceSourceLink } from "../lineage/index.js";
 export { REFERENCE_SOURCE_MISSING };
 
 export type LintSeverity = "error" | "warning" | "info";
@@ -42,38 +42,35 @@ export const MISSING_INDEX_ENTRY = "MISSING_INDEX_ENTRY" as const;
 export const WORKSPACE_READ_FAILED = "WORKSPACE_READ_FAILED" as const;
 
 export async function lintWorkspace(workspaceRoot: string): Promise<LintResult> {
-  return lintWorkspaceFromLineage(workspaceRoot, await readWorkspaceLineage(workspaceRoot));
+  return lintWorkspaceFromSnapshot(await readWorkspaceSnapshot(workspaceRoot));
 }
 
-export async function lintWorkspaceFromLineage(
-  workspaceRoot: string,
-  lineage: WorkspaceLineage,
-): Promise<LintResult> {
-  if (lineage.config === undefined) {
-    return { ok: false, issues: lineage.issues };
+export async function lintWorkspaceFromSnapshot(snapshot: WorkspaceSnapshot): Promise<LintResult> {
+  if (snapshot.config === undefined) {
+    return { ok: false, issues: snapshot.issues };
   }
 
-  const files = lineage.files;
-  const manifestReadable = !lineage.issues.some((issue) => issue.code === MANIFEST_INVALID);
+  const files = snapshot.files;
+  const manifestReadable = !snapshot.issues.some((issue) => issue.code === MANIFEST_INVALID);
   const sourceIssues =
-    manifestReadable && lineage.manifestIssues.length === 0
+    manifestReadable && snapshot.manifestIssues.length === 0
       ? [
-          ...(await lintRegisteredSources(workspaceRoot, lineage.manifestEntries)),
-          ...lintSourceLineage(lineage.dangling, lineage.manifestEntries),
-          ...lineage.referenceIssues.filter((issue) => issue.code === REFERENCE_SOURCE_MISSING),
+          ...(await lintRegisteredSources(snapshot.workspaceRoot, snapshot.manifestEntries)),
+          ...lintSourceLineage(snapshot.dangling, snapshot.manifestEntries),
+          ...snapshot.referenceIssues.filter((issue) => issue.code === REFERENCE_SOURCE_MISSING),
           ...(await lintUnregisteredRawSources(
-            workspaceRoot,
-            lineage.config.paths.raw_sources,
-            lineage.manifestEntries,
+            snapshot.workspaceRoot,
+            snapshot.config.paths.raw_sources,
+            snapshot.manifestEntries,
           )),
         ]
       : [];
   const issues = [
     ...files.flatMap((file) => lintMarkdownFile(file)),
     ...lintWikiWarnings(files),
-    ...lineage.issues,
-    ...lineage.ledgerIssues.map(toErrorIssue),
-    ...lineage.manifestIssues.map(toErrorIssue),
+    ...snapshot.issues,
+    ...snapshot.ledgerIssues.map(toErrorIssue),
+    ...snapshot.manifestIssues.map(toErrorIssue),
     ...sourceIssues,
   ];
   return {

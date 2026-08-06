@@ -1,18 +1,16 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
-import {
-  type CheckResult,
-  checkCurrencyFromLineage,
-  checkLintResult,
-  type HarnessPriority,
-} from "../check/index.js";
+import { type CheckResult, type HarnessPriority, runCheckPipeline } from "../check/index.js";
 import { CONFIG_INVALID } from "../config/index.js";
-import { buildWorkspaceGraphData, type GraphBacklinksData } from "../graph/index.js";
-import { readWorkspaceLineage, type WorkspaceLineage } from "../lineage/index.js";
+import { buildWorkspaceGraphDataFromSnapshot, type GraphBacklinksData } from "../graph/index.js";
+import {
+  assertSnapshotScannable,
+  readWorkspaceSnapshot,
+  type WorkspaceSnapshot,
+} from "../lineage/index.js";
 import {
   BROKEN_LINK,
   type LintIssue,
-  lintWorkspaceFromLineage,
   REFERENCE_SOURCE_MISSING,
   SOURCE_HASH_DRIFT,
   SOURCE_MISSING,
@@ -25,10 +23,10 @@ import {
   type ReadCitation,
   type ReadContent,
   type ReadSection,
-  readWorkspaceDocument,
+  readWorkspaceDocumentFromSnapshot,
 } from "../read/index.js";
 import type { SearchResultCard } from "../search/index.js";
-import { type SearchWorkspaceResult, searchWorkspaceExcludingConcepts } from "../search/index.js";
+import { type SearchWorkspaceResult, searchWorkspaceFromSnapshot } from "../search/index.js";
 import { MANIFEST_INVALID, type SourceManifestEntry } from "../source/index.js";
 
 export type EvidenceCandidate = {
@@ -216,9 +214,9 @@ export async function planEvidenceBrief(
 ): Promise<EvidenceBriefResult> {
   const workspaceRoot = path.resolve(options.workspaceRoot);
   const budget = resolveEvidenceBudget(options);
-  const lineage = await readWorkspaceLineage(workspaceRoot);
-  const lint = await lintWorkspaceFromLineage(workspaceRoot, lineage);
-  const check = checkLintResult(lint, checkCurrencyFromLineage(lineage, lint));
+  const snapshot = await readWorkspaceSnapshot(workspaceRoot);
+  assertSnapshotScannable(snapshot);
+  const { check } = await runCheckPipeline(snapshot);
   if (check.status === "blocked") {
     throw new EvidenceWorkspaceBlockedError({
       okfConformanceFindings: check.okfConformance.findings,
@@ -234,15 +232,15 @@ export async function planEvidenceBrief(
   );
   if (unanchoredWarnings.length > 0) {
     const files =
-      lineage.config === undefined
-        ? lineage.bundleRoot === undefined
+      snapshot.config === undefined
+        ? snapshot.bundleRoot === undefined
           ? await discoverBundleFiles(workspaceRoot)
           : (
               await scanConcepts(workspaceRoot, {
-                okf: { bundle_root: lineage.bundleRoot },
+                okf: { bundle_root: snapshot.bundleRoot },
               })
             ).files
-        : lineage.files;
+        : snapshot.files;
     const sealed = [
       ...new Set(files.filter((file) => !file.isReserved).map((file) => file.conceptId)),
     ].sort();
@@ -270,11 +268,12 @@ export async function planEvidenceBrief(
       warnings: riskWarnings,
     };
   }
-  const graph = await buildWorkspaceGraphData({ workspaceRoot });
-  const seals = evidenceSeals(riskWarnings, lineage, graph);
+  const graph = await buildWorkspaceGraphDataFromSnapshot(snapshot);
+  const seals = evidenceSeals(riskWarnings, snapshot, graph);
   const sealedConceptIds = new Set(seals.flatMap((seal) => seal.sealed));
-  const search = await searchWorkspaceExcludingConcepts(
-    { workspaceRoot, query: options.question },
+  const search = searchWorkspaceFromSnapshot(
+    snapshot,
+    { query: options.question },
     sealedConceptIds,
   );
   const availableResults = search.results;
@@ -289,7 +288,7 @@ export async function planEvidenceBrief(
     matchReasons: candidateMatchReasons(result),
   }));
   const evidence = await evidenceItemsForResults(
-    workspaceRoot,
+    snapshot,
     options.question,
     evidenceResults,
     budget.maxChars,
@@ -404,7 +403,7 @@ async function collectBundleRootCandidates(
 }
 
 async function evidenceItemsForResults(
-  workspaceRoot: string,
+  snapshot: WorkspaceSnapshot,
   question: string,
   results: SearchResultCard[],
   maxChars: number,
@@ -414,7 +413,7 @@ async function evidenceItemsForResults(
   for (const [index, result] of results.entries()) {
     const remainingItems = results.length - index;
     const itemLimit = Math.ceil(remainingChars / remainingItems);
-    const item = await evidenceItemForResult(workspaceRoot, question, result, index, itemLimit);
+    const item = await evidenceItemForResult(snapshot, question, result, index, itemLimit);
     evidence.push(item);
     remainingChars = Math.max(0, remainingChars - item.range.returnedChars);
   }
@@ -422,22 +421,24 @@ async function evidenceItemsForResults(
 }
 
 async function evidenceItemForResult(
-  workspaceRoot: string,
+  snapshot: WorkspaceSnapshot,
   question: string,
   result: SearchResultCard,
   index: number,
   excerptLimit: number,
 ): Promise<EvidenceItem> {
-  const document = await readWorkspaceDocument({ workspaceRoot, target: result.conceptId });
+  const document = await readWorkspaceDocumentFromSnapshot(snapshot, {
+    target: result.conceptId,
+  });
   const selected = await selectEvidenceExcerpt(
-    workspaceRoot,
+    snapshot,
     question,
     result.conceptId,
     document,
     excerptLimit,
   );
   const range = rangeFromContent(selected.read.content);
-  const provenance = await evidenceProvenance(workspaceRoot, selected.read);
+  const provenance = await evidenceProvenance(snapshot, selected.read);
   const item: EvidenceItem = {
     item: index + 1,
     conceptId: result.conceptId,
@@ -446,7 +447,7 @@ async function evidenceItemForResult(
     type: result.type,
     range,
     continuationCues: continuationCuesForRange(
-      workspaceRoot,
+      snapshot.workspaceRoot,
       result.conceptId,
       range,
       excerptLimit,
@@ -468,8 +469,8 @@ async function evidenceItemForResult(
 }
 
 async function evidenceProvenance(
-  workspaceRoot: string,
-  read: Awaited<ReturnType<typeof readWorkspaceDocument>>,
+  snapshot: WorkspaceSnapshot,
+  read: Awaited<ReturnType<typeof readWorkspaceDocumentFromSnapshot>>,
 ): Promise<EvidenceItem["provenance"]> {
   const references = await Promise.all(
     read.citations
@@ -487,8 +488,7 @@ async function evidenceProvenance(
           return { ...base, sourceIds: [], sources: [], citationIssues: [] };
         }
 
-        const reference = await readWorkspaceDocument({
-          workspaceRoot,
+        const reference = await readWorkspaceDocumentFromSnapshot(snapshot, {
           target: citation.conceptId,
         });
         const sources = sourcePointersFromRead(reference);
@@ -520,7 +520,9 @@ async function evidenceProvenance(
   };
 }
 
-function sourceIdsFromRead(read: Awaited<ReturnType<typeof readWorkspaceDocument>>): string[] {
+function sourceIdsFromRead(
+  read: Awaited<ReturnType<typeof readWorkspaceDocumentFromSnapshot>>,
+): string[] {
   const sourceIds = new Set<string>();
   if (read.source !== undefined) {
     sourceIds.add(read.source.id);
@@ -534,7 +536,7 @@ function sourceIdsFromRead(read: Awaited<ReturnType<typeof readWorkspaceDocument
 }
 
 function sourcePointersFromRead(
-  read: Awaited<ReturnType<typeof readWorkspaceDocument>>,
+  read: Awaited<ReturnType<typeof readWorkspaceDocumentFromSnapshot>>,
 ): EvidenceSourcePointer[] {
   return dedupeSources([
     ...(read.source === undefined ? [] : [sourcePointer(read.source)]),
@@ -569,21 +571,20 @@ function sourcePointer(source: SourceManifestEntry): EvidenceSourcePointer {
 }
 
 async function selectEvidenceExcerpt(
-  workspaceRoot: string,
+  snapshot: WorkspaceSnapshot,
   question: string,
   target: string,
-  document: Awaited<ReturnType<typeof readWorkspaceDocument>>,
+  document: Awaited<ReturnType<typeof readWorkspaceDocumentFromSnapshot>>,
   excerptLimit: number,
 ): Promise<{
-  read: Awaited<ReturnType<typeof readWorkspaceDocument>>;
+  read: Awaited<ReturnType<typeof readWorkspaceDocumentFromSnapshot>>;
   section?: ReadSection;
   matchReasons: string[];
 }> {
   const sections = document.availableSections.filter((section) => isEvidenceSection(section));
   if (sections.length === 0) {
     return {
-      read: await readWorkspaceDocument({
-        workspaceRoot,
+      read: await readWorkspaceDocumentFromSnapshot(snapshot, {
         target,
         offset: 0,
         limit: excerptLimit,
@@ -595,10 +596,11 @@ async function selectEvidenceExcerpt(
   const sectionReads = await Promise.all(
     sections.map(async (section) => ({
       section,
-      read: await readWorkspaceDocument(
+      read: await readWorkspaceDocumentFromSnapshot(
+        snapshot,
         section.endOffset - section.startOffset <= excerptLimit
-          ? { workspaceRoot, target, sectionId: section.sectionId }
-          : { workspaceRoot, target, offset: section.startOffset, limit: excerptLimit },
+          ? { target, sectionId: section.sectionId }
+          : { target, offset: section.startOffset, limit: excerptLimit },
       ),
     })),
   );
@@ -615,8 +617,7 @@ async function selectEvidenceExcerpt(
   const best = rankedSectionReads[0];
   if (best === undefined) {
     return {
-      read: await readWorkspaceDocument({
-        workspaceRoot,
+      read: await readWorkspaceDocumentFromSnapshot(snapshot, {
         target,
         offset: 0,
         limit: excerptLimit,
@@ -703,16 +704,13 @@ function evidenceLimits(totalMatches: number, truncated: boolean): EvidenceLimit
 
 function evidenceSeals(
   warnings: EvidenceWarning[],
-  lineage: WorkspaceLineage,
+  snapshot: WorkspaceSnapshot,
   graph: GraphBacklinksData,
 ): EvidenceSeal[] {
-  const linkedPathsBySource = new Map<string, Set<string>>();
-  for (const { sourceId, referencePath } of lineage.referenceLinks) {
-    const paths = linkedPathsBySource.get(sourceId) ?? new Set<string>();
-    paths.add(referencePath);
-    linkedPathsBySource.set(sourceId, paths);
-  }
-  for (const file of lineage.files) {
+  const linkedPathsBySource = new Map<string, Set<string>>(
+    [...snapshot.referencePathsBySource].map(([sourceId, paths]) => [sourceId, new Set(paths)]),
+  );
+  for (const file of snapshot.files) {
     for (const sourceId of okfDocumentView(file).sourceIds) {
       const paths = linkedPathsBySource.get(sourceId) ?? new Set<string>();
       paths.add(file.workspacePath);
@@ -724,7 +722,7 @@ function evidenceSeals(
   return warnings
     .flatMap((warning): EvidenceSeal[] => {
       if (warning.code === SOURCE_MISSING || warning.code === SOURCE_HASH_DRIFT) {
-        const source = lineage.manifestEntries.find((entry) => entry.path === warning.path);
+        const source = snapshot.manifestEntries.find((entry) => entry.path === warning.path);
         return source === undefined
           ? []
           : [
@@ -742,7 +740,7 @@ function evidenceSeals(
       if (warning.code !== REFERENCE_SOURCE_MISSING || warning.path === undefined) {
         return [];
       }
-      return lineage.referenceLinks
+      return snapshot.referenceLinks
         .filter((link) => link.referencePath === warning.path)
         .map((link) =>
           sealForReferencePaths(

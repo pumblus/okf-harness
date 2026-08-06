@@ -1,10 +1,10 @@
 import { access, lstat, mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { stringify as stringifyYaml } from "yaml";
-import { type CheckResult, checkCurrencyFromLineage, checkLintResult } from "../check/index.js";
+import { type CheckResult, runCheckPipeline } from "../check/index.js";
 import type { WorkspaceConfig } from "../config/index.js";
-import { readWorkspaceLineage } from "../lineage/index.js";
-import { type LintResult, lintWorkspace, lintWorkspaceFromLineage } from "../lint/index.js";
+import { readWorkspaceSnapshot } from "../lineage/index.js";
+import { type LintResult, lintWorkspace } from "../lint/index.js";
 import { toPosixRelativePath } from "../paths/index.js";
 import { harnessRuntimeVersion } from "../version.js";
 
@@ -129,10 +129,9 @@ export async function initWorkspace(options: InitWorkspaceOptions): Promise<Init
 
 export async function readWorkspaceStatus(workspaceRootInput: string): Promise<WorkspaceStatus> {
   const workspaceRoot = path.resolve(workspaceRootInput);
-  const lineage = await readWorkspaceLineage(workspaceRoot);
-  const lint = await lintWorkspaceFromLineage(workspaceRoot, lineage);
-  const check = checkLintResult(lint, checkCurrencyFromLineage(lineage, lint));
-  if (lineage.config === undefined) {
+  const snapshot = await readWorkspaceSnapshot(workspaceRoot);
+  const { lint, check } = await runCheckPipeline(snapshot);
+  if (snapshot.config === undefined) {
     return {
       workspaceRoot,
       initialized: await workspaceConfigExists(workspaceRoot),
@@ -147,9 +146,9 @@ export async function readWorkspaceStatus(workspaceRootInput: string): Promise<W
   return {
     workspaceRoot,
     initialized: true,
-    name: lineage.config.workspace.name,
-    wikiFiles: lineage.files.length,
-    concepts: lineage.conceptCount,
+    name: snapshot.config.workspace.name,
+    wikiFiles: snapshot.files.length,
+    concepts: snapshot.conceptCount,
     lint,
     check,
     warnings: [],

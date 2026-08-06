@@ -12,7 +12,6 @@ export {
   checkLintResult,
   checkWorkspace,
   type HarnessPriority,
-  readCheckCurrency,
 } from "./check/index.js";
 export * from "./config/index.js";
 export * from "./evidence/index.js";
@@ -30,7 +29,6 @@ export {
   REFERENCE_SOURCE_MISSING,
   RESERVED_FILE_HAS_CONCEPT_FRONTMATTER,
   type ReferenceSourceLink,
-  referenceSourceLinks,
   SOURCE_HASH_DRIFT,
   SOURCE_LINEAGE_SUSPECTED,
   SOURCE_MISSING,
