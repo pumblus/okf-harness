@@ -1,133 +1,48 @@
 # Release Agent Checklist
 
-Use this checklist only when preparing, validating, or writing up a public OKF Harness release. The root `AGENTS.md` owns the release note style; this file owns operational release proof.
+Use only when preparing, validating, or writing up a public OKF Harness release. Owns operational release proof and the release notes template.
 
 ## Release principle
 
-A release is not shipped until source state, GitHub state, npm registry state, package contents, and documented install paths are all verified together. Missing evidence is an explicit gap, not an implied pass.
+A release is not shipped until source state, GitHub state, npm registry state, package contents, and documented install paths are verified together. Missing evidence is an explicit gap, not an implied pass.
 
 ## Preflight
 
-- Confirm the user explicitly asked for release, publish, tag, or GitHub Release work in the current turn.
-- Check the tree:
-
-```bash
-git status --short
-```
-
-- Verify GitHub auth, target repository, git remote, current branch, and `HEAD`.
-- Keep Issues and GitHub Actions CI enabled.
-- Maintain canonical labels from `docs/agents/triage-labels.md`.
-- Use squash merge only.
-- Keep automatic deletion of merged head branches enabled.
-- Keep Projects, Discussions, Wiki, and Dependabot disabled unless intentionally adopted.
+- Tree is clean: `git status --short`.
+- GitHub auth, target repo, remote, branch, and `HEAD` are correct.
+- GitHub settings: Issues and Actions CI enabled; squash-merge only; auto-delete merged head branches; canonical labels from `docs/agents/triage-labels.md`; Projects, Discussions, Wiki, and Dependabot disabled.
 
 ## Public leak gates
 
-Before public release, confirm these private/internal files are not tracked:
+- `git ls-files docs/implementation.md docs/okf-harness-intro.html docs/okf-harness-intro.pdf` prints nothing.
+- Scan tracked files for private paths, local URLs, ignored override files, internal document references, credentials or tokens, and unpublished planning notes.
 
-```bash
-git ls-files docs/implementation.md docs/okf-harness-intro.html docs/okf-harness-intro.pdf
-```
+## Version and manifest gates
 
-This command must print nothing. Then scan tracked files for:
+- Publish only explicitly public package directories; never the root or private workspace packages.
+- No `workspace:` protocol entries in publishable manifests; internal package dependencies point at the same public version.
+- `pnpm-workspace.yaml` links matching workspace packages locally.
+- Publishable packages declare the runtime engine, build via `prepublishOnly`, and allowlist only build output, package metadata, package-local READMEs, and required runtime assets.
+- Update `pnpm-lock.yaml` through pnpm only; never hand-edit it.
 
-- private local paths
-- local URLs
-- ignored override files
-- internal document references
-- credentials or tokens
-- unpublished planning notes
+## npm
 
-## Version and package manifest gates
+- `npm whoami`; verify ownership, registry access, and current registry state (unpublished vs permission-blocked).
+- Inspect packed contents, then `pnpm smoke:tarball` — covers tarball installs, installer script sources, `@pumblus/okf-harness` inspection (Pi / OpenCode / OpenClaw entries), Hermes Agent skill tap shape, host CLI checks, and release checklist gaps.
+- When Claude Code and Codex CLIs are available, also `pnpm smoke:marketplace`; otherwise record the missing host smoke as an explicit gap.
+- Publish from each public package directory in dependency order: `npm publish --access public`, default dist-tag, no provenance unless the workflow explicitly adopts and verifies it.
 
-- Publish only explicitly public package directories.
-- Never publish the root package or private workspace packages.
-- No `workspace:` protocol entries in publishable manifests.
-- Internal package dependencies must point at the same public package version.
-- `pnpm-workspace.yaml` must link matching workspace packages locally.
-- Publishable packages must declare the project runtime engine.
-- Publishable packages must run `pnpm run build` from `prepublishOnly`.
-- Publishable package `files` allowlists must include only build output, package metadata, package-local README files, and runtime assets explicitly required by the package.
-- `pnpm-lock.yaml` owns dependency resolution state only. Do not hand-edit it; update it through pnpm when package manifests change.
+## Post-publish proof
 
-## npm auth and registry gates
-
-Before publishing:
-
-```bash
-npm whoami
-```
-
-Verify:
-
-- package ownership
-- registry access
-- current registry state
-- whether a package is unpublished versus blocked by permission errors
-
-## npm preflight
-
-Inspect packed package contents, then run:
-
-```bash
-pnpm smoke:tarball
-```
-
-The smoke script owns:
-
-- package list
-- tarball install checks
-- installer script source checks
-- `@pumblus/okf-harness` package inspection for Pi, OpenCode, and OpenClaw entries
-- Hermes Agent skill tap shape inspection
-- host CLI checks
-- release checklist coverage gaps
-
-When Claude Code and Codex CLIs are available, also run:
-
-```bash
-pnpm smoke:marketplace
-```
-
-This is the release smoke for Claude Code and Codex marketplace add/install behavior. If either CLI is unavailable in the release environment, record the missing host smoke as an explicit gap.
-
-## npm publish flow
-
-- Publish from each public package directory.
-- Use dependency order.
-- Use:
-
-```bash
-npm publish --access public
-```
-
-- Use the default release dist-tag.
-- Do not enable npm provenance unless the release workflow explicitly adopts and verifies it.
-
-## npm post-publish proof
-
-After publishing:
-
-- Verify registry versions.
-- Verify documented setup package install paths when available in the release environment.
-- Verify documented native host integration install paths when available in the release environment.
-- Inspect the published `@pumblus/okf-harness` package contents for Pi, OpenCode, and OpenClaw entries.
-- Inspect the Hermes Agent skill tap package shape.
-- Run OpenCode host install smoke when the OpenCode CLI is available.
-- Run Pi, Hermes Agent, and OpenClaw host install smokes when their CLIs are available; otherwise list each unavailable host as a manual release gap.
-- Do not claim shipped if any documented install command fails.
+- Verify registry versions and dist-tags; documented setup and native host integration install paths.
+- Inspect published `@pumblus/okf-harness` contents and Hermes Agent skill tap shape.
+- Host install smokes: OpenCode when available; Pi, Hermes Agent, and OpenClaw when their CLIs are available — otherwise list each as a manual gap.
+- Never claim shipped while any documented install command fails.
 
 ## GitHub Release
 
-- Use the repository tag convention: `v{version}`.
-- Create no public `RELEASE.md`.
-- For v0.6.0 and later, attach `install.sh` and `install.ps1`, download both assets back, and verify they resolve to the intended setup version.
-- For v0.6.0 and later, keep the Install section to the recommended installer path. Do not list native, direct CLI, or `okfh bootstrap` commands there; link to docs for those.
-- Use the release title/body template from the root `AGENTS.md`.
-- Ensure the release body states important non-goals and unchanged boundaries when they matter.
-
-Installer asset commands for v0.6.0 and later:
+- Tag convention: `v{version}`. No public `RELEASE.md`.
+- v0.6.0+: attach `install.sh` and `install.ps1`, download both back, and verify they match the repo scripts:
 
 ```bash
 gh release upload "v{version}" install.sh install.ps1 --clobber
@@ -136,26 +51,37 @@ gh release download "v{version}" --pattern "install.*" --dir "$tmpdir"
 shasum -a 256 install.sh install.ps1 "$tmpdir/install.sh" "$tmpdir/install.ps1"
 ```
 
-The downloaded asset hashes must match the repository script hashes. After the short installer URLs are configured, also confirm `https://okf-harness.dev/install.sh` and `https://okf-harness.dev/install.ps1` serve the same release assets before claiming the latest installer path is live.
+- v0.6.0+: the Install section shows the recommended installer path only; native, direct CLI, and `okfh bootstrap` commands link to docs. When short URLs are configured, confirm `https://okf-harness.dev/install.sh` and `https://okf-harness.dev/install.ps1` serve the same assets.
+- Body follows the template below and states important non-goals and unchanged boundaries.
 
 ## Final release proof
 
-Before saying the release is done, separate the evidence layers:
+Evidence layers: source diff, tests and CI, generated metadata, packed package contents, GitHub tag, GitHub Release, downloaded installer assets (when included), marketplace add/install smokes, `@pumblus/okf-harness` inspection, OpenCode host install smoke or gap, Pi / Hermes Agent / OpenClaw host install smokes or manual gaps, npm registry versions and dist-tags, documented install commands, clean-environment smokes. If any layer is missing, say exactly what is missing.
 
-- source diff
-- tests and CI
-- generated metadata
-- packed package contents
-- GitHub tag
-- GitHub Release
-- downloaded installer assets when the release includes them
-- Claude Code and Codex marketplace add/install smokes
-- `@pumblus/okf-harness` package inspection
-- OpenCode host install smoke or explicit unavailable-host gap
-- Pi, Hermes Agent, and OpenClaw host install smokes or explicit manual gaps
-- npm registry versions
-- npm dist-tags
-- documented install commands
-- clean-environment smoke checks
+## Release template
 
-If any layer is missing, say exactly what is missing.
+**Title**: `v{version} {title}` — a short one-to-three-word playful motif, not a literal summary. It should feel slightly mysterious on first read and become clear after the release notes. Each `v0.x.0` introduces a new motif; patch releases in the same minor series continue, evolve, or riff on it. Example: `v0.4.0 Lights On` — the release turns on the Evidence Brief workflow, giving agents bounded wiki evidence before they answer.
+
+**Body**:
+
+```markdown
+One-line sentence describing what this release enables for users.
+
+## Install
+
+<release-appropriate install block>
+
+## What changed
+
+- Lead with the most important user-visible changes.
+- Focus on new capabilities, completed workflows, behavioral changes, or boundary changes rather than implementation details.
+- Explain why each change matters to users or agents, not just what changed.
+- Keep the list concise, usually three to six bullets, with one coherent improvement per bullet.
+
+## Notes
+
+- State the release scope and intent: milestone, completion, refinement, stabilization, or patch.
+- Call out important non-goals or unchanged boundaries when they set expectations.
+- Mention compatibility, migration, packaging, or release-asset notes only when relevant.
+- End with release-specific context that helps readers understand direction without turning Notes into a roadmap.
+```
