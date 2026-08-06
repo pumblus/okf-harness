@@ -1,6 +1,6 @@
 # Install the global runtime from setup
 
-_Status: superseded by the product-form migration in #90 and its shadowing-runtime cleanup in #93._
+_Status: superseded. Setup no longer installs or updates a global `okfh` runtime; it installs native integrations, and the launcher resolves each workspace's pinned runtime on demand (#90 product-form migration, #93 retired the global runtime install and its shadowing-runtime cleanup)._
 
 OKF Harness setup should install or update the shared `okfh` runtime globally rather than depending on transient `npx` execution after setup completes. Agent integrations need a stable local command for deterministic `okfh --json` workflows, while the setup package and installer scripts are only the entry path that prepares that runtime and the selected native agent integrations. When setup finds an older global runtime, it should show the current and target versions and ask before updating, defaulting the answer to yes. If global installation fails because of permissions, setup must not run `sudo`; it should report the failure and offer user-level npm prefix guidance or a command for the person to run explicitly.
 

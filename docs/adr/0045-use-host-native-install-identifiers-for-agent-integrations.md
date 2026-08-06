@@ -1,6 +1,6 @@
 # Use host-native install identifiers for agent integrations
 
-_Status: native identifiers remain active; the runtime-install and bootstrap-only guidance is superseded by #90 and #94._
+_Status: native identifiers remain active; the runtime-install and bootstrap-only guidance is superseded — native integrations expose the unified host-level entrypoint, which routes through the launcher without a global runtime or a separate bootstrap entrypoint (#90 product-form migration, #94 unified host entrypoint)._
 
 OKF Harness should use the install identifier that feels native in each supported agent client instead of forcing every integration through one npm package shape. The recommended native identifiers for v0.6 are: Claude Code and Codex install `okf-harness@okf-harness` from the main-repository marketplace, Pi installs `npm:@pumblus/okf-harness`, OpenCode installs `@pumblus/okf-harness` as a global plugin, Hermes Agent installs `pumblus/okf-harness/okf-harness` from a custom skill tap, and OpenClaw installs `@pumblus/okf-harness` from its native skill registry. The `@pumblus/okf-harness` package should serve both Pi and OpenCode with host-specific entries inside the package, while the `@okf-harness/*` npm scope remains for runtime and setup packages such as `@okf-harness/cli` and `@okf-harness/setup`.
 

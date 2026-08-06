@@ -283,10 +283,6 @@ _Avoid_: full summary, report, benchmark question, broad review
 The specific step that prevents the first useful loop from completing, such as source registration, wiki synthesis, workspace check, or evidence-backed answering. It should be reported with one concrete next action rather than triggering automatic online search, source substitution, or broader scope.
 _Avoid_: generic error, automatic recovery, silent scope expansion
 
-**Explicit workflow invocation**:
-The recommended README entry style where a person uses the current agent client's OKF Harness prefix followed by ordinary language, such as `$okf-harness Add this PDF to my workspace...` in Codex or `/okf-harness Add this PDF to my workspace...` in Claude Code. It makes routing predictable without exposing CLI commands.
-_Avoid_: CLI command, hidden automatic routing, adapter jargon
-
 **Unified agent entrypoint**:
 The single OKF Harness workflow entrypoint exposed to an agent client, named `okf-harness`. It exists before a workspace is selected and keeps the same prefix inside one while routing setup, check, ingest, reconciliation, answer, and graph intents internally.
 _Avoid_: multiple user-facing workflow skills, command menu, CLI alias
@@ -306,18 +302,6 @@ _Avoid_: user-facing skill, CLI command, separate product entrypoint
 **Answer workflow**:
 The internal agent workflow for answering a person's question from synthesized OKF bundle content by using deterministic search, bounded reads, and citations. It is named for the agent's job and should not imply an `okfh query` command or a black-box answer engine.
 _Avoid_: query command, answer engine, raw-source search
-
-**Natural-language routing**:
-The agent guidance quality that helps ordinary user requests enter the correct OKF Harness workflow even when the person omits explicit workflow prefixes. It is useful to improve over time, but README should not rely on it as the stable default path because final routing is the agent client's semantic judgment.
-_Avoid_: guaranteed routing, CLI command, release blocker
-
-**Workspace-native prompt**:
-A natural-language request made inside an agent context where OKF Harness is already implied by the selected skill, current folder, or workspace guidance. It should say "this workspace" or "my workspace" rather than repeatedly naming "OKF Harness workspace."
-_Avoid_: command-shaped prompt, product-name repetition, adapter jargon
-
-**Current-agent setup**:
-The setup experience where OKF Harness prepares guidance for the agent client the person is already using. The person should not need to choose adapter names during normal setup; universal setup may prepare every selected host integration, but workspace-local setup repairs only the current agent unless the person explicitly asks for more.
-_Avoid_: adapter selection, install all adapters by default, user-facing runtime setup, enablement toggle
 
 **Agent context refresh**:
 The handoff after setup or guidance changes where a person starts a fresh conversation in the current agent client so the client can load the new workspace guidance. The wording should match the agent client and operating-system conventions, using concrete local paths when known, without turning the handoff into a CLI tutorial.
@@ -408,7 +392,7 @@ The append-friendly evidence register for raw sources in an OKF Harness workspac
 _Avoid_: cache, index, source list output
 
 **Harness lint**:
-The OKF Harness quality check for provenance, citations, manifest integrity, source drift, index coverage, and maintainability signals around an OKF bundle. It can be stricter than OKF conformance, but it must not claim product preferences are OKF specification failures.
+The OKF Harness quality check for provenance, source and manifest integrity, source drift, index coverage, and maintainability signals around an OKF bundle. It can be stricter than OKF conformance, but it must not claim product preferences are OKF specification failures.
 _Avoid_: OKF conformance, standard compliance, formatter
 
 **Workspace check**:
@@ -428,16 +412,24 @@ The local capability that records completed workspace states and lets an agent l
 _Avoid_: backup product, wiki history, user-facing version control
 
 **Completion**:
-A known-good full workspace state recorded when a maintenance cycle completes. It has an opaque completion id and stores only the non-reproducible judgment for that cycle; the initialization baseline is not a completion.
+A known-good full workspace state recorded when a maintenance cycle completes. It has an opaque completion id and stores only the non-reproducible judgment for that cycle; the initialization baseline is not a completion. `okfh history` lists completions newest first, and `okfh restore` steps back to one; history is recovery context, never citable evidence.
 _Avoid_: individual write, intermediate edit, proposal, raw internal identifier
-
-**Completion history**:
-The newest-first computed list of workspace completions returned by `okfh history`, containing each opaque completion id and stored judgment. It is recovery context, not knowledge evidence or a second history file.
-_Avoid_: wiki log, evidence source, diff feed, audit file
 
 **Harness priority**:
 The priority assigned to Harness lint findings inside a workspace check. High priority covers evidence integrity problems such as source drift, missing registered sources, or reference documents that cannot be tied to source records; medium priority covers maintenance gaps such as missing index entries; low priority covers tolerated navigation or cleanup issues such as broken links.
 _Avoid_: check status, OKF conformance severity, raw issue code
+
+**Suspected revision**:
+A later raw source that Harness suspects revises an earlier one because the two registered copies share the same original filename but differ in content. The suspected-revision edge is the exact unit `okfh source reconcile` acknowledges; an acknowledgment covers that edge only, never a later revision.
+_Avoid_: source update, blanket approval, drift label
+
+**Source reconciliation**:
+The agent-owned act of updating synthesized wiki content for a specific suspected source revision and recording that judgment through `okfh source reconcile`. Its acknowledgment applies only to that exact revision edge and never covers a later revision.
+_Avoid_: source review, blanket approval, manual ledger edit
+
+**Promoted source**:
+A registered source the wiki has promoted: its source ID appears in the evidence links of the bundle's reference documents. Promotion is computed from the links Harness already walks, never declared on a page; the currency seal covers promoted sources only, and the promoted-source count is reporting only.
+_Avoid_: wiki endorsement, freshness score, source ranking
 
 **Currency seal**:
 The Harness-computed guarantee inside a workspace check that every promoted raw source has no unreconciled suspected revision. The seal is positive only when workspace validation has no error findings and no promoted source has a dangling reconciliation; otherwise the check reports the workspace as not sealed with deterministic diagnostics rather than a false seal. Currency is a report, never a write gate, and never changes the check status or exit code.
@@ -446,14 +438,6 @@ _Avoid_: freshness score, agent-claimed currency, write gate, version ranking
 **Consumption seal**:
 The Harness-computed refusal at the evidence answer layer when physical source damage is anchored by a missing source, changed source hash, or reference to an unregistered source, or when an invalid config or source manifest leaves no trustworthy chain. Anchored seals withhold the affected reference document and concepts that cite it directly; unanchored seals withhold every concept document. Each seal records the factual basis and never blocks writes, changes check status, or recommends a repair.
 _Avoid_: currency seal, workspace lock, write barrier, automatic repair, semantic contamination analysis
-
-**Source reconciliation**:
-The agent-owned act of updating synthesized wiki content for a specific suspected source revision and recording that judgment through `okfh source reconcile`. Its acknowledgment applies only to that exact revision edge and never covers a later revision.
-_Avoid_: source review, blanket approval, manual ledger edit
-
-**Source status**:
-A coarse label for where a raw source stands in the knowledge workflow. It describes evidence handling and must not imply that concept documents have already been updated.
-_Avoid_: task status, progress tracker, ingest plan status
 
 **Ingest**:
 The workflow of registering source material, planning how it should affect the knowledge base, and having an agent synthesize it into the OKF bundle. Ingest is not a promise that the CLI automatically writes final wiki content.
@@ -475,16 +459,12 @@ _Avoid_: query command, agent workflow, raw-source search, RAG, auto-ingest
 The user-facing name for a bounded evidence package prepared before an agent answers from an OKF bundle. It is a temporary work packet for one question, not a durable collection that tries to gather all possibly relevant knowledge.
 _Avoid_: evidence pool, answer, summary, RAG response
 
-**Bounded evidence package**:
-The structured evidence contract behind an evidence brief. It gathers relevant concept documents, citation pointers, evidence limits, and continuation cues; it is not the answer itself, a semantic summary, or raw-source-wide discovery.
-_Avoid_: answer, query engine, source search, evidence pool, RAG response
-
 **Continuation cue**:
 A bounded pointer that tells an agent exactly where it may continue reading after a read result or evidence brief is truncated or incomplete. It is not permission to search raw sources, browse online, or freely expand scope.
 _Avoid_: next search, auto research, unbounded follow-up
 
 **Write-back offer**:
-The agent's one-clause offer to keep an answer the wiki could not supply, appended to the disclosure already owed when an evidence brief proves no concept document matched. It is permitted only by the no-match guidance string, and it is ephemeral: an accepted offer writes one ordinary concept page and its index link, and an ignored one persists nothing.
+The agent's one-clause offer to keep an answer the wiki could not supply, appended to the disclosure already owed when an evidence brief proves a coverage gap: no concept document matched the question. The no-match guidance string is the whole permission — no structured field and no write-back command — and the offer is ephemeral: an accepted offer writes one ordinary concept page and its index link, and an ignored one persists nothing. A sealed or truncated brief is not a gap and never carries the offer.
 _Avoid_: save mode, write queue, proposal, auto-capture, conversation source
 
 **Evidence sufficiency**:
@@ -507,16 +487,8 @@ _Avoid_: answer excerpt, evidence snippet, source digest
 A query outcome where deterministic search finds no relevant concept documents in the OKF bundle. It means the synthesized wiki has no matching concept yet; it must not be presented as proof that registered source material contains no answer.
 _Avoid_: no source evidence, knowledge base disproved it, raw source absence
 
-**Read result**:
-The bounded content view and metadata for one concept document in an OKF bundle. A read result may expose citation and raw-source pointers, but it does not automatically include raw source bodies or unbounded page content.
-_Avoid_: raw source read, attachment fetch, source dump
-
-**Reserved wiki document**:
-An OKF bundle file with a special workspace role, such as `wiki/index.md`, rather than a normal concept document. It may be read explicitly for orientation, but it should not be presented as a concept.
-_Avoid_: concept document, arbitrary workspace file, wiki page
-
 **Index document**:
-The reserved wiki document that acts as the OKF bundle's human-maintained navigation surface and orientation map. It should be read first to discover likely concept documents, but a homepage link is not by itself evidence or an importance ranking.
+The reserved wiki document that acts as the OKF bundle's human-maintained navigation surface and orientation map. It should be read first to discover likely concept documents, but a homepage link is not by itself evidence or an importance ranking. Like other reserved documents, it may be read for orientation but is never presented as a concept.
 _Avoid_: ranking source, concept document, search result
 
 **Graph report**:
@@ -527,9 +499,13 @@ _Avoid_: GUI, graph editor, knowledge-base app
 A relationship from a synthesized concept document to the reference document or source ID that supports a factual claim. It is part of the wiki's traceability model; it does not turn raw source files into normal graph nodes.
 _Avoid_: raw source node, attachment link, proof of truth
 
-**Semantic analysis**:
-The agent-owned interpretation of source material, including meaning, claims, contradictions, and which concept documents should change. OKF Harness may prepare deterministic inputs for semantic analysis, but it should not present its metadata matching as understanding.
-_Avoid_: deterministic lint, source registration, metadata match
+**Provenance trail**:
+The walkable chain from a concept document through its citations and reference documents to registered source IDs. When a load-bearing claim in an answer rests on pages whose provenance payload is empty, the answer names where the trail ends instead of discounting the claim.
+_Avoid_: raw source body, citation log, source dump
+
+**Unanchored page**:
+A concept page with no evidence links to a registered source, such as a page written back from a conversation. Zero anchors is legitimate and silent: no lint finding, no frontmatter marker, and no concept type record it. When a written-back page drew on unanchored pages, its prose names them as derived-from with plain links; that lineage is prose for the reader, never parsed metadata.
+_Avoid_: forgotten citation, unverified claim, source-less claim
 
 **Agent-first knowledge worker**:
 A person who maintains a local knowledge base primarily by asking an agent to organize, query, and validate it, rather than by learning command-line workflows.
@@ -540,24 +516,16 @@ The user-facing client where a person talks to an agent, such as a desktop app o
 _Avoid_: agent, model, runtime
 
 **Supported agent set**:
-The agent clients OKF Harness actively considers for installation, native integration, documentation, and compatibility checks in a release. The current supported set includes Claude Code, Codex, OpenCode, Pi, Hermes Agent, and OpenClaw.
+The agent clients OKF Harness actively considers for installation, native integration, documentation, and compatibility checks in a release. The current supported set includes Claude Code, Codex, OpenCode, Pi, Hermes Agent, and OpenClaw. Native-supported status is separate from default selection: OpenClaw requires explicit opt-in.
 _Avoid_: all agents, model providers, future integrations
 
-**Agent integration support level**:
-The release-specific support status for installing OKF Harness into an agent client. Levels are `native-supported`, `manual-supported`, `install-later`, and `unsupported`; default setup selection is a separate behavior so a native-supported integration can still require explicit opt-in.
-_Avoid_: quality score, model support, runtime compatibility
-
 **Agent guidance**:
-The workspace instructions and configuration that tell an agent how to operate OKF Harness safely and consistently. Agent guidance is product workflow metadata, not knowledge content.
+The workspace instructions and configuration that tell an agent how to operate OKF Harness safely and consistently. Agent guidance is product workflow metadata, not knowledge content, and it is kept layered so an agent loads only the guidance a workflow needs.
 _Avoid_: schema, documentation, wiki content
 
 **Agent adapter**:
 The rendered set of agent guidance files for a specific agent client, such as Claude Code or Codex. An adapter translates shared OKF Harness workflows into the conventions that client can discover and use.
 _Avoid_: agent client, plugin, integration
-
-**Harness runtime execution**:
-The on-demand execution of the exact OKF Harness runtime version pinned by a workspace. The host skill reaches it through the version-independent launcher rather than a global install.
-_Avoid_: agent install, plugin install, global runtime
 
 **Universal setup**:
 The broad setup path for people who use multiple agent clients or do not know which agent integration they need. It detects supported agent clients and offers native integrations containing the unified host entrypoint without installing a global Harness runtime.
@@ -568,12 +536,8 @@ A user-readable proposal produced by universal setup before it writes agent inte
 _Avoid_: hidden install, onboarding state, CLI dry run
 
 **Interactive agent selection**:
-The universal setup step where OKF Harness automatically detects supported agent clients on the machine, then asks the person which detected or supported agent integrations to install. Detection is automatic; choosing where OKF Harness is installed remains explicit.
+The universal setup step where OKF Harness automatically detects supported agent clients on the machine, then asks the person which detected or supported agent integrations to install. Supported clients missing from the machine stay visible as install-later options with their install commands, never as failures. Detection is automatic; choosing where OKF Harness is installed remains explicit.
 _Avoid_: silent auto-install, manual agent discovery, adapter prompt
-
-**Undetected agent option**:
-A supported agent client shown by universal setup even when it is not present on the machine. Selecting it should return the OKF Harness install command to run after that agent client is installed, not explain how to install the agent client or create speculative files for software the person has not installed.
-_Avoid_: hidden bootstrap, placeholder integration, preinstall
 
 **Native agent integration**:
 A host-specific distribution path, such as a plugin, extension, skill package, or package manager entry, that installs the unified host-level `okf-harness` entrypoint into one agent client. It invokes the runtime launcher and remains distinct from a workspace-local adapter.
@@ -583,25 +547,9 @@ _Avoid_: Harness runtime, custom agent runtime, workspace-local adapter
 Evidence that a supported agent client recognizes the exact OKF Harness native agent integration from its canonical distribution source as installed and, when the client exposes integration-level activation, enabled. User-controlled activation of individual resources inside an installed integration is outside setup verification.
 _Avoid_: install command completion, agent client detection, resource preference audit
 
-**Native integration verification outcome**:
-The authoritative post-install state of a selected native agent integration—`verified`, `failed`, or `unavailable`—independent of its install command result. Setup continues across integrations, but succeeds only when every selected integration is verified.
-_Avoid_: install command result, fail-fast installation, partial success
-
-**Native integration verification context**:
-The default profile or agent context addressed by an unqualified native install command. Named profiles and agents remain outside verification unless setup explicitly targets them.
-_Avoid_: all-profile audit, agent policy audit, implicit named profile
-
 **Native install command**:
 The concrete command or short command sequence that installs an OKF Harness native agent integration through the agent client's own plugin, extension, skill, or package mechanism. Universal setup should show this command before running it so the person can audit what will change.
 _Avoid_: hidden write, runtime command, workspace command
-
-**First-workspace invocation example**:
-The exact user-facing phrase or command form a person should use with `okf-harness` before a workspace exists. It is agent-specific and should only be shown when the invocation form has been verified for that client.
-_Avoid_: generic slash command, CLI command, assumed prefix
-
-**Manual integration option**:
-A detected supported agent client that OKF Harness cannot safely install through a stable native channel in the current release. Universal setup may show it as detected, but it should not preselect it or write integration files without a clear manual instruction path.
-_Avoid_: broken native install, silent fallback, speculative adapter
 
 **Installer script**:
 A convenience wrapper for universal setup that reduces copy-paste friction on a specific operating system. It should delegate product behavior to OKF Harness setup logic rather than becoming a separate implementation of agent detection or workspace management.
@@ -616,16 +564,8 @@ The default install path shown first to ordinary users. This is the operating-sy
 _Avoid_: only install path, CLI install, advanced install
 
 **Agent skill**:
-A discoverable workflow instruction inside an agent adapter. The current user-facing skill is the unified `okf-harness` entrypoint, while setup, check, ingest, answer, and graph remain internal workflows.
+A discoverable workflow instruction inside an agent adapter. The current user-facing skill is the unified `okf-harness` entrypoint, while setup, check, ingest, answer, and graph remain internal workflows. Retired workflow skills are backed up under `.okfh/backups/agent-skills/` during migration, never deleted outright.
 _Avoid_: command, script, template
-
-**Agent skill migration backup**:
-A preserved copy of an old workflow skill directory, managed, user-authored, or malformed, moved out of the agent client's discoverable skill path during migration to the unified `okf-harness` entrypoint. It protects user content without keeping retired workflow skills active.
-_Avoid_: active legacy skill, conflict, managed cleanup
-
-**Layered agent guidance**:
-The OKF Harness guidance style where durable rules, workflow instructions, and detailed reference contracts are separated so an agent loads only the level of detail needed for the task. It is a progressive-disclosure structure for agent guidance, not runtime prompt injection.
-_Avoid_: prompt injection, hidden prompt, monolithic instructions
 
 **Harness-managed guidance block**:
 A clearly marked section inside a generated OKF Harness workspace's agent guidance file that OKF Harness may insert, replace, or remove without owning the rest of the file. It lets agent adapters update their own instructions while preserving user-written project guidance.

@@ -1,6 +1,6 @@
 # Use a dedicated setup package for the recommended install path
 
-_Status: the dedicated setup package remains active; shared-runtime installation and post-install doctor guidance are superseded by #90 and #93. Native command completion is reported separately from integration-state verification._
+_Status: the dedicated setup package remains active; shared-runtime installation and post-install doctor guidance are superseded — setup installs native integrations only and installs no global runtime, and `okfh doctor` verifies integration state separately (#90 product-form migration, #93 retired the global runtime install). Native command completion is reported separately from integration-state verification._
 
 OKF Harness should publish a dedicated `@okf-harness/setup` package for the recommended installer flow instead of making ordinary users start from `@okf-harness/cli` or an `okfh setup` command. The setup package detects supported agent clients, installs selected native integrations, and exposes the version-independent launcher that resolves each workspace's pinned runtime on demand.
 

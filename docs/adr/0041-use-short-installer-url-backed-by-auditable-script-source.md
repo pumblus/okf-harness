@@ -1,6 +1,6 @@
 # Use short installer URLs backed by auditable script sources
 
-_Status: short installer URLs remain active; root-site direction is superseded by ADRs 0046 and 0047, and global CLI install guidance is superseded by the product-form migration in #90._
+_Status: short installer URLs remain active; root-site direction is superseded by ADRs 0046 and 0047, and global CLI install guidance is superseded by the product-form migration in #90 — setup and the launcher replace the global CLI install._
 
 OKF Harness should present short installer URLs at `https://okf-harness.dev/install.sh` and `https://okf-harness.dev/install.ps1` in ordinary user documentation, and those recommended URLs should install the latest public release. The short URLs should serve or redirect to auditable installer scripts published from the main repository or GitHub releases, with version-pinned install paths available for advanced or reproducible setup. This keeps the recommended install path readable and current without hiding the script source or making the installer a separate product surface.
 
