@@ -301,8 +301,12 @@ The universal setup step where OKF Harness automatically detects supported agent
 _Avoid_: silent auto-install, manual agent discovery, adapter prompt
 
 **Native agent integration**:
-A host-specific distribution path, such as a plugin, extension, skill package, or package manager entry, that installs the unified host-level `okf-harness` entrypoint into one agent client. It invokes the runtime launcher and remains distinct from a workspace-local adapter.
+A distribution path that installs the unified host-level `okf-harness` entrypoint into an agent client. It has two forms: a host-specific form shaped to one client's own plugin, extension, skill, or package mechanism, and the portable Agent Plugin form, where one standards-conforming package serves every compatible client. It invokes the runtime launcher and remains distinct from a workspace-local adapter. Unless a sentence explicitly names the Agent Plugin form, "native agent integration" refers to the host-specific form.
 _Avoid_: Harness runtime, custom agent runtime, workspace-local adapter
+
+**Agent Plugin**:
+The portable form of native agent integration, named for the external [Agent Plugins standard](https://agent-plugins.org/) it conforms to: a single directory with `plugin.json` at its root plus fixed component locations such as `skills/`, installable by every compatible agent client without a host-specific package shape. The bare word "plugin" stays avoided for OKF Harness's own artifacts, and the rejection of an internal plugin architecture (ADR 0039) is unchanged. The okf-harness Agent Plugin carries agent guidance as skills and invokes the runtime launcher; the Harness CLI is the runtime it delegates to, never part of the package.
+_Avoid_: plugin (unqualified), extension, marketplace plugin, agent adapter
 
 **Host probe**:
 The shared internal mechanism by which universal setup, doctor, and refresh guidance locate host executables on PATH, run native integration probe commands, and detect shadowing global installs. One lookup policy answers the same "is this executable on the host" question in every surface, so setup and doctor cannot disagree about a machine; it is invisible to agents and never appears in command output.
