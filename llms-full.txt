@@ -547,6 +547,10 @@ _Avoid_: silent auto-install, manual agent discovery, adapter prompt
 A host-specific distribution path, such as a plugin, extension, skill package, or package manager entry, that installs the unified host-level `okf-harness` entrypoint into one agent client. It invokes the runtime launcher and remains distinct from a workspace-local adapter.
 _Avoid_: Harness runtime, custom agent runtime, workspace-local adapter
 
+**Host probe**:
+The shared internal mechanism by which universal setup, doctor, and refresh guidance locate host executables on PATH, run native integration probe commands, and detect shadowing global installs. One lookup policy answers the same "is this executable on the host" question in every surface, so setup and doctor cannot disagree about a machine; it is invisible to agents and never appears in command output.
+_Avoid_: shell detection, PATH lookup, command runner
+
 **Native integration verification**:
 Evidence that a supported agent client recognizes the exact OKF Harness native agent integration from its canonical distribution source as installed and, when the client exposes integration-level activation, enabled. User-controlled activation of individual resources inside an installed integration is outside setup verification.
 _Avoid_: install command completion, agent client detection, resource preference audit
