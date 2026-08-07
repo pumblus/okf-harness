@@ -125,7 +125,7 @@ export function registerInitCommand(
               ...(agentInstall?.replacedFiles ?? []),
             ],
       );
-      const refresh = renderRefreshHint({
+      const refresh = await renderRefreshHint({
         agentTarget,
         ok,
         dryRun: result.dryRun,
@@ -190,12 +190,12 @@ function visibleInitFiles(values: string[]): string[] {
   return [...new Set(values)].filter((file) => !/(^|\/)\.git/.test(file));
 }
 
-function renderRefreshHint(options: {
+async function renderRefreshHint(options: {
   agentTarget: InitAgentTarget;
   ok: boolean;
   dryRun: boolean;
   workspaceRoot: string;
-}): WorkspaceRefreshHint | undefined {
+}): Promise<WorkspaceRefreshHint | undefined> {
   if (
     !options.ok ||
     options.dryRun ||

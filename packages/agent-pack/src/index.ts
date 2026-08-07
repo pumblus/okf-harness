@@ -14,6 +14,22 @@ import {
 import { homedir } from "node:os";
 import path from "node:path";
 
+export type { ProbeRunner } from "./host-probe.js";
+export {
+  commandErrorDetails,
+  commandExitCode,
+  commandStderr,
+  commandStdout,
+  detectGlobalPackageVersion,
+  detectShadowingGlobalInstalls,
+  executableExistsOnPath,
+  findExecutable,
+  nodeErrorCode,
+  pathApiFor,
+  probeCommands,
+  shouldUseWindowsShell,
+  windowsShellInvocation,
+} from "./host-probe.js";
 export type {
   DetectedShadowingGlobalInstall,
   NativeInstallCommand,
@@ -39,6 +55,7 @@ export type {
 } from "./verification.js";
 export { verifyNativeIntegration } from "./verification.js";
 
+import { findExecutable } from "./host-probe.js";
 import type { AgentAdapter, BootstrapAgent } from "./profiles.js";
 import {
   adapterProfiles,
@@ -874,54 +891,6 @@ async function directoryExists(filePath: string): Promise<boolean> {
     return (await lstat(filePath)).isDirectory();
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") {
-      return false;
-    }
-    throw error;
-  }
-}
-
-async function findExecutable(
-  executable: string,
-  env: NodeJS.ProcessEnv,
-): Promise<string | undefined> {
-  const searchPath = firstNonEmpty(env.PATH);
-  if (searchPath === undefined) {
-    return undefined;
-  }
-
-  for (const directory of searchPath.split(path.delimiter)) {
-    if (directory.trim().length === 0) {
-      continue;
-    }
-    for (const name of executableNames(executable, env)) {
-      const candidate = path.join(directory, name);
-      if (await canExecute(candidate)) {
-        return candidate;
-      }
-    }
-  }
-  return undefined;
-}
-
-function executableNames(executable: string, env: NodeJS.ProcessEnv): string[] {
-  if (process.platform !== "win32" || path.extname(executable).length > 0) {
-    return [executable];
-  }
-  const extensions = firstNonEmpty(env.PATHEXT)
-    ?.split(";")
-    .filter((extension) => extension.trim().length > 0) ?? [".EXE", ".CMD", ".BAT", ".COM"];
-  return [executable, ...extensions.map((extension) => `${executable}${extension}`)];
-}
-
-async function canExecute(filePath: string): Promise<boolean> {
-  try {
-    if (!(await lstat(filePath)).isFile()) {
-      return false;
-    }
-    await access(filePath, constants.X_OK);
-    return true;
-  } catch (error) {
-    if (isNodeError(error)) {
       return false;
     }
     throw error;

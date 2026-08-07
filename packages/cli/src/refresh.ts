@@ -1,6 +1,5 @@
-import { accessSync, constants } from "node:fs";
 import path from "node:path";
-import type { AgentAdapter } from "@okf-harness/agent-pack";
+import { type AgentAdapter, executableExistsOnPath, pathApiFor } from "@okf-harness/agent-pack";
 
 export type WorkspaceRefreshHint = {
   agentClient: AgentAdapter;
@@ -28,7 +27,7 @@ export type CreateWorkspaceRefreshHintOptions = {
   workspaceRoot: string;
   runtimePlatform?: NodeJS.Platform | string;
   env?: NodeJS.ProcessEnv;
-  executableOnPath?: (executable: string, context: ExecutableLookupContext) => boolean;
+  executableOnPath?: (executable: string, context: ExecutableLookupContext) => Promise<boolean>;
 };
 
 const refreshProfiles: Record<AgentAdapter, RefreshProfile> = {
@@ -44,15 +43,18 @@ const refreshProfiles: Record<AgentAdapter, RefreshProfile> = {
   },
 };
 
-export function createWorkspaceRefreshHint(
+export async function createWorkspaceRefreshHint(
   options: CreateWorkspaceRefreshHintOptions,
-): WorkspaceRefreshHint {
+): Promise<WorkspaceRefreshHint> {
   const runtimePlatform = options.runtimePlatform ?? process.platform;
   const env = options.env ?? process.env;
   const profile = refreshProfiles[options.agentClient];
   const workspacePath = pathApiFor(runtimePlatform).resolve(options.workspaceRoot);
   const executableOnPath = options.executableOnPath ?? executableExistsOnPath;
-  const executableAvailable = executableOnPath(profile.executable, { runtimePlatform, env });
+  const executableAvailable = await executableOnPath(profile.executable, {
+    runtimePlatform,
+    env,
+  });
   const commandPlan = executableAvailable
     ? refreshCommandPlan({
         executable: profile.executable,
@@ -169,55 +171,6 @@ function quotePowerShell(value: string): string {
 
 function quoteCmd(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
-}
-
-function executableExistsOnPath(executable: string, context: ExecutableLookupContext): boolean {
-  const searchPath = envValue(context.env, "PATH");
-  if (searchPath === undefined || searchPath.length === 0) {
-    return false;
-  }
-
-  const delimiter = context.runtimePlatform === "win32" ? ";" : ":";
-  const pathApi = pathApiFor(context.runtimePlatform);
-  for (const directory of searchPath.split(delimiter)) {
-    if (directory.length === 0) {
-      continue;
-    }
-    for (const extension of executableExtensions(executable, context)) {
-      if (
-        isExecutable(pathApi.join(directory, `${executable}${extension}`), context.runtimePlatform)
-      ) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-function executableExtensions(executable: string, context: ExecutableLookupContext): string[] {
-  if (context.runtimePlatform !== "win32") {
-    return [""];
-  }
-
-  const configured = envValue(context.env, "PATHEXT") ?? ".COM;.EXE;.BAT;.CMD";
-  const extensions = configured
-    .split(";")
-    .map((extension) => extension.trim())
-    .filter((extension) => extension.length > 0);
-  return path.win32.extname(executable).length > 0 ? ["", ...extensions] : extensions;
-}
-
-function isExecutable(filePath: string, runtimePlatform: NodeJS.Platform | string): boolean {
-  try {
-    accessSync(filePath, runtimePlatform === "win32" ? constants.F_OK : constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function pathApiFor(runtimePlatform: NodeJS.Platform | string): typeof path.posix {
-  return runtimePlatform === "win32" ? path.win32 : path.posix;
 }
 
 function envValue(env: NodeJS.ProcessEnv, key: string): string | undefined {

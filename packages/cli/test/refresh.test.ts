@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createWorkspaceRefreshHint } from "../src/refresh.js";
 
 describe("workspace refresh hints", () => {
-  it("omits command lines when the agent executable is absent", () => {
-    const hint = createWorkspaceRefreshHint({
+  it("omits command lines when the agent executable is absent", async () => {
+    const hint = await createWorkspaceRefreshHint({
       agentClient: "claude",
       workspaceRoot: "/tmp/OKF Harness/研究",
       runtimePlatform: "linux",
@@ -19,25 +19,25 @@ describe("workspace refresh hints", () => {
     expect(hint).not.toHaveProperty("commands");
   });
 
-  it("quotes POSIX refresh commands for paths with spaces and non-ASCII text", () => {
-    const hint = createWorkspaceRefreshHint({
+  it("quotes POSIX refresh commands for paths with spaces and non-ASCII text", async () => {
+    const hint = await createWorkspaceRefreshHint({
       agentClient: "codex",
       workspaceRoot: "/tmp/OKF Harness/研究",
       runtimePlatform: "linux",
       env: { PATH: "/fake/bin" },
-      executableOnPath: () => true,
+      executableOnPath: async () => true,
     });
 
     expect(hint.commands).toEqual(["cd '/tmp/OKF Harness/研究'", "codex"]);
   });
 
-  it("quotes PowerShell refresh commands", () => {
-    const hint = createWorkspaceRefreshHint({
+  it("quotes PowerShell refresh commands", async () => {
+    const hint = await createWorkspaceRefreshHint({
       agentClient: "claude",
       workspaceRoot: "C:\\Users\\Eric\\OKF Harness\\研究",
       runtimePlatform: "win32",
       env: { PATH: "C:\\bin", SHELL: "pwsh.exe" },
-      executableOnPath: () => true,
+      executableOnPath: async () => true,
     });
 
     expect(hint.commands).toEqual([
@@ -46,38 +46,38 @@ describe("workspace refresh hints", () => {
     ]);
   });
 
-  it("quotes Command Prompt refresh commands", () => {
-    const hint = createWorkspaceRefreshHint({
+  it("quotes Command Prompt refresh commands", async () => {
+    const hint = await createWorkspaceRefreshHint({
       agentClient: "codex",
       workspaceRoot: "C:\\Users\\Eric\\OKF Harness\\研究",
       runtimePlatform: "win32",
       env: { PATH: "C:\\bin", SHELL: "cmd.exe" },
-      executableOnPath: () => true,
+      executableOnPath: async () => true,
     });
 
     expect(hint.commands).toEqual(['cd /d "C:\\Users\\Eric\\OKF Harness\\研究"', "codex"]);
   });
 
-  it("omits command lines when the Windows shell family is unknown", () => {
-    const hint = createWorkspaceRefreshHint({
+  it("omits command lines when the Windows shell family is unknown", async () => {
+    const hint = await createWorkspaceRefreshHint({
       agentClient: "codex",
       workspaceRoot: "C:\\Users\\Eric\\OKF Harness\\研究",
       runtimePlatform: "win32",
       env: { PATH: "C:\\bin", ComSpec: "C:\\Windows\\System32\\cmd.exe" },
-      executableOnPath: () => true,
+      executableOnPath: async () => true,
     });
 
     expect(hint.message).toContain("Windows shell could not be detected safely");
     expect(hint).not.toHaveProperty("commands");
   });
 
-  it("omits Command Prompt command lines for expansion-sensitive paths", () => {
-    const hint = createWorkspaceRefreshHint({
+  it("omits Command Prompt command lines for expansion-sensitive paths", async () => {
+    const hint = await createWorkspaceRefreshHint({
       agentClient: "codex",
       workspaceRoot: "C:\\Users\\Eric\\OKF %USERPROFILE%!\\研究",
       runtimePlatform: "win32",
       env: { PATH: "C:\\bin", SHELL: "cmd.exe" },
-      executableOnPath: () => true,
+      executableOnPath: async () => true,
     });
 
     expect(hint.message).toContain("unsafe for Command Prompt");

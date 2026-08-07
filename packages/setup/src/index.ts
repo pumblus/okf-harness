@@ -1,24 +1,29 @@
 import { execFile } from "node:child_process";
-import { constants, readFileSync } from "node:fs";
-import { access, stat } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { access } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { promisify } from "node:util";
 import {
-  collectShadowingGlobalInstalls,
+  commandErrorDetails,
+  commandExitCode,
+  commandStderr,
+  commandStdout,
   type DetectedShadowingGlobalInstall,
-  isShadowingOkfhExecutable,
+  detectShadowingGlobalInstalls,
+  findExecutable,
   type NativeInstallCommand,
   type NativeIntegrationId,
-  type NativeIntegrationProbeResult,
   type NativeIntegrationProfile,
   type NativeIntegrationVerificationResult,
   nativeIntegrationProfile,
-  parseGlobalPackageVersion,
+  type ProbeRunner,
+  probeCommands,
   shadowingGlobalInstallCleanupCommand,
-  shadowingGlobalInstallProfiles,
+  shouldUseWindowsShell,
   supportedNativeIntegrationProfiles,
   verifyNativeIntegration,
+  windowsShellInvocation,
 } from "@okf-harness/agent-pack";
 import {
   type ConfigIssue,
@@ -501,7 +506,10 @@ async function createSetupPlan(
   );
   const [recoverySupport, shadowingInstalls] = await Promise.all([
     findExecutable("git", options.env),
-    detectShadowingGlobalInstalls(options),
+    detectShadowingGlobalInstalls({
+      ...options,
+      runCommand: runProbe(options.runCommand, options.env),
+    }),
   ]);
   return {
     setupVersion: packageVersion.version,
@@ -594,42 +602,13 @@ export function renderSetupPlan(plan: SetupPlan): string {
   return `${lines.join("\n")}\n`;
 }
 
-async function detectShadowingGlobalInstalls(options: {
-  env: NodeJS.ProcessEnv;
-  runCommand: RunSetupCommand;
-  runtimePlatform: NodeJS.Platform | string;
-}): Promise<SetupShadowingInstallPlan[]> {
-  const runtimeProfile = shadowingGlobalInstallProfiles[0];
-  const bootstrapProfile = shadowingGlobalInstallProfiles[1];
-  const [executablePath, bootstrapVersion] = await Promise.all([
-    findExecutable(runtimeProfile.executable, options.env, isShadowingOkfhExecutable),
-    detectGlobalPackageVersion(bootstrapProfile.packageName, options),
-  ]);
-
-  return collectShadowingGlobalInstalls({
-    ...(executablePath === undefined ? {} : { executablePath }),
-    ...(bootstrapVersion === undefined ? {} : { bootstrapVersion }),
-  });
-}
-
-async function detectGlobalPackageVersion(
-  packageName: string,
-  options: {
-    env: NodeJS.ProcessEnv;
-    runCommand: RunSetupCommand;
-    runtimePlatform: NodeJS.Platform | string;
-  },
-): Promise<string | undefined> {
-  const args = ["ls", "-g", packageName, "--json", "--depth=0"];
-  try {
-    const result = await options.runCommand("npm", args, {
-      env: options.env,
-      shell: shouldUseWindowsShell(options.runtimePlatform, "npm"),
+function runProbe(runCommand: RunSetupCommand, env: NodeJS.ProcessEnv): ProbeRunner {
+  return (command, args, options) =>
+    runCommand(command, args, {
+      ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+      env,
+      shell: options.shell,
     });
-    return parseGlobalPackageVersion(result.stdout, packageName);
-  } catch (error) {
-    return parseGlobalPackageVersion(commandStdout(error), packageName);
-  }
 }
 
 async function clearShadowingGlobalInstalls(options: {
@@ -671,7 +650,10 @@ async function clearShadowingGlobalInstalls(options: {
     );
   }
 
-  const remaining = await detectShadowingGlobalInstalls(options);
+  const remaining = await detectShadowingGlobalInstalls({
+    ...options,
+    runCommand: runProbe(options.runCommand, options.env),
+  });
   if (remaining.length === 0) {
     options.io.writeOut("Shadowing global install cleanup verified.\n");
   } else {
@@ -738,7 +720,11 @@ async function installSelectedNativeIntegrations(options: {
     const completedCommands: SetupNativeInstallCommand[] = [];
     for (const installCommand of agent.nativeInstallCommands) {
       options.io.writeOut(`Installing ${agent.label}: ${commandToString(installCommand)}\n`);
-      const invocation = nativeCommandInvocation(agent, installCommand, options.runtimePlatform);
+      const invocation = windowsShellInvocation(
+        installCommand.command,
+        agent.executablePath,
+        options.runtimePlatform,
+      );
       try {
         const result = await options.runCommand(invocation.command, installCommand.args, {
           ...(invocation.cwd === undefined ? {} : { cwd: invocation.cwd }),
@@ -786,41 +772,19 @@ async function runNativeIntegrationVerification(
   >,
 ): Promise<NativeIntegrationVerificationResult> {
   const definition = nativeIntegrationProfile(agent.id).verification;
-  const probeResults: NativeIntegrationProbeResult[] = [];
-  for (const probeCommand of definition.commands) {
-    options.io.writeOut(`Verifying ${agent.label}: ${commandToString(probeCommand)}\n`);
-    const invocation = nativeCommandInvocation(agent, probeCommand, options.runtimePlatform);
-    try {
-      const result = await options.runCommand(invocation.command, probeCommand.args, {
-        ...(invocation.cwd === undefined ? {} : { cwd: invocation.cwd }),
-        env: options.env,
-        shell: invocation.shell,
-      });
-      probeResults.push({ stdout: result.stdout, exitCode: result.exitCode ?? 0 });
-      if ((result.exitCode ?? 0) !== 0) {
-        break;
-      }
-    } catch (error) {
-      const exitCode = commandExitCode(error);
-      probeResults.push({ stdout: "", ...(exitCode === undefined ? {} : { exitCode }) });
-      break;
-    }
-  }
+  const probeResults = await probeCommands(
+    definition.commands,
+    runProbe(options.runCommand, options.env),
+    {
+      env: options.env,
+      invocation: (command) =>
+        windowsShellInvocation(command, agent.executablePath, options.runtimePlatform),
+      onProbe: (probeCommand) => {
+        options.io.writeOut(`Verifying ${agent.label}: ${commandToString(probeCommand)}\n`);
+      },
+    },
+  );
   return verifyNativeIntegration(definition, probeResults);
-}
-
-function nativeCommandInvocation(
-  agent: SetupAgentPlan,
-  command: SetupNativeInstallCommand,
-  runtimePlatform: NodeJS.Platform | string,
-): { command: string; cwd?: string; shell: boolean } {
-  const shell = shouldUseNativeInstallShell(runtimePlatform, agent.executablePath);
-  const executable = agent.executablePath ?? command.command;
-  return {
-    command: shell ? path.basename(executable) : executable,
-    ...(shell ? { cwd: path.dirname(executable) } : {}),
-    shell,
-  };
 }
 
 function writeNativeInstallCommandFailure(
@@ -921,15 +885,6 @@ function commandToString(command: { command: string; args: string[] }): string {
   return [command.command, ...command.args].join(" ");
 }
 
-function commandExitCode(error: unknown): number | undefined {
-  return typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof error.code === "number"
-    ? error.code
-    : undefined;
-}
-
 function runtimeDidStart(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -937,32 +892,6 @@ function runtimeDidStart(error: unknown): boolean {
     "runtimeStarted" in error &&
     error.runtimeStarted === true
   );
-}
-
-function commandStdout(error: unknown): string {
-  return typeof error === "object" &&
-    error !== null &&
-    "stdout" in error &&
-    typeof error.stdout === "string"
-    ? error.stdout
-    : "";
-}
-
-function commandErrorDetails(error: unknown): string {
-  if (error instanceof Error) {
-    const output = [commandStdout(error), commandStderr(error)].filter(Boolean).join("\n").trim();
-    return output.length > 0 ? `${error.message}\n${output}` : error.message;
-  }
-  return String(error);
-}
-
-function commandStderr(error: unknown): string {
-  return typeof error === "object" &&
-    error !== null &&
-    "stderr" in error &&
-    typeof error.stderr === "string"
-    ? error.stderr
-    : "";
 }
 
 function isMissingPathError(error: unknown): boolean {
@@ -1063,24 +992,6 @@ async function runCommandDefault(
     windowsHide: true,
   });
   return { stdout: String(stdout), stderr: String(stderr) };
-}
-
-function shouldUseWindowsShell(
-  runtimePlatform: NodeJS.Platform | string,
-  executable: string,
-): boolean {
-  return runtimePlatform === "win32" && ["npm", "okfh"].includes(executable);
-}
-
-function shouldUseNativeInstallShell(
-  runtimePlatform: NodeJS.Platform | string,
-  executablePath: string | undefined,
-): boolean {
-  return (
-    runtimePlatform === "win32" &&
-    executablePath !== undefined &&
-    [".bat", ".cmd"].includes(path.extname(executablePath).toLowerCase())
-  );
 }
 
 function parseCommandArgs(args: string[]): ParsedCommandArgs {
@@ -1220,46 +1131,4 @@ function isSelected(
 function parseNodeMajorVersion(version: string): number | undefined {
   const match = /^v?(\d+)(?:\.|$)/.exec(version);
   return match === null ? undefined : Number.parseInt(match[1] ?? "", 10);
-}
-
-async function findExecutable(
-  command: string,
-  env: NodeJS.ProcessEnv,
-  accept: (executablePath: string) => boolean = () => true,
-): Promise<string | undefined> {
-  const pathValue = env.PATH ?? "";
-  for (const directory of pathValue.split(path.delimiter).filter((entry) => entry.length > 0)) {
-    for (const candidate of executableCandidates(command, env)) {
-      const candidatePath = path.join(directory, candidate);
-      if ((await isExecutableFile(candidatePath)) && accept(candidatePath)) {
-        return candidatePath;
-      }
-    }
-  }
-  return undefined;
-}
-
-function executableCandidates(command: string, env: NodeJS.ProcessEnv): string[] {
-  const pathext = (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
-    .split(";")
-    .map((extension) => extension.trim().toLowerCase())
-    .filter((extension) => extension.length > 0);
-  return [
-    command,
-    ...pathext.map((extension) => `${command}${extension}`),
-    ...pathext.map((extension) => `${command}${extension.toUpperCase()}`),
-  ];
-}
-
-async function isExecutableFile(filePath: string): Promise<boolean> {
-  try {
-    const entry = await stat(filePath);
-    if (!entry.isFile()) {
-      return false;
-    }
-    await access(filePath, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
 }

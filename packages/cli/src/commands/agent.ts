@@ -76,7 +76,7 @@ export function registerAgentCommands(
         force: options.force === true,
       });
       const ok = result.conflicts.length === 0;
-      const refresh = renderRefreshHint({
+      const refresh = await renderRefreshHint({
         adapter,
         ok,
         dryRun: result.dryRun,
@@ -98,12 +98,12 @@ export function registerAgentCommands(
     });
 }
 
-function renderRefreshHint(options: {
+async function renderRefreshHint(options: {
   adapter: AgentAdapter | "all";
   ok: boolean;
   dryRun: boolean;
   workspaceRoot: string;
-}): WorkspaceRefreshHint | undefined {
+}): Promise<WorkspaceRefreshHint | undefined> {
   if (!options.ok || options.dryRun || options.adapter === "all") {
     return undefined;
   }

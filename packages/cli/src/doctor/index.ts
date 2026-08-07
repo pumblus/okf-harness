@@ -1,23 +1,23 @@
 import { execFile } from "node:child_process";
-import { constants } from "node:fs";
-import { access, readFile, stat } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import {
   type AgentAdapter,
   type BootstrapAgent,
-  collectShadowingGlobalInstalls,
-  isShadowingOkfhExecutable,
-  type NativeIntegrationProbeResult,
+  detectShadowingGlobalInstalls,
+  findExecutable,
   type NativeIntegrationVerificationResult,
-  parseGlobalPackageVersion,
+  nodeErrorCode,
+  probeCommands,
   readBootstrapAgentStatus,
   renderAgentAdapter,
   shadowingGlobalInstallCleanupCommand,
-  shadowingGlobalInstallProfiles,
+  shouldUseWindowsShell,
   supportedBootstrapAgents,
   supportedNativeIntegrationProfiles,
   verifyNativeIntegration,
+  windowsShellInvocation,
 } from "@okf-harness/agent-pack";
 import {
   harnessRuntimeVersion,
@@ -86,7 +86,11 @@ export type RunDoctorOptions = {
 export type RunExecutable = (
   executable: string,
   args: string[],
-  options: { env?: NodeJS.ProcessEnv | undefined; shell?: boolean | undefined },
+  options: {
+    cwd?: string | undefined;
+    env?: NodeJS.ProcessEnv | undefined;
+    shell?: boolean | undefined;
+  },
 ) => Promise<{ stdout: string; stderr: string }>;
 
 type ReadBootstrapStatus = typeof readBootstrapAgentStatus;
@@ -222,15 +226,10 @@ async function checkShadowingGlobalInstalls(
   runtimePlatform: NodeJS.Platform | string,
   runExecutable: RunExecutable,
 ): Promise<DoctorCheck> {
-  const runtimeProfile = shadowingGlobalInstallProfiles[0];
-  const bootstrapProfile = shadowingGlobalInstallProfiles[1];
-  const [executablePath, bootstrapVersion] = await Promise.all([
-    findExecutable(runtimeProfile.executable, env, isShadowingOkfhExecutable),
-    detectGlobalPackageVersion(bootstrapProfile.packageName, env, runtimePlatform, runExecutable),
-  ]);
-  const installs = collectShadowingGlobalInstalls({
-    ...(executablePath === undefined ? {} : { executablePath }),
-    ...(bootstrapVersion === undefined ? {} : { bootstrapVersion }),
+  const installs = await detectShadowingGlobalInstalls({
+    env,
+    runCommand: runExecutable,
+    runtimePlatform,
   });
   const clearingCommand = [
     shadowingGlobalInstallCleanupCommand.command,
@@ -247,28 +246,6 @@ async function checkShadowingGlobalInstalls(
         : `Shadowing global runtime check warning: ${installs.map((install) => install.label).join(" and ")} can write workspaces outside their runtime pins. Clear with ${clearingCommand}.`,
     details: { installs, clearingCommand },
   };
-}
-
-async function detectGlobalPackageVersion(
-  packageName: string,
-  env: NodeJS.ProcessEnv,
-  runtimePlatform: NodeJS.Platform | string,
-  runExecutable: RunExecutable,
-): Promise<string | undefined> {
-  const args = ["ls", "-g", packageName, "--json", "--depth=0"];
-  let stdout: string;
-  try {
-    stdout = (
-      await runExecutable("npm", args, {
-        env,
-        shell: shouldUseWindowsShell(runtimePlatform, "npm"),
-      })
-    ).stdout;
-  } catch (error) {
-    stdout = commandStdout(error);
-  }
-
-  return parseGlobalPackageVersion(stdout, packageName);
 }
 
 function checkPlatform(runtimePlatform: NodeJS.Platform | string): DoctorCheck {
@@ -378,21 +355,19 @@ async function checkExecutable(
 async function runExecutableDefault(
   executable: string,
   args: string[],
-  options: { env?: NodeJS.ProcessEnv | undefined; shell?: boolean | undefined },
+  options: {
+    cwd?: string | undefined;
+    env?: NodeJS.ProcessEnv | undefined;
+    shell?: boolean | undefined;
+  },
 ): Promise<{ stdout: string; stderr: string }> {
   const { stdout, stderr } = await execFileAsync(executable, args, {
+    cwd: options.cwd,
     env: options.env,
     shell: options.shell === true,
     windowsHide: true,
   });
   return { stdout: String(stdout), stderr: String(stderr) };
-}
-
-function shouldUseWindowsShell(
-  runtimePlatform: NodeJS.Platform | string,
-  executable: string,
-): boolean {
-  return runtimePlatform === "win32" && ["git", "npm", "pnpm"].includes(executable);
 }
 
 async function resolveDoctorWorkspace(
@@ -528,21 +503,10 @@ async function checkNativeIntegration(
     message: `Native host check passed: ${profile.label} CLI was detected.`,
     details: { ...hostDetails, executablePath },
   };
-  const probeResults: NativeIntegrationProbeResult[] = [];
-  const shell =
-    runtimePlatform === "win32" &&
-    [".bat", ".cmd"].includes(path.extname(executablePath).toLowerCase());
-  const executable = shell ? path.basename(executablePath) : executablePath;
-  for (const command of profile.verification.commands) {
-    try {
-      const result = await runExecutable(executable, command.args, { env, shell });
-      probeResults.push({ stdout: result.stdout, exitCode: 0 });
-    } catch (error) {
-      const exitCode = commandExitCode(error);
-      probeResults.push({ stdout: "", ...(exitCode === undefined ? {} : { exitCode }) });
-      break;
-    }
-  }
+  const probeResults = await probeCommands(profile.verification.commands, runExecutable, {
+    env,
+    invocation: (command) => windowsShellInvocation(command, executablePath, runtimePlatform),
+  });
   const result = verifyNativeIntegration(profile.verification, probeResults);
   return [hostCheck, nativeVerificationCheck(profile, result)];
 }
@@ -750,48 +714,6 @@ function groupChecks(
   };
 }
 
-async function findExecutable(
-  command: string,
-  env: NodeJS.ProcessEnv,
-  accept: (executablePath: string) => boolean = () => true,
-): Promise<string | undefined> {
-  const pathValue = env.PATH ?? "";
-  for (const directory of pathValue.split(path.delimiter).filter((entry) => entry.length > 0)) {
-    for (const candidate of executableCandidates(command, env)) {
-      const candidatePath = path.join(directory, candidate);
-      if ((await isExecutableFile(candidatePath)) && accept(candidatePath)) {
-        return candidatePath;
-      }
-    }
-  }
-  return undefined;
-}
-
-function executableCandidates(command: string, env: NodeJS.ProcessEnv): string[] {
-  const pathext = (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
-    .split(";")
-    .map((extension) => extension.trim().toLowerCase())
-    .filter((extension) => extension.length > 0);
-  return [
-    command,
-    ...pathext.map((extension) => `${command}${extension}`),
-    ...pathext.map((extension) => `${command}${extension.toUpperCase()}`),
-  ];
-}
-
-async function isExecutableFile(filePath: string): Promise<boolean> {
-  try {
-    const entry = await stat(filePath);
-    if (!entry.isFile()) {
-      return false;
-    }
-    await access(filePath, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function fileExists(filePath: string): Promise<boolean> {
   try {
     await access(filePath);
@@ -813,32 +735,4 @@ async function readOptionalText(filePath: string): Promise<string | undefined> {
     }
     throw error;
   }
-}
-
-function commandStdout(error: unknown): string {
-  return typeof error === "object" &&
-    error !== null &&
-    "stdout" in error &&
-    typeof error.stdout === "string"
-    ? error.stdout
-    : "";
-}
-
-function commandExitCode(error: unknown): number | undefined {
-  if (typeof error !== "object" || error === null) {
-    return undefined;
-  }
-  if ("exitCode" in error && typeof error.exitCode === "number") {
-    return error.exitCode;
-  }
-  return "code" in error && typeof error.code === "number" ? error.code : undefined;
-}
-
-function nodeErrorCode(error: unknown): string | undefined {
-  if (typeof error !== "object" || error === null || !("code" in error)) {
-    return undefined;
-  }
-
-  const code = (error as { code?: unknown }).code;
-  return typeof code === "string" ? code : undefined;
 }
