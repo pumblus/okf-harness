@@ -52,11 +52,15 @@ describe("findExecutable", () => {
     ).resolves.toBe(path.join(first, "claude"));
   });
 
-  it("skips non-executable files and directories", async () => {
+  it.skipIf(process.platform === "win32")("skips non-executable files", async () => {
     const bin = await fakeBin({ claude: "not executable\n" });
     await chmod(path.join(bin, "claude"), 0o644);
-    await mkdir(path.join(bin, "codex"));
     await expect(findExecutable("claude", { PATH: bin })).resolves.toBeUndefined();
+  });
+
+  it("skips directories", async () => {
+    const bin = await fakeBin({});
+    await mkdir(path.join(bin, "codex"));
     await expect(findExecutable("codex", { PATH: bin })).resolves.toBeUndefined();
   });
 
@@ -94,14 +98,20 @@ describe("executableExistsOnPath", () => {
   it("resolves true for a present executable", async () => {
     const bin = await fakeBin({ codex: "#!/bin/sh\nexit 0\n" });
     await expect(
-      executableExistsOnPath("codex", { env: { PATH: bin }, runtimePlatform: "darwin" }),
+      executableExistsOnPath("codex", {
+        env: { PATH: bin },
+        runtimePlatform: process.platform,
+      }),
     ).resolves.toBe(true);
   });
 
   it("resolves false for a missing executable", async () => {
     const bin = await fakeBin({ codex: "#!/bin/sh\nexit 0\n" });
     await expect(
-      executableExistsOnPath("claude", { env: { PATH: bin }, runtimePlatform: "darwin" }),
+      executableExistsOnPath("claude", {
+        env: { PATH: bin },
+        runtimePlatform: process.platform,
+      }),
     ).resolves.toBe(false);
   });
 
