@@ -8,7 +8,7 @@ Find or select an existing OKF Harness workspace before workspace-local guidance
 
 - Treat the current directory as a possible workspace first.
 - Use the launcher status operation to detect whether the current directory is inside an initialized workspace.
-- If the current directory is inside an initialized workspace, select the reported workspace and redirect to `{{workspaceInvocation}}` or the repair route; never create a nested workspace.
+- If the current directory is inside an initialized workspace, select the reported workspace and redirect to {{workspaceInvocation}} or the repair route; never create a nested workspace.
 - Keep discovery bounded to the current folder, a user-named parent folder, or the default `Documents/OKF Harness` parent folder.
 - Inspect only the search root and its immediate child directories unless the user names a deeper path.
 - Skip hidden metadata and obvious heavy or internal directories such as `.okfh`, `node_modules`, `dist`, `build`, `coverage`, caches, and `raw`.
@@ -33,4 +33,4 @@ None. Discovery is read-only.
 
 ## Completion Condition
 
-Report the selected workspace path, then hand off to repair when {{agentLabel}} workspace-local guidance is missing or stale.
+Report the selected workspace path, then hand off to repair when {{guidanceMissingState}} is missing or stale.

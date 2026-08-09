@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Ajv2020, type AnySchema } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
-import { renderBootstrapAgent } from "../src/index.js";
+import { renderBootstrapAgent, renderPortableAgent } from "../src/index.js";
+import { bootstrapAgentProfiles } from "../src/profiles.js";
 
 const repoRoot = path.resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const packageJsonPath = fileURLToPath(new URL("../package.json", import.meta.url));
@@ -110,8 +111,7 @@ describe("native marketplace plugins", () => {
     expect(Object.keys(manifest.extensions)).toEqual(["com.openai"]);
     expect(manifest.extensions["com.openai"]).toEqual({ interface: codexStorefront });
 
-    const expectedSkillFiles = renderBootstrapAgent({
-      agent: "codex",
+    const expectedSkillFiles = renderPortableAgent({
       version,
     }).files.sort((left, right) => left.path.localeCompare(right.path));
     const actualFiles = await readRepoFiles(agentPluginRoot);
@@ -135,6 +135,7 @@ describe("native marketplace plugins", () => {
     expectUnifiedHostSkill(
       actualFiles.find((file) => file.path === "skills/okf-harness/SKILL.md")?.contents,
     );
+    await expectPortableSkill(actualFiles, version);
 
     // The old Codex-private location is gone; only the Agent Plugin and the
     // untouched Claude Code package remain.
@@ -187,6 +188,81 @@ function expectUnifiedHostSkill(skill: string | undefined): void {
   expect(skill).not.toContain("If `okfh` is missing");
   expect(skill).not.toContain("npm install -g @okf-harness/cli");
   expect(skill).not.toContain("name: okf-harness-bootstrap");
+}
+
+async function expectPortableSkill(
+  files: Array<{ path: string; contents: string }>,
+  version: string,
+): Promise<void> {
+  const skill = files.find((file) => file.path === "skills/okf-harness/SKILL.md")?.contents;
+  const setup = files.find(
+    (file) => file.path === "skills/okf-harness/references/setup.md",
+  )?.contents;
+  const discovery = files.find(
+    (file) => file.path === "skills/okf-harness/references/discovery.md",
+  )?.contents;
+  const repair = files.find(
+    (file) => file.path === "skills/okf-harness/references/repair.md",
+  )?.contents;
+
+  // The portable skill is a render target, never an install target: it keeps
+  // the host entrypoint contract and carries no client identity.
+  expect(skill).toContain(`okf-harness-version: "${version}"`);
+  expect(skill).toContain('okf-harness-managed: "true"');
+  expect(skill).toContain('okf-harness-entrypoint: "host"');
+  expect(skill).toContain('okf-harness-distribution: "portable"');
+  expect(skill).not.toContain("okf-harness-agent");
+  const frontmatter = skill?.slice(0, skill.indexOf("\n---", "---\n".length));
+  expect(frontmatter).not.toMatch(/Codex|Claude Code/);
+  expect(skill).toContain(
+    "compatibility: Designed for any client that loads Agent Skills and can run local shell commands with npx access. The Harness runtime is resolved through the launcher.",
+  );
+
+  // Description is the only text loaded at startup, so the trigger words and
+  // exclusions must match the host-specific variants word for word.
+  const portableDescription = skill?.match(/^description: (.+)$/m)?.[1];
+  expect(portableDescription).toMatch(/^Unified OKF Harness entrypoint\. /);
+  for (const agent of ["codex", "claude"] as const) {
+    const hostDescription = bootstrapAgentProfiles[agent].description;
+    expect(portableDescription?.slice(portableDescription.indexOf("Use when"))).toBe(
+      hostDescription.slice(hostDescription.indexOf("Use when")),
+    );
+  }
+
+  // The setup and repair references carry the self-report determination with
+  // the --agents none fallback and never hard-code an adapter identifier in a
+  // command that would run.
+  expect(setup).toContain("Set the agent target from **self-report** alone");
+  expect(setup).toContain("Any other client: `--agents none`");
+  expect(setup).not.toContain("The current agent is `");
+  const setupCommands = setup?.slice(
+    setup.indexOf("## Allowed Commands"),
+    setup.indexOf("## Allowed Writes"),
+  );
+  expect(setupCommands).toContain("--agents <agent-target> --dry-run --json");
+  expect(setupCommands).toContain("--agents <agent-target> --json");
+  expect(setupCommands).not.toMatch(/--agents (?:codex|claude)/);
+  expect(setup).toContain(
+    "Workspace-local guidance created by the runtime's `init --agents <agent-target>` operation, when the agent target is not `none`.",
+  );
+
+  expect(discovery).toContain("redirect to the okf-harness skill or the repair route");
+  expect(discovery).toContain(
+    "hand off to repair when workspace-local guidance for the current agent is missing or stale",
+  );
+
+  // `agent install` accepts no none target, so the repair route must report
+  // that an unrecognized client has nothing to install and fall back to daily
+  // routing instead of proposing a command that cannot run.
+  expect(repair).toContain(
+    "Any other client has no managed guidance target: report that, and continue with the daily routes through the launcher.",
+  );
+  expect(repair).toContain(
+    "Repair the self-reported agent only, and add another agent when the user names it.",
+  );
+  expect(repair).toContain("agent install <agent-target> --json");
+  expect(repair).not.toMatch(/agent install (?:codex|claude)/);
+  expect(repair).toContain("continue through the okf-harness skill");
 }
 
 async function readRepoJson<T>(relativePath: string): Promise<T> {

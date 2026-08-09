@@ -64,6 +64,10 @@ _Avoid_: query command, answer engine, raw-source search
 The handoff after setup or guidance changes where a person starts a fresh conversation in the current agent client so the client can load the new workspace guidance. The wording should match the agent client and operating-system conventions, using concrete local paths when known, without turning the handoff into a CLI tutorial.
 _Avoid_: app restart, cache clear, manual reload ritual
 
+**Self-report determination**:
+The way the portable Agent Plugin distribution chooses the `--agents` target during setup or repair: the agent states which client it is running in, Claude Code and Codex map to those adapters, and any other client maps to `--agents none`. It replaces a hard-coded adapter identifier because no single identifier is true for every compatible client, and a wrong guess writes workspace-local guidance that misleads every later session while `none` can always be repaired afterwards.
+_Avoid_: client detection, heuristic adapter guessing
+
 **OKF**:
 The external [Open Knowledge Format specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): a minimal, human- and agent-friendly format for representing knowledge as markdown files with YAML frontmatter. OKF is a format, not this product.
 _Avoid_: OKF Harness, Google wiki, knowledge app

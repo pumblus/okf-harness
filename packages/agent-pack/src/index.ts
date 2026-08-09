@@ -56,12 +56,18 @@ export type {
 export { verifyNativeIntegration } from "./verification.js";
 
 import { findExecutable } from "./host-probe.js";
-import type { AgentAdapter, BootstrapAgent } from "./profiles.js";
+import type {
+  AgentAdapter,
+  BootstrapAgent,
+  BootstrapDistribution,
+  BootstrapRenderProfile,
+} from "./profiles.js";
 import {
   adapterProfiles,
   agentAdapters,
   bootstrapAgentProfiles,
   bootstrapAgents,
+  bootstrapDistributionProfile,
   bootstrapReferenceTemplatePaths,
   hostSkillName,
   oldWorkflowSkillNames,
@@ -78,7 +84,13 @@ export const packageInfo = {
 export type PackageInfo = typeof packageInfo;
 
 export type AgentInstallTarget = AgentAdapter | "all";
-export type { AgentAdapter, BootstrapAgent } from "./profiles.js";
+export type {
+  AgentAdapter,
+  BootstrapAgent,
+  BootstrapDistribution,
+  BootstrapRenderProfile,
+} from "./profiles.js";
+export { bootstrapDistributionProfile } from "./profiles.js";
 export const supportedBootstrapAgents: BootstrapAgent[] = [...bootstrapAgents];
 
 export type RenderedAgentFile = {
@@ -137,8 +149,13 @@ export type RenderBootstrapAgentOptions = {
   version?: string;
 };
 
-export type RenderedBootstrapAgent = {
-  agent: BootstrapAgent;
+export type RenderBootstrapDistributionOptions = {
+  distribution: BootstrapDistribution;
+  version?: string;
+};
+
+export type RenderedBootstrapDistribution = {
+  distribution: BootstrapDistribution;
   files: RenderedAgentFile[];
 };
 
@@ -237,12 +254,33 @@ export function renderAgentAdapter(options: RenderAgentAdapterOptions): Rendered
   };
 }
 
-export function renderBootstrapAgent(options: RenderBootstrapAgentOptions): RenderedBootstrapAgent {
+export function renderBootstrapAgent(
+  options: RenderBootstrapAgentOptions,
+): RenderedBootstrapDistribution {
+  return renderBootstrapDistribution(distributionRenderOptions(options.agent, options.version));
+}
+
+export function renderBootstrapDistribution(
+  options: RenderBootstrapDistributionOptions,
+): RenderedBootstrapDistribution {
   const version = options.version ?? packageVersion.version;
   return {
-    agent: options.agent,
-    files: renderHostSkillFiles(options.agent, version),
+    distribution: options.distribution,
+    files: renderHostSkillFiles(options.distribution, version),
   };
+}
+
+export function renderPortableAgent(
+  options: { version?: string } = {},
+): RenderedBootstrapDistribution {
+  return renderBootstrapDistribution(distributionRenderOptions("portable", options.version));
+}
+
+function distributionRenderOptions(
+  distribution: BootstrapDistribution,
+  version: string | undefined,
+): RenderBootstrapDistributionOptions {
+  return version === undefined ? { distribution } : { distribution, version };
 }
 
 export async function detectBootstrapAgent(
@@ -1049,21 +1087,28 @@ metadata:
 ${readTemplate("SKILL.md")}`;
 }
 
-function renderHostSkillFiles(agent: BootstrapAgent, version: string): RenderedAgentFile[] {
+function renderHostSkillFiles(
+  distribution: BootstrapDistribution,
+  version: string,
+): RenderedAgentFile[] {
   return [
     {
       path: `skills/${hostSkillName}/SKILL.md`,
-      contents: renderHostSkill(agent, version),
+      contents: renderHostSkill(distribution, version),
     },
     ...bootstrapReferenceTemplatePaths.map((templatePath) => ({
       path: `skills/${hostSkillName}/references/${templatePath}`,
-      contents: renderHostTemplate(`references/${templatePath}`, agent, version),
+      contents: renderHostTemplate(`references/${templatePath}`, distribution, version),
     })),
   ];
 }
 
-function renderHostSkill(agent: BootstrapAgent, version: string): string {
-  const profile = bootstrapAgentProfiles[agent];
+function renderHostSkill(distribution: BootstrapDistribution, version: string): string {
+  const profile = bootstrapDistributionProfile(distribution);
+  const distributionMetadata =
+    distribution === "portable"
+      ? `  okf-harness-distribution: "portable"`
+      : `  okf-harness-agent: "${distribution}"`;
   return `---
 name: ${hostSkillName}
 description: ${profile.description}
@@ -1073,10 +1118,10 @@ metadata:
   okf-harness-version: "${version}"
   okf-harness-managed: "true"
   okf-harness-entrypoint: "host"
-  okf-harness-agent: "${agent}"
+${distributionMetadata}
 ---
 
-${renderHostTemplate("SKILL.md", agent, version)}`;
+${renderHostTemplate("SKILL.md", distribution, version)}`;
 }
 
 function readTemplate(relativePath: string): string {
@@ -1090,14 +1135,27 @@ function readHostTemplate(relativePath: string): string {
   );
 }
 
-function renderHostTemplate(relativePath: string, agent: BootstrapAgent, version: string): string {
-  const profile = bootstrapAgentProfiles[agent];
+function renderHostTemplate(
+  relativePath: string,
+  distribution: BootstrapDistribution,
+  version: string,
+): string {
+  const profile: BootstrapRenderProfile = bootstrapDistributionProfile(distribution);
   return replaceTemplateVariables(readHostTemplate(relativePath), {
-    agentAdapter: agent,
-    agentLabel: profile.label,
     runtimeVersion: version,
-    sessionName: profile.sessionName,
-    workspaceInvocation: `${profile.routePrefix}${skillName}`,
+    intentAgent: profile.intentAgent,
+    inferSubjects: profile.inferSubjects,
+    agentTargetClause: profile.agentTargetClause,
+    agentsTarget: profile.agentsTarget,
+    guidanceWrite: profile.guidanceWrite,
+    workspaceInvocation: profile.workspaceInvocation,
+    freshSession: profile.freshSession,
+    repairIntent: profile.repairIntent,
+    repairAgentTargetClause: profile.repairAgentTargetClause,
+    repairInvokedGuidance: profile.repairInvokedGuidance,
+    currentGuidanceState: profile.currentGuidanceState,
+    managedGuidance: profile.managedGuidance,
+    guidanceMissingState: profile.guidanceMissingState,
   });
 }
 

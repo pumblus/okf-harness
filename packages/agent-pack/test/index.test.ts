@@ -19,6 +19,7 @@ import {
   parseGlobalPackageVersion,
   renderAgentAdapter,
   renderBootstrapAgent,
+  renderPortableAgent,
   shadowingGlobalInstallCleanupCommand,
   shadowingGlobalInstallProfiles,
   supportedNativeIntegrationProfiles,
@@ -464,6 +465,35 @@ describe("@okf-harness/agent-pack", () => {
     expect(skill).toContain("Continue into wiki synthesis only when the user requested it");
   });
 
+  it("renders the portable distribution target without a client identity", async () => {
+    const packageJsonPath = fileURLToPath(new URL("../package.json", import.meta.url));
+    const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as { version: string };
+    const portable = renderPortableAgent();
+    const skillPath = "skills/okf-harness/SKILL.md";
+
+    expect(portable.distribution).toBe("portable");
+    expect(portable.files.map((file) => file.path)).toEqual([
+      skillPath,
+      "skills/okf-harness/references/setup.md",
+      "skills/okf-harness/references/discovery.md",
+      "skills/okf-harness/references/repair.md",
+    ]);
+
+    const skill = fileContents(portable.files, skillPath);
+    expect(skill).toContain("name: okf-harness");
+    expect(skill).toContain("Unified OKF Harness entrypoint.");
+    expect(skill).toContain(`okf-harness-version: "${packageJson.version}"`);
+    expect(skill).toContain('okf-harness-managed: "true"');
+    expect(skill).toContain('okf-harness-entrypoint: "host"');
+    expect(skill).toContain('okf-harness-distribution: "portable"');
+    expect(skill).not.toContain("okf-harness-agent");
+    expect(skill).toContain(
+      "compatibility: Designed for any client that loads Agent Skills and can run local shell commands with npx access.",
+    );
+    // Wording-level assertions for the portable references live in the
+    // repository-artifact test, which owns the observable package surface.
+  });
+
   it("installs an adapter while preserving user root guidance outside the managed block", async () => {
     const workspace = await mkdtemp(path.join(tmpdir(), "okfh-agent-pack-"));
     await writeFile(
@@ -785,7 +815,7 @@ function expectBootstrapAgentContract(agent: (typeof bootstrapAgents)[number]): 
   const paths = new Set(rendered.files.map((file) => file.path));
   const skillPath = `skills/${hostSkillName}/SKILL.md`;
 
-  expect(rendered.agent).toBe(agent);
+  expect(rendered.distribution).toBe(agent);
   expect(paths.has(skillPath)).toBe(true);
   const skill = fileContents(rendered.files, skillPath);
   expect(skill).toContain(`name: ${hostSkillName}`);
