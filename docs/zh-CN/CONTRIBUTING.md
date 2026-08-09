@@ -58,27 +58,28 @@ node packages/cli/dist/main.js doctor --json
 - 运行时改动限制在当前阶段或已接受的 issue 范围内。
 - 保持 `@okf-harness/core` 独立于 CLI、agent-pack 和其他上层包。
 - 保持 `@okf-harness/cli` 作为 core 和 agent-pack 行为之间的桥梁。
-- 不要编辑示例或测试 workspace 中 `raw/sources/` 下的已注册文件。
-- 不要在跟踪文件中放入凭证、token 或私有本地路径。
-- 普通 PR 中不要更新版本号、发布、打 tag 或创建 release。
+- 遵循 [docs/agents/guardrails.md](../../docs/agents/guardrails.md) 中的护栏。
 
 ## 测试
 
-用最小的验证方式证明你的改动有效：
+用最小的验证方式证明你的改动有效。智能体的完整验证循环见 [docs/agents/verify.md](../../docs/agents/verify.md)：
 
 ```bash
 pnpm test
 pnpm typecheck
-pnpm build
+pnpm lint
 ```
 
-涉及 workspace 或 wiki 的改动，还需运行：
+`pnpm lint`（Biome 加 llms 文档新鲜度检查）在 PR 前必须通过；CI 在每个 PR 上都会运行它。
+
+涉及 CLI 行为变化时，还需构建并运行构建后的二进制：
 
 ```bash
+pnpm build
 node packages/cli/dist/main.js check --workspace <workspace> --json
 ```
 
-CI 还会运行 `pnpm lint`。
+涉及 workspace 或 wiki 的改动，对相应 workspace 运行同样的 `okfh check` 检查。
 
 发布跟进前，还需运行：
 
@@ -102,7 +103,6 @@ README 应面向用户、篇幅简短。命令参考放在 [docs/CLI.md](CLI.md)
 
 - 运行相关测试
 - 对用户可见的行为变化更新文档
-- 改动范围限定在一个问题上
-- 改变 CLI 行为时附上 JSON 命令示例
+- 遵循 [docs/agents/guardrails.md](../../docs/agents/guardrails.md) 中的护栏
 - 避免无关的格式化变动
 - 注明你无法运行的检查项

@@ -56,27 +56,28 @@ node packages/cli/dist/main.js doctor --json
 - Keep runtime changes inside the current public scope or an accepted issue.
 - Keep `@okf-harness/core` independent from CLI, agent-pack, and other higher-level packages.
 - Keep `@okf-harness/cli` as the bridge between core and agent-pack behavior.
-- Do not edit registered files under `raw/sources/` in example or fixture workspaces.
-- Do not add credentials, tokens, or private local paths to tracked files.
-- Do not bump versions, publish, tag, or create releases in ordinary PRs.
+- Follow the guardrails in [docs/agents/guardrails.md](docs/agents/guardrails.md).
 
 ## Tests
 
-Use the smallest verifier that proves your change:
+Use the smallest verifier that proves your change. The full agent verify loop is in [docs/agents/verify.md](docs/agents/verify.md):
 
 ```bash
 pnpm test
 pnpm typecheck
-pnpm build
+pnpm lint
 ```
 
-For workspace or wiki changes, also run:
+`pnpm lint` (Biome plus the llms docs freshness check) must pass before a PR; CI runs it on every PR.
+
+For CLI behavior changes, also build and exercise the built binary:
 
 ```bash
+pnpm build
 node packages/cli/dist/main.js check --workspace <workspace> --json
 ```
 
-CI also runs `pnpm lint`.
+For workspace or wiki changes, run the same `okfh check` treatment against that workspace.
 
 Before release follow-through, also run:
 
@@ -100,7 +101,6 @@ Before opening a PR:
 
 - run the relevant tests
 - update docs for user-visible behavior changes
-- keep changes scoped to one problem
-- include JSON command examples when changing CLI behavior
+- follow the guardrails in [docs/agents/guardrails.md](docs/agents/guardrails.md)
 - avoid unrelated formatting churn
 - mention any checks you could not run
