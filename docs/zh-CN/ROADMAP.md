@@ -44,6 +44,7 @@ OKF Harness 是一个 agent 原生、文件契约优先、无需独立应用的�
 - 跨客户端共享的适配器一致性测试
 - 每新增一个 adapter 时继续完善 supported-agent detection
 - 调研 Cursor、VS Code、Aider、Goose、Continue 和 GitHub Copilot coding agent
+- 依托 OKF Harness 原生集成的便携 Agent Plugin 形态，为 supported agent set 之外的 Agent Plugins 兼容 client（VS Code、Cursor、GitHub Copilot CLI、Kiro）提供 universal setup 安装入口与 doctor 识别；在此之前，这些 client 走成文的手动安装路径。
 
 约束：新适配器必须保持与受支持智能体相同的工作流契约，不应将私有运行时强塞进默认产品路径。
 
