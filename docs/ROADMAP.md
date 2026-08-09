@@ -44,6 +44,7 @@ Candidates:
 - Adapter conformance tests shared across clients.
 - Improved supported-agent detection as each new adapter is added.
 - Investigation for Cursor, VS Code, Aider, Goose, Continue, and GitHub Copilot coding agent.
+- Universal setup install offers and doctor recognition for Agent Plugins–compatible clients beyond the supported agent set (VS Code, Cursor, GitHub Copilot CLI, Kiro), building on the portable Agent Plugin form of the OKF Harness native agent integration. Until this lands, those clients follow the documented manual install paths.
 
 Constraint: new adapters must preserve the same workflow contracts as supported agents. They should not force a private runtime into the default product path.
 
