@@ -8,7 +8,7 @@
       "name": "okf-harness",
       "source": {
         "source": "local",
-        "path": "./plugins/codex/okf-harness"
+        "path": "./plugins/agent-plugins/okf-harness"
       },
       "policy": {
         "installation": "AVAILABLE",

@@ -41,7 +41,7 @@ describe("native marketplace plugins", () => {
           name: "okf-harness",
           source: {
             source: "local",
-            path: "./plugins/codex/okf-harness",
+            path: "./plugins/agent-plugins/okf-harness",
           },
           policy: {
             installation: "AVAILABLE",
@@ -63,7 +63,7 @@ describe("native marketplace plugins", () => {
       version,
     });
     await expectHostPlugin({
-      root: "plugins/codex/okf-harness",
+      root: "plugins/agent-plugins/okf-harness",
       manifestPath: ".codex-plugin/plugin.json",
       agent: "codex",
       version,
