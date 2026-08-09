@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "okf-harness",
+  "version": "0.7.0",
+  "description": "Maintain OKF-compatible local LLM wikis through your coding agent: workspace setup, source ingest, checks, and evidence-backed answers through the unified okf-harness skill.",
+  "author": {
+    "name": "Eric Zhou",
+    "url": "https://github.com/pumblus/okf-harness"
+  },
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": "https://github.com/pumblus/okf-harness",
+  "license": "Apache-2.0",
+  "keywords": ["okf", "llm-wiki", "agent-skills"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "OKF Harness",
+        "shortDescription": "Set up and maintain OKF Harness workspaces from Codex.",
+        "longDescription": "Adds the unified okf-harness skill for workspace setup and daily maintenance through the pinned runtime launcher.",
+        "developerName": "OKF Harness",
+        "category": "Productivity",
+        "capabilities": ["Write"],
+        "websiteURL": "https://github.com/pumblus/okf-harness",
+        "defaultPrompt": ["$okf-harness Set up a workspace for my notes."]
+      }
+    }
+  }
+}

@@ -35,11 +35,13 @@ async function smokeCodex() {
     const install = parseJson(run("codex", ["plugin", "add", pluginId, "--json"], { env }));
     assert.equal(install.pluginId, pluginId);
     assert.deepEqual(await listFiles(install.installedPath), [
-      ".codex-plugin/plugin.json",
+      "README.md",
+      "plugin.json",
       hostSkill,
       ...expectedReferences,
     ]);
     await assertHostSkill(install.installedPath);
+    await assertStorefront(install.installedPath);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -118,6 +120,19 @@ async function walk(root, current, files) {
     }
     files.push(path.relative(root, entryPath).split(path.sep).join(path.posix.sep));
   }
+}
+
+async function assertStorefront(root) {
+  const installed = JSON.parse(await readFile(path.join(root, "plugin.json"), "utf8"));
+  const repoManifest = JSON.parse(
+    await readFile(path.join(repoRoot, "plugins/agent-plugins/okf-harness/plugin.json"), "utf8"),
+  );
+  // The artifact test pins the repo manifest's storefront to the historical
+  // Codex block; this proves the installed copy carries it intact.
+  assert.deepEqual(
+    installed.extensions["com.openai"].interface,
+    repoManifest.extensions["com.openai"].interface,
+  );
 }
 
 async function assertHostSkill(root) {
