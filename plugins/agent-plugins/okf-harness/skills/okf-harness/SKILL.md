@@ -1,13 +1,13 @@
 ---
 name: okf-harness
-description: Unified OKF Harness entrypoint for Codex. Use when the user asks to create, find, select, repair, check, ingest into, reconcile, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, repository maintenance, repository dependency graphs, or non-OKF knowledge-base work.
+description: Unified OKF Harness entrypoint. Use when the user asks to create, find, select, repair, check, ingest into, reconcile, answer from, or graph an OKF Harness workspace. Do not use for generic Markdown editing, repository maintenance, repository dependency graphs, or non-OKF knowledge-base work.
 license: Apache-2.0
-compatibility: Designed for Codex with local shell and npx access. The Harness runtime is resolved through the launcher.
+compatibility: Designed for any client that loads Agent Skills and can run local shell commands with npx access. The Harness runtime is resolved through the launcher.
 metadata:
   okf-harness-version: "0.7.0"
   okf-harness-managed: "true"
   okf-harness-entrypoint: "host"
-  okf-harness-agent: "codex"
+  okf-harness-distribution: "portable"
 ---
 
 # OKF Harness
