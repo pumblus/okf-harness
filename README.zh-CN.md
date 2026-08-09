@@ -78,6 +78,8 @@ OKF Harness 是本地优先的，但不保证可在完全隔离网络（air-gapp
 | Hermes Agent | `hermes skills tap add pumblus/okf-harness && hermes skills install pumblus/okf-harness/okf-harness` |
 | OpenClaw | `openclaw skills install @pumblus/okf-harness --global` |
 
+使用 supported agent set 之外的兼容智能体客户端？[Agent Plugin 安装页面](docs/zh-CN/AGENT-PLUGIN.md) 记录了这些客户端的手动安装路径。
+
 直接使用 CLI 属于高级路径，见 CLI 文档。它不会写入智能体入口。
 
 setup 后，无论创建工作区前还是进入工作区后，都使用同一个 `okf-harness` 入口。受支持智能体的工作区本地指引可以补充细节，但不会引入另一个前缀。

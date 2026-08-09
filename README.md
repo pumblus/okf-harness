@@ -78,6 +78,8 @@ Setup detects supported agent clients and installs the selected native integrati
 | Hermes Agent | `hermes skills tap add pumblus/okf-harness && hermes skills install pumblus/okf-harness/okf-harness` |
 | OpenClaw | `openclaw skills install @pumblus/okf-harness --global` |
 
+On a compatible agent client outside the supported agent set? The [Agent Plugin install page](docs/AGENT-PLUGIN.md) documents the manual install paths.
+
 Advanced direct CLI use is documented in the CLI reference. It does not write agent entrypoints.
 
 After setup, use the same `okf-harness` entrypoint before and inside a workspace. Workspace-local guidance may add detail for supported agents, but it does not introduce another prefix.
