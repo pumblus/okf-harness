@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "okf-harness",
+  "version": "0.7.0",
+  "description": "Build and maintain an OKF knowledge wiki from your own sources: set up a workspace, ingest material, keep it checked, and get answers that cite where they came from.",
+  "author": {
+    "name": "Eric Zhou",
+    "url": "https://github.com/pumblus/okf-harness"
+  },
+  "homepage": "https://github.com/pumblus/okf-harness#readme",
+  "repository": "https://github.com/pumblus/okf-harness",
+  "license": "Apache-2.0",
+  "keywords": ["okf", "llm-wiki", "knowledge-management", "agent-skills"]
+}

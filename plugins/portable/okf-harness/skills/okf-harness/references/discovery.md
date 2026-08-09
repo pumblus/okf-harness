@@ -1,0 +1,36 @@
+# Discovery
+
+## Intent
+
+Find or select an existing OKF Harness workspace before workspace-local guidance is available.
+
+## Preconditions
+
+- Treat the current directory as a possible workspace first.
+- Use the launcher status operation to detect whether the current directory is inside an initialized workspace.
+- If the current directory is inside an initialized workspace, select the reported workspace and redirect to the okf-harness skill or the repair route; never create a nested workspace.
+- Keep discovery bounded to the current folder, a user-named parent folder, or the default `Documents/OKF Harness` parent folder.
+- Inspect only the search root and its immediate child directories unless the user names a deeper path.
+- Skip hidden metadata and obvious heavy or internal directories such as `.okfh`, `node_modules`, `dist`, `build`, `coverage`, caches, and `raw`.
+- Verify each candidate through the launcher with an explicit workspace; do not trust folder names alone.
+- If launch reports `RUNTIME_PIN_MISSING`, run `data.adoptCommand` exactly and retry before selecting the candidate.
+- If zero workspaces are discovered, enter setup.
+- If one workspace is discovered, select it and report the resolved path.
+- If multiple workspaces match and the user's request is ambiguous, ask the user to choose.
+
+## Allowed Commands
+
+Filesystem listing of the bounded search roots is allowed before verification.
+
+```bash
+npx @okf-harness/setup@latest launch -- status --json
+npx @okf-harness/setup@latest launch --workspace <workspace> -- status --json
+```
+
+## Allowed Writes
+
+None. Discovery is read-only.
+
+## Completion Condition
+
+Report the selected workspace path, then hand off to repair when workspace-local guidance for the current agent is missing or stale.
