@@ -1,4 +1,3 @@
-import path from "node:path";
 import { type AgentAdapter, executableExistsOnPath, pathApiFor } from "@okf-harness/agent-pack";
 
 export type WorkspaceRefreshHint = {
