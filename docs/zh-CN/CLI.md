@@ -189,16 +189,6 @@ okfh adopt-runtime --workspace "$HOME/Documents/OKF Harness/ai-research" --dry-r
 
 JSON 载荷会报告 `data.runtime.version` 和 `data.state`，`state` 取值为 `recorded`、`already-pinned` 或 `would-record`。已经带有 pin 的工作区不会被改动，因此可以安全地重复执行；`--dry-run` 只报告将要记录的 pin，不写入文件。pin 是 `okfh.config.yaml` 中 `runtime` 块内的确切版本号，与顶层 `version` 键相互独立，后者仍然是工作区格式版本。pin 格式错误或配置文件不可读时会报告 `CONFIG_INVALID`，并且不写入任何内容。`okfh doctor` 会报告 pin，缺失时在检查详情中给出这条命令，两种情况都不会让检查失败。
 
-### lint
-
-`lint` 已不再是常规验证命令。它会提示调用方改用 `check`。
-
-```bash
-okfh lint --workspace "$HOME/Documents/OKF Harness/ai-research" --json
-```
-
-请改用 `okfh check --workspace <path> --json`。
-
 ### source add
 
 将本地文件或 URL 指针注册为资料来源。

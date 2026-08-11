@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { makeTempDir as mkdtemp, runJsonCli } from "./helpers.js";
 
 describe("@okf-harness/cli terminal-native smoke", () => {
-  it("runs init, source add, ingest plan, check, lint retirement, and graph through okfh --json", async () => {
+  it("runs init, source add, ingest plan, check, and graph through okfh --json", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh cli-"));
     const workspace = path.join(root, "ai-research");
     const sourcePath = path.join(root, "OKF Harness test source.md");
@@ -114,20 +114,6 @@ describe("@okf-harness/cli terminal-native smoke", () => {
         ok: true,
         command: "check",
         workspace,
-      },
-    });
-
-    const lint = await runJsonCli(["node", "okfh", "lint", "--workspace", workspace, "--json"]);
-    expect(lint).toMatchObject({
-      exitCode: 1,
-      stderr: "",
-      result: {
-        ok: false,
-        command: "lint",
-        data: {
-          retired: true,
-          replacement: "check",
-        },
       },
     });
 

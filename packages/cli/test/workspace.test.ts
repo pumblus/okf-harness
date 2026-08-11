@@ -558,21 +558,11 @@ describe("@okf-harness/cli workspace", () => {
     });
   });
 
-  it("points retired lint usage to check", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
-    const workspace = path.join(root, "ai-research");
-    await runCli(
-      ["node", "okfh", "init", workspace, "--name", "AI Research", "--agents", "none", "--json"],
-      {
-        writeOut: () => {},
-        writeErr: () => {},
-      },
-    );
-    await writeFile(path.join(workspace, "wiki/topics/drifted.md"), "# Drifted\n", "utf8");
+  it("reports the retired lint command as an unknown command", async () => {
     let stdout = "";
     let stderr = "";
 
-    const exitCode = await runCli(["node", "okfh", "lint", "--workspace", workspace, "--json"], {
+    const exitCode = await runCli(["node", "okfh", "lint", "--json"], {
       writeOut: (chunk) => {
         stdout += chunk;
       },
@@ -582,17 +572,12 @@ describe("@okf-harness/cli workspace", () => {
     });
 
     expect(exitCode).toBe(1);
-    expect(stderr).toBe("");
-    expect(JSON.parse(stdout)).toMatchObject({
+    expect(stdout).toBe("");
+    expect(JSON.parse(stderr)).toMatchObject({
       ok: false,
       command: "lint",
-      workspace,
-      data: {
-        retired: true,
-        replacement: "check",
-      },
-      warnings: [],
-      next: ["Use okfh check --workspace <path> --json instead."],
+      data: {},
+      error: { code: "commander.unknownCommand" },
     });
   });
 

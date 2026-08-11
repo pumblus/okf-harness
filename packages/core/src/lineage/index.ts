@@ -71,9 +71,6 @@ export type WorkspaceSnapshot = {
   dangling: ReconciliationEdge[];
 };
 
-/** @deprecated Use {@link WorkspaceSnapshot}; kept as a transition alias. */
-export type WorkspaceLineage = WorkspaceSnapshot;
-
 export async function readWorkspaceSnapshot(
   workspaceRootInput: string,
 ): Promise<WorkspaceSnapshot> {

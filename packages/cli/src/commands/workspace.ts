@@ -161,31 +161,6 @@ export function registerWorkspaceCommands(
       writeResult(io, envelope, options.json);
       setExitCode(0);
     });
-
-  program
-    .command("lint")
-    .description("Lint an OKF Harness workspace.")
-    .storeOptionsAsProperties(false)
-    .option("--workspace <path>", "workspace path")
-    .option("--json", "write machine-readable JSON")
-    .action(async (command: Command) => {
-      const options = command.opts() as { workspace?: string; json?: boolean };
-      const workspaceRoot = await resolveWorkspaceRoot({ workspaceRoot: options.workspace });
-      const envelope: JsonEnvelope = {
-        ok: false,
-        command: "lint",
-        workspace: workspaceRoot,
-        data: {
-          retired: true,
-          replacement: "check",
-        },
-        warnings: [],
-        next: ["Use okfh check --workspace <path> --json instead."],
-      };
-
-      writeResult(io, envelope, options.json);
-      setExitCode(1);
-    });
 }
 
 async function workspaceNextStep(

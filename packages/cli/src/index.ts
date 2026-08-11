@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, CommanderError } from "commander";
 import { registerAgentCommands } from "./commands/agent.js";
 import { registerBootstrapCommands } from "./commands/bootstrap.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
@@ -27,14 +27,18 @@ export async function runCli(
     writeErr: (chunk) => process.stderr.write(chunk),
   },
 ): Promise<number> {
-  const normalizedArgv = withoutRetiredInitFlag(argv);
   const program = new Command();
   let exitCode = 0;
-  const jsonRequested = normalizedArgv.includes("--json");
+  const jsonRequested = argv.includes("--json");
   const capturedCommanderErrors: string[] = [];
 
   program.name("okfh").description("OKF Harness command line interface.");
   program.exitOverride();
+  program.on("command:*", (args: string[]) => {
+    const message = `error: unknown command '${args[0]}'`;
+    console.error(message);
+    throw new CommanderError(1, "commander.unknownCommand", message);
+  });
 
   const setExitCode = (code: number): void => {
     exitCode = code;
@@ -58,29 +62,17 @@ export async function runCli(
 
   const restoreConsoleError = captureCommanderConsoleError(capturedCommanderErrors);
   try {
-    await program.parseAsync(normalizedArgv);
+    await program.parseAsync(argv);
     return exitCode;
   } catch (error) {
     return handleCliError(error, io, {
-      command: commandFromArgv(normalizedArgv),
+      command: commandFromArgv(argv),
       json: jsonRequested,
       capturedStderr: capturedCommanderErrors.join(""),
     });
   } finally {
     restoreConsoleError();
   }
-}
-
-function withoutRetiredInitFlag(argv: string[]): string[] {
-  const commandIndex = argv.indexOf("init", 2);
-  if (commandIndex === -1) {
-    return argv;
-  }
-  const optionsEnd = argv.indexOf("--", commandIndex + 1);
-  return argv.filter(
-    (argument, index) =>
-      argument !== "--git" || index <= commandIndex || (optionsEnd !== -1 && index > optionsEnd),
-  );
 }
 
 function captureCommanderConsoleError(capturedErrors: string[]): () => void {

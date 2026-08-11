@@ -401,25 +401,14 @@ describe("@okf-harness/cli init", () => {
     await expect(stat(nestedWorkspace)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("silently accepts the retired initialization flag", async () => {
+  it("rejects the retired init --git flag as an unknown option", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "okfh-cli-"));
     const workspace = path.join(root, "ai-research");
     let stdout = "";
     let stderr = "";
 
     const exitCode = await runCli(
-      [
-        "node",
-        "okfh",
-        "init",
-        workspace,
-        "--name",
-        "AI Research",
-        "--agents",
-        "none",
-        "--git",
-        "--json",
-      ],
+      ["node", "okfh", "init", workspace, "--name", "AI Research", "--git", "--json"],
       {
         writeOut: (chunk) => {
           stdout += chunk;
@@ -430,10 +419,14 @@ describe("@okf-harness/cli init", () => {
       },
     );
 
-    expect(exitCode).toBe(0);
-    expect(stderr).toBe("");
-    expect(JSON.parse(stdout)).toMatchObject({ ok: true, command: "init", workspace });
-    expect(stdout).not.toMatch(/git|commit|hash|branch/i);
+    expect(exitCode).toBe(1);
+    expect(stdout).toBe("");
+    expect(JSON.parse(stderr)).toMatchObject({
+      ok: false,
+      command: "init",
+      data: {},
+      error: { code: "commander.unknownOption" },
+    });
   });
 
   it("returns command usage errors as JSON when requested", async () => {
