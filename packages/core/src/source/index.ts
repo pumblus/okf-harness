@@ -10,7 +10,7 @@ import { safeSlug, titleFromFilename, titleFromUrl } from "./metadata.js";
 export const MANIFEST_INVALID = "MANIFEST_INVALID" as const;
 export const SOURCE_ADD_BUSY = "SOURCE_ADD_BUSY" as const;
 export const SOURCE_REGISTRATION_FAILED = "SOURCE_REGISTRATION_FAILED" as const;
-export const SOURCE_INPUT_NOT_FOUND = "SOURCE_INPUT_NOT_FOUND" as const;
+const SOURCE_INPUT_NOT_FOUND = "SOURCE_INPUT_NOT_FOUND" as const;
 export const SOURCE_INPUT_UNSUPPORTED = "SOURCE_INPUT_UNSUPPORTED" as const;
 export const SOURCE_NOT_REGISTERED = "SOURCE_NOT_REGISTERED" as const;
 

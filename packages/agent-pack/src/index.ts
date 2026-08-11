@@ -260,7 +260,7 @@ export function renderBootstrapAgent(
   return renderBootstrapDistribution(distributionRenderOptions(options.agent, options.version));
 }
 
-export function renderBootstrapDistribution(
+function renderBootstrapDistribution(
   options: RenderBootstrapDistributionOptions,
 ): RenderedBootstrapDistribution {
   const version = options.version ?? packageVersion.version;

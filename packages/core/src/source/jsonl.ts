@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-export const SOURCE_ID_PATTERN = /^src_\d{8}_\d{4}$/;
+const SOURCE_ID_PATTERN = /^src_\d{8}_\d{4}$/;
 
 export type JsonlRow =
   | { ok: true; line: number; value: unknown }

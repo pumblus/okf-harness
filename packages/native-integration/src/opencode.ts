@@ -7,7 +7,7 @@ const skillName = "okf-harness";
 const legacySkillName = "okf-harness-bootstrap";
 const managedMarker = 'okf-harness-managed: "true"';
 
-export const OkfHarnessPlugin = async () => {
+const OkfHarnessPlugin = async () => {
   await syncHostSkill();
   return {};
 };

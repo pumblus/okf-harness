@@ -14,7 +14,7 @@ import {
 } from "../okf/links.js";
 import { safeResolveWorkspacePath } from "../paths/index.js";
 
-export const GRAPH_WRITE_FAILED = "GRAPH_WRITE_FAILED" as const;
+const GRAPH_WRITE_FAILED = "GRAPH_WRITE_FAILED" as const;
 
 export class GraphWorkspaceError extends Error {
   constructor(

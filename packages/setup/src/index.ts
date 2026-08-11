@@ -529,7 +529,7 @@ async function createSetupPlan(
   };
 }
 
-export function renderSetupPlan(plan: SetupPlan): string {
+function renderSetupPlan(plan: SetupPlan): string {
   const lines = [
     "OKF Harness Setup plan",
     `Resolved setup version: ${plan.setupVersion}`,

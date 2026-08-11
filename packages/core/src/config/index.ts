@@ -24,7 +24,7 @@ const exactVersionSchema = z
     },
   );
 
-export const workspaceConfigSchema = z
+const workspaceConfigSchema = z
   .object({
     version: z.union([z.literal(0.1), z.literal("0.1")]).transform(() => "0.1" as const),
     workspace: z

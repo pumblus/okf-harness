@@ -154,16 +154,16 @@ export type PlanEvidenceBriefOptions = {
   maxChars?: number | undefined;
 };
 
-export const evidenceBudgetPresets = {
+const evidenceBudgetPresets = {
   compact: 256_000,
   standard: 400_000,
   large: 1_000_000,
 } as const;
 
-export const INVALID_EVIDENCE_BUDGET = "INVALID_EVIDENCE_BUDGET" as const;
+const INVALID_EVIDENCE_BUDGET = "INVALID_EVIDENCE_BUDGET" as const;
 export const EVIDENCE_WORKSPACE_BLOCKED = "EVIDENCE_WORKSPACE_BLOCKED" as const;
 
-export class EvidenceBudgetError extends Error {
+class EvidenceBudgetError extends Error {
   readonly code = INVALID_EVIDENCE_BUDGET;
 
   constructor(
@@ -175,7 +175,7 @@ export class EvidenceBudgetError extends Error {
   }
 }
 
-export class EvidenceWorkspaceBlockedError extends Error {
+class EvidenceWorkspaceBlockedError extends Error {
   readonly code = EVIDENCE_WORKSPACE_BLOCKED;
 
   constructor(readonly details: Record<string, unknown>) {

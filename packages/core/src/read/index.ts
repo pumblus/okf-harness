@@ -15,11 +15,11 @@ import {
 } from "../okf/links.js";
 import type { SourceManifestEntry } from "../source/index.js";
 
-export const INVALID_TARGET = "INVALID_TARGET" as const;
+const INVALID_TARGET = "INVALID_TARGET" as const;
 export const TARGET_NOT_FOUND = "TARGET_NOT_FOUND" as const;
-export const AMBIGUOUS_SECTION = "AMBIGUOUS_SECTION" as const;
+const AMBIGUOUS_SECTION = "AMBIGUOUS_SECTION" as const;
 export const READ_LIMIT_EXCEEDED = "READ_LIMIT_EXCEEDED" as const;
-export const NON_MARKDOWN_TARGET = "NON_MARKDOWN_TARGET" as const;
+const NON_MARKDOWN_TARGET = "NON_MARKDOWN_TARGET" as const;
 export const NON_UTF8_TARGET = "NON_UTF8_TARGET" as const;
 
 export type ReadWorkspaceErrorCode =

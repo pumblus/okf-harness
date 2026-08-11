@@ -79,7 +79,7 @@ export function reconciliationLedgerPath(config: WorkspaceConfig): string {
   return ledgerPath;
 }
 
-export function isReconciledEdge(
+function isReconciledEdge(
   entries: ReconciliationAcknowledgement[],
   priorSourceId: string,
   revisionSourceId: string,
@@ -95,7 +95,7 @@ export function isReconciledEdge(
  * File sources sharing an original filename form a group in added order; the latest
  * entry is the suspected revision of each earlier sibling with a different hash.
  */
-export function suspectedRevisions(entries: SourceManifestEntry[]): ReconciliationEdge[] {
+function suspectedRevisions(entries: SourceManifestEntry[]): ReconciliationEdge[] {
   const entriesByOriginal = new Map<string, SourceManifestEntry[]>();
   for (const entry of entries) {
     if (entry.kind !== "file") {

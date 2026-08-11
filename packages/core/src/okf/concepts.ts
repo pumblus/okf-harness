@@ -12,7 +12,7 @@ import { type MarkdownFrontmatter, parseMarkdownFrontmatter } from "./frontmatte
 
 // log.md is no longer scaffolded; it stays reserved so a leftover log file in an older
 // workspace is ignored instead of being scanned as a concept document.
-export const RESERVED_OKF_FILENAMES = new Set(["index.md", "log.md"]);
+const RESERVED_OKF_FILENAMES = new Set(["index.md", "log.md"]);
 export const SCAN_FAILED = "SCAN_FAILED" as const;
 
 export class ConceptScanError extends Error {
@@ -149,7 +149,7 @@ export function conceptIdFromPath(markdownPath: string): string {
   return withoutWikiPrefix.slice(0, -".md".length);
 }
 
-export function isReservedOkfFile(bundlePath: string): boolean {
+function isReservedOkfFile(bundlePath: string): boolean {
   return RESERVED_OKF_FILENAMES.has(path.posix.basename(toPosixPath(bundlePath)));
 }
 

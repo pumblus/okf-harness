@@ -147,7 +147,7 @@ export const bootstrapAgentProfiles: Record<BootstrapAgent, BootstrapAgentProfil
   },
 };
 
-export const portableBootstrapProfile: BootstrapRenderProfile = {
+const portableBootstrapProfile: BootstrapRenderProfile = {
   compatibility:
     "Designed for any client that loads Agent Skills and can run local shell commands with npx access. The Harness runtime is resolved through the launcher.",
   description:
