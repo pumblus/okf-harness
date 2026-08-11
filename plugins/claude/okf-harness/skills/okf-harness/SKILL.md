@@ -4,7 +4,7 @@ description: Unified OKF Harness entrypoint for Claude Code. Use when the user a
 license: Apache-2.0
 compatibility: Designed for Claude Code with local shell and npx access. The Harness runtime is resolved through the launcher.
 metadata:
-  okf-harness-version: "0.7.0"
+  okf-harness-version: "0.8.0"
   okf-harness-managed: "true"
   okf-harness-entrypoint: "host"
   okf-harness-agent: "claude"

@@ -4,7 +4,7 @@ description: Unified OKF Harness entrypoint. Use when the user asks to create, f
 license: Apache-2.0
 compatibility: Designed for any client that loads Agent Skills and can run local shell commands with npx access. The Harness runtime is resolved through the launcher.
 metadata:
-  okf-harness-version: "0.7.0"
+  okf-harness-version: "0.8.0"
   okf-harness-managed: "true"
   okf-harness-entrypoint: "host"
   okf-harness-distribution: "portable"

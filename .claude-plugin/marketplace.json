@@ -4,14 +4,14 @@
     "name": "Eric Zhou"
   },
   "description": "Claude Code marketplace for the unified OKF Harness host entrypoint.",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "plugins": [
     {
       "name": "okf-harness",
       "source": "./plugins/claude/okf-harness",
       "displayName": "OKF Harness",
       "description": "Adds the unified okf-harness skill for workspace setup and daily maintenance through the pinned runtime launcher.",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "author": {
         "name": "Eric Zhou"
       },

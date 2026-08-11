@@ -68,7 +68,7 @@ okfh doctor --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 okfh doctor --dev --json
 ```
 
-`doctor` 不会写入任何文件。对于没有 pin 的工作区，`workspace-runtime-pin` 检查会在 `details.adoptCommand` 中返回一个由可执行文件和参数组成的精确对象，通过 `npx` 运行 `@okf-harness/cli@0.7.0`，无需全局 `okfh`。
+`doctor` 不会写入任何文件。对于没有 pin 的工作区，`workspace-runtime-pin` 检查会在 `details.adoptCommand` 中返回一个由可执行文件和参数组成的精确对象，通过 `npx` 运行 `@okf-harness/cli@0.8.0`，无需全局 `okfh`。
 
 JSON 输出中，`data.checks` 仍保留兼容用的扁平列表。`data.groups` 会把检查拆成 `runtime`、`nativeIntegrations`、`legacyBootstrapFallback` 和 `workspace`。历史键 `legacyBootstrapFallback` 报告 Claude Code 和 Codex 的宿主入口。`nativeIntegrations` 会把 `native-host-cli-*` 检测与 `native-integration-*` 验证分开：缺少宿主 CLI 时跳过验证，验证成功时通过，验证为 `failed` 或 `unavailable` 时发出警告，但不会使 doctor 整体失败。探测诊断只包含客户端、命令、结果、稳定原因、预期身份和相关退出码，绝不包含宿主原始输出。
 
