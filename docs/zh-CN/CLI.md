@@ -172,7 +172,7 @@ okfh check --workspace "$HOME/Documents/OKF Harness/ai-research" --json
 - `needs_attention`：OKF 合规通过，但 Harness lint 发现可维护性或证据完整性问题。
 - `blocked`：OKF 合规失败，工作区不是 OKF 可读取状态。
 
-JSON 响应会在 `data.okfVersion` 中报告 OKF version，目前固定为 `0.1`。OKF 合规结果放在 `data.okfConformance`，Harness lint 结果放在 `data.harnessLint`，已提升来源的对账封印状态放在 `data.currency`。Currency 仅供报告，不影响 status 或退出码。只有当工作区校验没有错误发现且没有已提升来源存在悬置对账时，`data.currency.sealed` 才为 `true`；否则为 `false`，并由 `data.currency.diagnostics` 列出确定性的错误代码。`data.currency.promotedSources` 记录 wiki 已提升的来源数量；它仅供报告，不参与封印计算。人类可读视图在存在已提升来源且均已对账时显示 `Currency: sealed`；在工作区没有任何已提升来源时显示 `Currency: no promoted sources to reconcile`；未封印时显示 `Currency: not sealed (...)`，括号中列出受影响的来源文件名或诊断代码。
+JSON 响应会在 `data.okfVersion` 中报告 OKF version，目前固定为 `0.1`。OKF 合规结果放在 `data.okfConformance`，Harness lint 结果放在 `data.harnessLint`，已提升来源的对账封印状态放在 `data.currency`。Currency 仅供报告，不影响 status 或退出码。只有当工作区校验没有错误发现且没有已提升来源存在悬置对账时，`data.currency.sealed` 才为 `true`；否则为 `false`，并由 `data.currency.diagnostics` 列出确定性的错误代码。`data.currency.promotedSources` 记录 wiki 已提升的来源数量；它仅供报告，不参与封印计算。人类可读视图在存在已提升来源且均已对账时显示 `Currency: sealed`；在工作区没有任何已提升来源时显示 `Currency: no promoted sources to reconcile`；未封印时显示 `Currency: not sealed (...)`，括号中列出受影响的来源文件名或诊断代码；如果 check 响应没有携带 currency 判定，则显示 `Currency: no currency verdict`，不会暗示通过。
 
 `check` 使用与 `status` 相同的工作区下一步判断，并通过现有顶层 `next` 字段报告。人类可读输出中如果有下一步，`check` 会把第一条显示为 `Next: ...`。
 

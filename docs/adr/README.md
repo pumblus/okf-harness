@@ -66,5 +66,6 @@ Each ADR is a short record of one durable OKF Harness product decision. Read the
 | 0051 | Serve Codex and every compatible agent client from one Agent Plugin artifact | Active |
 | 0052 | Use one host-probe module for setup, doctor, and refresh | Active |
 | 0053 | Load one workspace snapshot per read-side invocation | Active |
+| 0054 | Use one-minor deprecated transition aliases before cutting public exports | Active |
 
 Superseded decisions were replaced in full; partially superseded decisions keep part of their scope active, as stated in their `_Status:` lines.

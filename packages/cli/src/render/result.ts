@@ -123,8 +123,7 @@ function renderHumanResult(envelope: JsonEnvelope): string {
 
 function humanCurrency(currency: CheckResult["currency"] | undefined, details: string[]): string {
   if (currency === undefined) {
-    // The envelope carries no currency verdict; missing evidence is an explicit gap, never an implied pass.
-    return "no currency evidence";
+    return "no currency verdict";
   }
   if (currency.sealed === false) {
     return `not sealed (${details.join(", ")})`;
