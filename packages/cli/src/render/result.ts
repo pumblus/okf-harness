@@ -122,10 +122,14 @@ function renderHumanResult(envelope: JsonEnvelope): string {
 }
 
 function humanCurrency(currency: CheckResult["currency"] | undefined, details: string[]): string {
-  if (currency?.sealed === false) {
+  if (currency === undefined) {
+    // The envelope carries no currency verdict; missing evidence is an explicit gap, never an implied pass.
+    return "no currency evidence";
+  }
+  if (currency.sealed === false) {
     return `not sealed (${details.join(", ")})`;
   }
-  return currency?.promotedSources === 0 ? "no promoted sources to reconcile" : "sealed";
+  return currency.promotedSources === 0 ? "no promoted sources to reconcile" : "sealed";
 }
 
 function humanCheckStatus(status: string | undefined): string {
