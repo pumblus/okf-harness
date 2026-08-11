@@ -63,5 +63,6 @@ Each ADR is a short record of one durable OKF Harness product decision. Read the
 | 0048 | Admit self-authored knowledge with zero anchors | Active |
 | 0049 | Gate the write-back offer on a proven coverage gap | Active |
 | 0050 | Publish one Agent Plugin as the portable distribution of the native agent integration | Active |
+| 0051 | Serve Codex and every compatible agent client from one Agent Plugin artifact | Active |
 
 Superseded decisions were replaced in full; partially superseded decisions keep part of their scope active, as stated in their `_Status:` lines.
