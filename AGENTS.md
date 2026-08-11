@@ -4,7 +4,7 @@ An agent-first, local-first, terminal-native harness for maintaining OKF-compati
 
 ## Toolchain
 
-- pnpm 11 (not npm), Node >= 22. Scripts: `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`. Lint is Biome plus the llms docs freshness check.
+- pnpm 11 (not npm), Node >= 22. Scripts: `pnpm -w run test`, `pnpm -w run typecheck`, `pnpm -w run lint`, `pnpm -w run build` (`-w` targets the workspace root from any directory). Lint is Biome plus the llms docs freshness check.
 - Layering rule: `packages/core` imports nothing from other packages; `packages/cli` is the bridge between core and agent-pack.
 
 ## Repo layout
