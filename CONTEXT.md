@@ -343,3 +343,7 @@ _Avoid_: command, script, template
 **Harness-managed guidance block**:
 A clearly marked section inside a generated OKF Harness workspace's agent guidance file that OKF Harness may insert, replace, or remove without owning the rest of the file. It lets agent adapters update their own instructions while preserving user-written project guidance.
 _Avoid_: full-file ownership, silent overwrite, prompt injection
+
+**Release unit**:
+The smallest body of committed work that warrants a versioned release: one or more complete feature arcs, each recorded in an ADR with its docs, tests, glossary, and install paths updated together. Release size (major, minor, or patch) is decided per case from the arcs' scope, not by calendar cadence or commit thresholds; version PRDs plan committed work but do not by themselves trigger releases.
+_Avoid_: calendar release, commit threshold, milestone promise

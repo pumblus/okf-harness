@@ -6,6 +6,10 @@ Use only when preparing, validating, or writing up a public OKF Harness release.
 
 A release is not shipped until source state, GitHub state, npm registry state, package contents, and documented install paths are verified together. Missing evidence is an explicit gap, not an implied pass.
 
+## Release size
+
+Release size is decided per case from the feature arcs in the window, not by calendar cadence or commit thresholds. Signals that at least a minor is due: user-visible behavior changes, a new or changed install/distribution surface, or breaking API commits in a public package. A patch refines the same surface without behavior changes; in 0.x, breaking changes ship in a minor, not a patch.
+
 ## Preflight
 
 - Tree is clean: `git status --short`.
