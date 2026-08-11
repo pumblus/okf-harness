@@ -1,6 +1,6 @@
 {
   "name": "@okf-harness/setup",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Universal setup planner for local OKF Harness agent integrations.",
   "license": "Apache-2.0",
   "type": "module",
@@ -47,8 +47,8 @@
     "dist"
   ],
   "dependencies": {
-    "@okf-harness/agent-pack": "0.8.0",
-    "@okf-harness/core": "0.8.0"
+    "@okf-harness/agent-pack": "0.8.1",
+    "@okf-harness/core": "0.8.1"
   },
   "scripts": {
     "build": "tsup src/index.ts src/main.ts --format esm --dts --clean",

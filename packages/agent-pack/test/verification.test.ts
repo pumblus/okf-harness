@@ -23,7 +23,7 @@ const fixtures: Record<
       JSON.stringify([
         {
           id: "okf-harness@okf-harness",
-          version: "0.8.0",
+          version: "0.8.1",
           scope: "user",
           enabled: true,
         },

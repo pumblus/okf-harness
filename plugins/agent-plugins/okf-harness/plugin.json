@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "okf-harness",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Maintain OKF-compatible local LLM wikis through your coding agent: workspace setup, source ingest, checks, and evidence-backed answers through the unified okf-harness skill.",
   "author": {
     "name": "Eric Zhou",

@@ -1,7 +1,7 @@
 {
   "name": "okf-harness",
   "displayName": "OKF Harness",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Adds the unified okf-harness skill for workspace setup and daily maintenance through the pinned runtime launcher.",
   "author": {
     "name": "Eric Zhou"
