@@ -20,6 +20,10 @@ _Avoid_: framework, platform, agent runtime
 The `okfh` command-line tool that provides a deterministic tool surface for agent clients and developers. An agent-first knowledge worker should not need to learn CLI language for normal use; they should interact with OKF Harness through natural-language requests to an agent.
 _Avoid_: user interface, primary workflow, app
 
+**Command envelope (JSON envelope)**:
+The machine-readable JSON contract every `okfh` command writes to stdout (`--json`) or stderr (errors): `ok`, `command`, optional `workspace`, `data`, `warnings`, `next`, and on failure `error`. It is the agent-facing API of the Harness CLI, bound by ADR-0001 and ADR-0037; human-readable output renders the same envelope, never a second contract.
+_Avoid_: response format, output schema, JSON result wrapper
+
 **Terminal-native tool channel**:
 The default way an agent client operates OKF Harness by running explicit local shell commands, especially `okfh --json`, through the user's local terminal environment. This means local, observable, and debuggable command execution across supported operating systems; it does not require the user to learn CLI language.
 _Avoid_: alternate default tool channel, OS-specific command channel, user-facing CLI workflow
