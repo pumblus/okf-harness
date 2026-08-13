@@ -1,6 +1,16 @@
 import type { CheckResult, EvidenceBriefResult } from "@okf-harness/core";
 import type { CliIo, JsonEnvelope } from "../types.js";
 
+export type HumanRenderer = (envelope: JsonEnvelope) => string;
+
+/** Command-name table for human rendering; declared renderers win over the if-chain. */
+// Process-global: one renderer per command name, last registration wins.
+const humanRenderers = new Map<string, HumanRenderer>();
+
+export function registerHumanRenderer(command: string, renderer: HumanRenderer): void {
+  humanRenderers.set(command, renderer);
+}
+
 export function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): void {
   if (json) {
     io.writeOut(`${JSON.stringify(envelope)}\n`);
@@ -11,6 +21,11 @@ export function writeResult(io: CliIo, envelope: JsonEnvelope, json = false): vo
 }
 
 function renderHumanResult(envelope: JsonEnvelope): string {
+  const declared = humanRenderers.get(envelope.command);
+  if (declared !== undefined) {
+    return declared(envelope);
+  }
+
   if (envelope.command === "check") {
     const data = envelope.data as Partial<CheckResult>;
     const currencyDetails = [
