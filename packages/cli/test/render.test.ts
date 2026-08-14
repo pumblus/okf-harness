@@ -1,17 +1,11 @@
+import { Command } from "commander";
 import { describe, expect, it } from "vitest";
+import { humanCheck, registerWorkspaceCommands } from "../src/commands/workspace.js";
 import { writeResult } from "../src/render/result.js";
 import type { CliIo, JsonEnvelope } from "../src/types.js";
 
 function render(envelope: JsonEnvelope): string {
-  let stdout = "";
-  const io: CliIo = {
-    writeOut: (chunk) => {
-      stdout += chunk;
-    },
-    writeErr: () => {},
-  };
-  writeResult(io, envelope, false);
-  return stdout;
+  return humanCheck(envelope);
 }
 
 const baseCheckData = {
@@ -31,7 +25,7 @@ function checkEnvelope(data: Record<string, unknown>): JsonEnvelope {
   };
 }
 
-describe("writeResult check rendering", () => {
+describe("check command human rendering", () => {
   it("reports a sealed workspace as sealed", () => {
     const stdout = render(
       checkEnvelope({
@@ -71,5 +65,43 @@ describe("writeResult check rendering", () => {
     const stdout = render(checkEnvelope({}));
     expect(stdout).toContain("Currency: no currency verdict");
     expect(stdout).not.toContain("Currency: sealed");
+  });
+});
+
+describe("writeResult dispatch", () => {
+  function writeThrough(envelope: JsonEnvelope): string {
+    let stdout = "";
+    const io: CliIo = {
+      writeOut: (chunk) => {
+        stdout += chunk;
+      },
+      writeErr: () => {},
+    };
+    writeResult(io, envelope, false);
+    return stdout;
+  }
+
+  it("routes registered commands through their renderer", () => {
+    registerWorkspaceCommands(
+      new Command(),
+      {
+        writeOut: () => {},
+        writeErr: () => {},
+      },
+      () => {},
+    );
+    expect(writeThrough(checkEnvelope({}))).toContain("Currency: no currency verdict");
+  });
+
+  it("falls back to OK <command> for unregistered commands", () => {
+    expect(writeThrough({ ok: true, command: "fake", data: {}, warnings: [], next: [] })).toBe(
+      "OK fake\n",
+    );
+  });
+
+  it("falls back to FAILED <command> for unregistered failed commands", () => {
+    expect(writeThrough({ ok: false, command: "fake", data: {}, warnings: [], next: [] })).toBe(
+      "FAILED fake\n",
+    );
   });
 });

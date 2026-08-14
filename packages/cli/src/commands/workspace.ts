@@ -9,7 +9,7 @@ import {
 } from "@okf-harness/core";
 import type { Command } from "commander";
 import { writeValidationError } from "../errors/index.js";
-import { writeResult } from "../render/result.js";
+import { registerHumanRenderer, writeResult } from "../render/result.js";
 import type { CliIo, JsonEnvelope } from "../types.js";
 
 const NEXT_INITIALIZE_WORKSPACE =
@@ -35,6 +35,9 @@ export function registerWorkspaceCommands(
   io: CliIo,
   setExitCode: (code: number) => void,
 ): void {
+  registerHumanRenderer("status", humanStatus);
+  registerHumanRenderer("check", humanCheck);
+
   program
     .command("status")
     .description("Report OKF Harness workspace status.")
@@ -161,6 +164,65 @@ export function registerWorkspaceCommands(
       writeResult(io, envelope, options.json);
       setExitCode(0);
     });
+}
+
+function humanStatus(envelope: JsonEnvelope): string {
+  const next = envelope.next[0];
+  return `${envelope.ok ? "OK" : "FAILED"} status\n${next === undefined ? "" : `Next: ${next}\n`}`;
+}
+
+export function humanCheck(envelope: JsonEnvelope): string {
+  const data = envelope.data as Partial<CheckResult>;
+  const currencyDetails = [
+    ...new Set([
+      ...(data.currency?.dangling.map(({ original }) => original) ?? []),
+      ...(data.currency?.diagnostics?.map(({ code }) => code) ?? []),
+    ]),
+  ];
+  const rows = [
+    `Status: ${humanCheckStatus(data.status)}`,
+    `OKF version: ${data.okfVersion ?? "unknown"}`,
+    `OKF conformance: ${data.okfConformance?.ok === false ? "fail" : "pass"}`,
+    `Harness lint: ${data.harnessLint?.ok === false ? "needs attention" : "pass"}`,
+    `Currency: ${humanCurrency(data.currency, currencyDetails)}`,
+  ];
+  for (const priority of ["high", "medium", "low"] as const) {
+    const findings = data.harnessLint?.findings[priority] ?? [];
+    if (findings.length > 0) {
+      rows.push(`${priority}: ${findings.length}`);
+      rows.push(
+        ...findings.map((finding) => {
+          const pathValue = finding.path === undefined ? "" : ` ${finding.path}`;
+          return `- ${finding.code ?? "ISSUE"}${pathValue}`;
+        }),
+      );
+    }
+  }
+  const next = envelope.next[0];
+  return `${rows.join("\n")}\n${next === undefined ? "" : `Next: ${next}\n`}`;
+}
+
+function humanCurrency(currency: CheckResult["currency"] | undefined, details: string[]): string {
+  if (currency === undefined) {
+    return "no currency verdict";
+  }
+  if (currency.sealed === false) {
+    return `not sealed (${details.join(", ")})`;
+  }
+  return currency.promotedSources === 0 ? "no promoted sources to reconcile" : "sealed";
+}
+
+function humanCheckStatus(status: string | undefined): string {
+  if (status === "ready") {
+    return "Ready";
+  }
+  if (status === "needs_attention") {
+    return "Needs attention";
+  }
+  if (status === "blocked") {
+    return "Blocked";
+  }
+  return "Unknown";
 }
 
 async function workspaceNextStep(

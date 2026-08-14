@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import { runDoctor } from "../doctor/index.js";
-import { writeResult } from "../render/result.js";
+import { registerHumanRenderer, writeResult } from "../render/result.js";
 import type { CliIo, JsonEnvelope } from "../types.js";
 
 export function registerDoctorCommand(
@@ -8,6 +8,8 @@ export function registerDoctorCommand(
   io: CliIo,
   setExitCode: (code: number) => void,
 ): void {
+  registerHumanRenderer("doctor", humanDoctor);
+
   program
     .command("doctor")
     .description("Check okfh, local shell dependencies, and workspace readiness.")
@@ -44,4 +46,19 @@ export function registerDoctorCommand(
       writeResult(io, envelope, options.json);
       setExitCode(result.ok ? 0 : 1);
     });
+}
+
+function humanDoctor(envelope: JsonEnvelope): string {
+  const data = envelope.data as {
+    checks?: Array<{ label?: string; status?: string; message?: string }>;
+    summary?: { pass?: number; warn?: number; fail?: number; skip?: number };
+  };
+  const summary = data.summary ?? {};
+  const rows = (data.checks ?? []).map((entry) => {
+    const label = entry.label ?? "Check";
+    const status = (entry.status ?? "unknown").toUpperCase();
+    const message = entry.message ?? "";
+    return `${status} ${label}: ${message}`;
+  });
+  return `Doctor: ${summary.pass ?? 0} pass, ${summary.warn ?? 0} warn, ${summary.fail ?? 0} fail, ${summary.skip ?? 0} skip\n${rows.join("\n")}${rows.length > 0 ? "\n" : ""}`;
 }
